@@ -1,0 +1,48 @@
+{
+  "app_id": "app-01",
+  "app_name": "E-Commerce Product Catalog API",
+  "language": "python",
+  "framework": "flask",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "app.py",
+      "method": "get_order_details",
+      "line_range": "150-165",
+      "description": "Order retrieval endpoint returns order data solely based on the order_id path variable, performing no owner validation checks between the authenticated user and the requested order's client",
+      "severity": "high",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "app.py",
+      "method": "list_products",
+      "line_range": "110-125",
+      "description": "Product search query parameter is concatenated directly into a raw SQLite SELECT statement without parameterization, permitting SQL injection bypasses",
+      "severity": "high",
+      "cwe": "CWE-89"
+    },
+    {
+      "owasp_id": "A09",
+      "category": "Security Logging & Monitoring Failures",
+      "location": "app.py",
+      "method": "create_order",
+      "line_range": "180-200",
+      "description": "High-value and sensitive financial activities, including order checkouts, payment state mappings, and catalog stock alterations, are executed without producing any structured audit logs or trace monitoring records",
+      "severity": "medium",
+      "cwe": "CWE-778"
+    }
+  ],
+  "decoys": [
+    {
+      "location": "app.py",
+      "description": "Safe, parameterized user retrieval query during auth logins — secure SQL decoy"
+    },
+    {
+      "location": "app.py",
+      "description": "Flask session cookies are cryptographically signed with high-entropy key — secure cookie decoy"
+    }
+  ]
+}
