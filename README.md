@@ -40,8 +40,8 @@ Each application simulates a realistic business system with **2–4 deliberately
 
 | # | App Name | Domain | Vulnerabilities |
 |---|----------|--------|-----------------|
-| 01 | E-Commerce Product Catalog API | Retail | A01, A03, A09 |
-| 02 | Healthcare Patient Portal | Healthcare | A01, A02, A07 |
+| 01 | [E-Commerce Product Catalog API](apps/python/app-01-ecommerce-catalog/README.md) | Retail | A01, A03, A09 |
+| 02 | [Healthcare Patient Portal](apps/python/app-02-patient-portal/README.md) | Healthcare | A01, A02, A07 |
 | 03 | Banking Transaction Service | FinTech | A02, A03, A04 |
 | 04 | Real Estate Listing Platform | Real Estate | A03, A05, A10 |
 | 05 | Online Learning Management System | Education | A01, A05, A08 |
