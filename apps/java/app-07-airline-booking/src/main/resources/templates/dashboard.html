@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apex Airlines — Dashboard</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Navigation Header -->
+        <nav class="navbar">
+            <div class="logo">✈ Apex Airlines</div>
+            <div class="nav-links">
+                <span style="color: var(--primary); font-weight: 500;" th:text="${'Welcome, ' + currentUser.firstName}">Welcome, User</span>
+                <div style="background: rgba(255,255,255,0.08); padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600;" th:text="${currentUser.role}">PASSENGER</div>
+                <form th:action="@{/logout}" method="POST" style="margin: 0; padding: 0;">
+                    <button type="submit" class="btn btn-secondary" style="padding: 8px 16px; font-size: 13px; cursor: pointer;">Logout</button>
+                </form>
+            </div>
+        </nav>
+
+        <div class="grid-2">
+            <!-- Search flights (while logged in) -->
+            <div class="glass-card">
+                <h2 style="font-size: 22px; font-weight: 600; margin-bottom: 24px; color: var(--primary);">Book a New Flight</h2>
+                <form id="flightSearchForm" onsubmit="performFlightSearch(event)">
+                    <div class="form-group">
+                        <label class="form-label" for="searchOrigin">From (IATA Code)</label>
+                        <input type="text" id="searchOrigin" class="form-input" placeholder="e.g. JFK" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="searchDestination">To (IATA Code)</label>
+                        <input type="text" id="searchDestination" class="form-input" placeholder="e.g. LAX" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="searchDate">Departure Date</label>
+                        <input type="date" id="searchDate" class="form-input" required>
+                    </div>
+                    <button type="submit" class="btn" style="width: 100%; margin-top: 12px;">Search Flights</button>
+                </form>
+
+                <!-- Search Results List -->
+                <div id="searchResultsSection" style="display: none; margin-top: 32px;">
+                    <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 16px; border-bottom: 1px solid var(--glass-border); padding-bottom: 8px;">Available Flights</h3>
+                    <div id="searchResultsList" style="display: flex; flex-direction: column; gap: 16px;"></div>
+                </div>
+            </div>
+
+            <!-- Booking History -->
+            <div class="glass-card" style="grid-column: span 1;">
+                <h2 style="font-size: 22px; font-weight: 600; margin-bottom: 24px; color: var(--primary);">My Bookings</h2>
+                
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>PNR</th>
+                                <th>Flight</th>
+                                <th>Route</th>
+                                <th>Seat</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bookingsHistoryBody">
+                            <!-- Populated dynamically via JS API fetch -->
+                            <tr id="emptyRow">
+                                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 32px;">No bookings found. Search flights to make a reservation.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Handles dynamic search, dynamic history, and check-in redirect -->
+    <script th:src="@{/js/flight-search.js}"></script>
+    <script>
+        // Load booking history on load
+        document.addEventListener("DOMContentLoaded", loadBookingHistory);
+
+        function loadBookingHistory() {
+            fetch('/api/bookings/history')
+                .then(res => res.json())
+                .then(bookings => {
+                    const tbody = document.getElementById("bookingsHistoryBody");
+                    if (bookings.length === 0) {
+                        return;
+                    }
+                    tbody.innerHTML = '';
+                    
+                    bookings.forEach(booking => {
+                        const tr = document.createElement("tr");
+                        
+                        // Status Badge styling
+                        let badgeClass = 'badge-warning';
+                        if (booking.status === 'CHECKED_IN') badgeClass = 'badge-success';
+                        else if (booking.status === 'CANCELLED') badgeClass = 'badge-danger';
+                        else if (booking.status === 'CONFIRMED') badgeClass = 'badge-success';
+
+                        // Action links
+                        let actionHtml = '';
+                        if (booking.status === 'CONFIRMED') {
+                            actionHtml = `
+                                <div style="display: flex; gap: 8px;">
+                                    <a href="/checkin/${booking.pnr}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; border-radius: 6px;">Check-In</a>
+                                    <button onclick="cancelBooking('${booking.pnr}')" class="btn btn-danger" style="padding: 6px 12px; font-size: 12px; border-radius: 6px; width: auto;">Cancel</button>
+                                </div>
+                            `;
+                        } else if (booking.status === 'CHECKED_IN') {
+                            actionHtml = `<a href="/checkin/${booking.pnr}/pass" class="btn" style="padding: 6px 12px; font-size: 12px; border-radius: 6px; background: var(--success);">Boarding Pass</a>`;
+                        } else {
+                            actionHtml = `<span style="color: var(--text-muted); font-size: 13px;">None</span>`;
+                        }
+
+                        tr.innerHTML = `
+                            <td style="font-weight: 700; color: var(--primary); letter-spacing: 1px;">${booking.pnr}</td>
+                            <td style="font-weight: 500;">${booking.flight.flightNumber}</td>
+                            <td>${booking.flight.origin} ➔ ${booking.flight.destination}</td>
+                            <td style="font-weight: 600;">${booking.seat.seatNumber}</td>
+                            <td><span class="badge ${badgeClass}">${booking.status}</span></td>
+                            <td>${actionHtml}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                })
+                .catch(err => console.error("Error loading bookings history:", err));
+        }
+
+        function cancelBooking(pnr) {
+            if (!confirm("Are you sure you want to cancel booking " + pnr + "?")) {
+                return;
+            }
+            fetch(`/api/bookings/${pnr}/cancel`, {
+                method: 'PUT'
+            })
+            .then(res => {
+                if (res.ok) {
+                    loadBookingHistory();
+                } else {
+                    alert("Failed to cancel booking.");
+                }
+            })
+            .catch(err => console.error("Error cancelling booking:", err));
+        }
+    </script>
+</body>
+</html>

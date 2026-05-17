@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apex Airlines — Boarding Pass</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+    <style>
+        @media print {
+            body {
+                background: #fff;
+                color: #000;
+                min-height: auto;
+                display: block;
+            }
+            .navbar, .btn, .print-btn-panel {
+                display: none !important;
+            }
+            .boarding-pass-card {
+                box-shadow: none;
+                border: 2px solid #333;
+                margin: 0;
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container" style="max-width: 800px;">
+        <!-- Navigation Header -->
+        <nav class="navbar">
+            <div class="logo">✈ Apex Airlines</div>
+            <div class="nav-links">
+                <a th:href="@{/dashboard}" class="btn btn-secondary" style="padding: 8px 16px; font-size: 13px;">Dashboard</a>
+            </div>
+        </nav>
+
+        <!-- Printable Boarding Pass Card -->
+        <div class="boarding-pass-card">
+            <!-- Header banner -->
+            <div class="boarding-pass-header">
+                <div>
+                    <div style="font-size: 22px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">Apex Airlines</div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-top: 4px;">BOARDING PASS</div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 24px; font-weight: 800; letter-spacing: 1px;" th:text="${booking.pnr}">PNRCODE</div>
+                    <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">BOOKING REFERENCE</div>
+                </div>
+            </div>
+
+            <!-- Body Details -->
+            <div class="boarding-pass-body">
+                <div>
+                    <div style="font-size: 11px; color: #777; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Passenger Name</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #111;" th:text="${booking.passenger.firstName + ' ' + booking.passenger.lastName}">John Doe</div>
+                </div>
+                <div>
+                    <div style="font-size: 11px; color: #777; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Flight Number</div>
+                    <div style="font-size: 18px; font-weight: 700; color: var(--secondary);" th:text="${booking.flight.flightNumber}">AA101</div>
+                </div>
+
+                <div style="grid-column: span 2; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; padding: 16px; border-radius: 8px; margin: 12px 0;">
+                    <div style="text-align: left;">
+                        <div style="font-size: 32px; font-weight: 800; color: #0d3b66;" th:text="${booking.flight.origin}">JFK</div>
+                        <div style="font-size: 12px; color: #555;">New York</div>
+                    </div>
+                    <div style="font-size: 24px; color: #a0c4ff;">➔</div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 32px; font-weight: 800; color: #0d3b66;" th:text="${booking.flight.destination}">LAX</div>
+                        <div style="font-size: 12px; color: #555;">Los Angeles</div>
+                    </div>
+                </div>
+
+                <div>
+                    <div style="font-size: 11px; color: #777; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Seat Assignment</div>
+                    <div style="font-size: 20px; font-weight: 800; color: #2ec4b6;" th:text="${booking.seat.seatNumber}">1A</div>
+                </div>
+                <div>
+                    <div style="font-size: 11px; color: #777; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Service Class</div>
+                    <div style="font-size: 16px; font-weight: 700; color: #ffb703;" th:text="${booking.seat.seatClass}">FIRST CLASS</div>
+                </div>
+
+                <div>
+                    <div style="font-size: 11px; color: #777; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Gate Boarding Time</div>
+                    <div style="font-size: 15px; font-weight: 600; color: #111;" th:text="${#temporals.format(booking.flight.departureTime.minusMinutes(45), 'yyyy-MM-dd HH:mm')}">Boarding Time</div>
+                </div>
+                <div>
+                    <div style="font-size: 11px; color: #777; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Departure Schedule</div>
+                    <div style="font-size: 15px; font-weight: 600; color: #111;" th:text="${#temporals.format(booking.flight.departureTime, 'yyyy-MM-dd HH:mm')}">Departure Time</div>
+                </div>
+            </div>
+
+            <!-- barcode ticket stub -->
+            <div class="boarding-pass-footer">
+                <div>
+                    <div style="font-size: 10px; color: #888;">BARCODE RECOGNITION</div>
+                    <!-- Mock IATA Barcode visual -->
+                    <div style="margin-top: 8px; font-family: monospace; letter-spacing: 6px; font-weight: bold; background: #000; color: #fff; padding: 6px 12px; border-radius: 4px; font-size: 12px; display: inline-block;">
+                        ||||||| | ||||| ||| |||| ||
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 11px; color: #888;">STATUS</div>
+                    <div style="font-size: 14px; font-weight: 700; color: var(--success); text-transform: uppercase; margin-top: 4px;">Checked In</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action panel -->
+        <div class="print-btn-panel" style="text-align: center; margin-top: 24px;">
+            <button onclick="window.print()" class="btn" style="width: auto; padding: 14px 40px;">Print Boarding Pass</button>
+        </div>
+    </div>
+</body>
+</html>

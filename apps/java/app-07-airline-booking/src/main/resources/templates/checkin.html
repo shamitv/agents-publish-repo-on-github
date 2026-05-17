@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apex Airlines — Check-In</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+</head>
+<body>
+    <div class="app-container" style="max-width: 600px;">
+        <!-- Navigation Header -->
+        <nav class="navbar">
+            <div class="logo">✈ Apex Airlines</div>
+            <div class="nav-links">
+                <a th:href="@{/dashboard}" class="btn btn-secondary" style="padding: 8px 16px; font-size: 13px;">Dashboard</a>
+            </div>
+        </nav>
+
+        <div class="glass-card">
+            <h2 style="font-size: 22px; font-weight: 600; margin-bottom: 24px; color: var(--primary); text-align: center;">Flight Check-In</h2>
+
+            <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; margin-bottom: 24px; font-size: 14px; line-height: 1.6;">
+                <h3 style="font-size: 16px; color: var(--primary); margin-bottom: 12px;">Reservation Summary</h3>
+                <div style="display: grid; grid-template-columns: 140px 1fr; gap: 8px;">
+                    <span style="color: var(--text-muted);">Passenger Name:</span>
+                    <strong th:text="${booking.passenger.firstName + ' ' + booking.passenger.lastName}">Passenger Name</strong>
+                    
+                    <span style="color: var(--text-muted);">Booking PNR:</span>
+                    <strong style="color: var(--primary); letter-spacing: 1px;" th:text="${booking.pnr}">PNR</strong>
+
+                    <span style="color: var(--text-muted);">Flight Number:</span>
+                    <strong th:text="${booking.flight.flightNumber}">AA101</strong>
+
+                    <span style="color: var(--text-muted);">Route:</span>
+                    <strong th:text="${booking.flight.origin + ' ➔ ' + booking.flight.destination}">JFK to LAX</strong>
+
+                    <span style="color: var(--text-muted);">Assigned Seat:</span>
+                    <strong th:text="${booking.seat.seatNumber}">12A</strong>
+                </div>
+            </div>
+
+            <!-- Check-In Action Form -->
+            <form id="checkInForm" onsubmit="submitCheckIn(event)">
+                <div class="form-group">
+                    <label class="form-label" for="checkInPassport">Confirm Passport Number</label>
+                    <input type="text" id="checkInPassport" class="form-input" th:value="${booking.passenger.passportNumber}" placeholder="e.g. US123456" required>
+                </div>
+                <div class="form-group" style="margin-top: 12px;">
+                    <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 13px; color: var(--text-muted);">
+                        <input type="checkbox" required style="margin-top: 3px; transform: scale(1.1);">
+                        I confirm that the above passenger details are correct and that I will comply with all international transport regulations and dangerous goods security declarations.
+                    </label>
+                </div>
+                
+                <button type="submit" class="btn" style="width: 100%; margin-top: 24px;">Complete Online Check-In</button>
+            </form>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        const pnr = /*[[${booking.pnr}]]*/ '';
+        
+        function submitCheckIn(e) {
+            e.preventDefault();
+            
+            fetch(`/api/checkin/${pnr}`, {
+                method: 'POST'
+            })
+            .then(res => {
+                if (res.ok) {
+                    window.location.href = `/checkin/${pnr}/pass`;
+                } else {
+                    res.text().then(text => alert("Check-in failed: " + text));
+                }
+            })
+            .catch(err => console.error("Error during check-in:", err));
+        }
+        /*]]>*/
+    </script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apex Airlines — Select Seat</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+</head>
+<body>
+    <div class="app-container" style="max-width: 800px;">
+        <!-- Navigation Header -->
+        <nav class="navbar">
+            <div class="logo">✈ Apex Airlines</div>
+            <div class="nav-links">
+                <span style="color: var(--primary); font-weight: 500;" th:text="${'Welcome, ' + currentUser.firstName}">Welcome, User</span>
+                <a th:href="@{/dashboard}" class="btn btn-secondary" style="padding: 8px 16px; font-size: 13px;">Dashboard</a>
+            </div>
+        </nav>
+
+        <div class="glass-card" style="text-align: center;">
+            <h2 style="font-size: 22px; font-weight: 600; margin-bottom: 8px; color: var(--primary);">Select Your Seat</h2>
+            <p style="color: var(--text-muted); font-size: 15px; margin-bottom: 24px;" th:text="${flight.airline + ' — Flight ' + flight.flightNumber + ' (' + flight.origin + ' ➔ ' + flight.destination + ')'}">Flight details</p>
+
+            <!-- Seat Legend -->
+            <div style="display: flex; justify-content: center; gap: 20px; font-size: 13px; margin-bottom: 24px;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="display: inline-block; width: 14px; height: 14px; background: rgba(46, 196, 182, 0.2); border: 1px solid var(--success); border-radius: 3px;"></span>
+                    <span>First Class</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="display: inline-block; width: 14px; height: 14px; background: rgba(255, 183, 3, 0.2); border: 1px solid var(--warning); border-radius: 3px;"></span>
+                    <span>Business Class</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="display: inline-block; width: 14px; height: 14px; background: rgba(0, 180, 216, 0.2); border: 1px solid var(--primary); border-radius: 3px;"></span>
+                    <span>Economy Class</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="display: inline-block; width: 14px; height: 14px; background: rgba(230, 57, 70, 0.3); border: 1px solid var(--danger); border-radius: 3px;"></span>
+                    <span>Reserved</span>
+                </div>
+            </div>
+
+            <!-- Seat Grid (6 rows x 5 seats) -->
+            <div id="seatGrid" class="seat-grid">
+                <!-- Dynamically populated by JS -->
+            </div>
+
+            <div id="checkoutPanel" style="display: none; border-top: 1px solid var(--glass-border); padding-top: 24px; margin-top: 24px;">
+                <p style="font-size: 15px; margin-bottom: 16px;">
+                    Selected Seat: <strong id="selectedSeatLabel" style="color: var(--primary); font-size: 18px;">-</strong> 
+                    (<span id="selectedSeatClassLabel">-</span>)
+                </p>
+                <button onclick="bookSelectedSeat()" class="btn" style="width: auto; padding: 14px 40px;">Confirm & Book Now</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden element holding flight ID for JS fetching -->
+    <input type="hidden" id="flightId" th:value="${flight.id}">
+
+    <script th:src="@{/js/seat-map.js}"></script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apex Airlines — Search Flights</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Logo Header -->
+        <header style="text-align: center; margin-bottom: 20px;">
+            <div style="font-size: 32px; font-weight: 700; color: var(--primary); letter-spacing: 3px; text-transform: uppercase;">
+                ✈ Apex Airlines
+            </div>
+            <p style="color: var(--text-muted); margin-top: 8px;">Explore the skies in premium comfort</p>
+        </header>
+
+        <!-- Registered Success / Logout Message Box -->
+        <div th:if="${param.registered}" class="glass-card" style="padding: 20px; text-align: center; border-color: var(--success); margin-bottom: 12px;">
+            <span style="color: var(--success); font-weight: 600;">Account created successfully! Please login below.</span>
+        </div>
+        <div th:if="${param.logout}" class="glass-card" style="padding: 20px; text-align: center; border-color: var(--warning); margin-bottom: 12px;">
+            <span style="color: var(--warning); font-weight: 600;">You have been logged out.</span>
+        </div>
+        <div th:if="${param.error}" class="glass-card" style="padding: 20px; text-align: center; border-color: var(--danger); margin-bottom: 12px;">
+            <span style="color: var(--danger); font-weight: 600;">Invalid login credentials. Please try again.</span>
+        </div>
+
+        <div class="grid-2">
+            <!-- Search Flights Panel -->
+            <div class="glass-card">
+                <h2 style="font-size: 22px; font-weight: 600; margin-bottom: 24px; color: var(--primary);">Search Flights</h2>
+                <form id="flightSearchForm" onsubmit="performFlightSearch(event)">
+                    <div class="form-group">
+                        <label class="form-label" for="searchOrigin">From (IATA Code)</label>
+                        <input type="text" id="searchOrigin" class="form-input" placeholder="e.g. JFK" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="searchDestination">To (IATA Code)</label>
+                        <input type="text" id="searchDestination" class="form-input" placeholder="e.g. LAX" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="searchDate">Departure Date</label>
+                        <input type="date" id="searchDate" class="form-input" required>
+                    </div>
+                    <button type="submit" class="btn" style="width: 100%; margin-top: 12px;">Find Flights</button>
+                </form>
+
+                <!-- Search Results Dynamic Display -->
+                <div id="searchResultsSection" style="display: none; margin-top: 32px;">
+                    <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 16px; border-bottom: 1px solid var(--glass-border); padding-bottom: 8px;">Available Flights</h3>
+                    <div id="searchResultsList" style="display: flex; flex-direction: column; gap: 16px;"></div>
+                </div>
+            </div>
+
+            <!-- Login Panel -->
+            <div class="glass-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <h2 style="font-size: 22px; font-weight: 600; margin-bottom: 24px; color: var(--primary);">Passenger Portal</h2>
+                    <form th:action="@{/login}" method="POST">
+                        <div class="form-group">
+                            <label class="form-label" for="loginEmail">Email Address</label>
+                            <input type="email" id="loginEmail" name="email" class="form-input" placeholder="john@gmail.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="loginPassword">Password</label>
+                            <input type="password" id="loginPassword" name="password" class="form-input" placeholder="••••••••" required>
+                        </div>
+                        <button type="submit" class="btn" style="width: 100%; margin-top: 12px;">Login Account</button>
+                    </form>
+                </div>
+
+                <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--glass-border); text-align: center;">
+                    <p style="font-size: 14px; color: var(--text-muted);">
+                        New to Apex Airlines? 
+                        <a th:href="@{/register}" style="color: var(--primary); font-weight: 600; text-decoration: none; margin-left: 4px;">Register Account</a>
+                    </p>
+                    <!-- Quick Account Demos -->
+                    <div style="margin-top: 24px; background: rgba(255,255,255,0.02); padding: 16px; border-radius: 10px; font-size: 13px; text-align: left; line-height: 1.5;">
+                        <span style="font-weight: 600; color: var(--primary);">Quick Demo Accounts:</span><br>
+                        • passenger: <code>john@gmail.com</code> / <code>john123</code><br>
+                        • staff: <code>staff@airline.com</code> / <code>staff123</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client-side Flight Search Handler -->
+    <script th:src="@{/js/flight-search.js}"></script>
+</body>
+</html>
