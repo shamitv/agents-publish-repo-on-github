@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sovereign Wealth Management Terminal</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+    <!-- 1. Auth Portal (Hidden by default when logged in) -->
+    <div id="authPortal" class="auth-wrapper" style="display: none;">
+        <div class="auth-card">
+            <header style="text-align: center; margin-bottom: 32px;">
+                <h1 style="font-family: var(--font-luxury);">🏛 SOVEREIGN</h1>
+                <p style="color: var(--text-muted); font-size: 11px; margin-top: 6px; letter-spacing: 1px; font-family: var(--font-mono);">ELITE WEALTH MANAGEMENT PORTAL</p>
+            </header>
+            
+            <div id="loginError" style="display: none; background: rgba(255, 61, 113, 0.15); border: 1px solid var(--danger); padding: 12px; border-radius: 6px; text-align: center; color: #ff809f; font-size: 13px; font-weight: 600; margin-bottom: 20px; font-family: var(--font-mono);">
+                ERROR: SECURITY CLEARANCE REJECTED
+            </div>
+
+            <form id="loginForm" onsubmit="handleLoginSubmit(event)">
+                <div class="form-group">
+                    <label class="form-label" for="username">Access Identifier</label>
+                    <input type="text" id="username" class="form-input" placeholder="e.g. alice" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="password">Private Access Passphrase</label>
+                    <input type="password" id="password" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn" style="width: 100%; margin-top: 12px;">ESTABLISH LINK</button>
+            </form>
+
+            <div style="margin-top: 24px; background: rgba(255,255,255,0.01); padding: 16px; border-radius: 6px; font-size: 11px; line-height: 1.6; border: 1px solid var(--border-color); font-family: var(--font-mono);">
+                <span style="font-weight: 600; color: var(--primary);">AUTHENTICATED ACCESS CODES:</span><br>
+                • Client Alice: <code>alice</code> / <code>alice123</code> (Balance: $5,200.00)<br>
+                • Client Bob: <code>bob</code> / <code>bob123</code> (Balance: $7,800.00)<br>
+                • Client Charlie: <code>charlie</code> / <code>charlie123</code> (Balance: $140.00)
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Main Terminal Layout -->
+    <div id="appLayout" style="display: none;">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div>
+                <div class="brand">
+                    <span>🏛 SOVEREIGN</span>
+                </div>
+                <nav>
+                    <ul class="nav-menu">
+                        <li><a onclick="showView('dashboard')" id="nav-dashboard" class="nav-link active">🏦 Wealth Ledger</a></li>
+                        <li><a onclick="showView('transfers')" id="nav-transfers" class="nav-link">💸 Wire Dispatcher</a></li>
+                    </ul>
+                </nav>
+            </div>
+            
+            <div style="border-top: 1px solid var(--border-color); padding-top: 24px; display: flex; flex-direction: column; gap: 16px;">
+                <div>
+                    <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-family: var(--font-luxury);">Active Node</div>
+                    <div id="currentUserLabel" style="font-size: 16px; font-weight: 600; color: #fff; margin-top: 4px; font-family: var(--font-mono);">-</div>
+                    <div id="currentUserRoleLabel" style="font-size: 11px; color: var(--primary); margin-top: 2px; font-family: var(--font-luxury);">-</div>
+                </div>
+                <button onclick="handleLogout()" class="btn btn-secondary" style="width: 100%; padding: 10px;">SEVER COMMUNICATOR</button>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="main-content">
+            
+            <!-- 2.1 Wealth Ledger View -->
+            <section id="view-dashboard" class="spa-view">
+                <div class="header-panel">
+                    <div>
+                        <h1>Sovereign Account Ledger</h1>
+                        <p style="color: var(--text-muted); margin-top: 4px;">Liquidity records, balance verification, and real-time transaction streams</p>
+                    </div>
+                </div>
+
+                <div class="grid-cards">
+                    <!-- Balance Widget -->
+                    <div class="wealth-card">
+                        <div>
+                            <span class="balance-lbl">Available Ledger Credit</span>
+                            <div id="ledgerBalanceVal" class="balance-val">$0.00</div>
+                        </div>
+                        <div style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 13px;">
+                            <div>
+                                <span class="form-label" style="font-size: 9px;">Account Number</span>
+                                <div id="ledgerAccountNum" style="font-family: var(--font-mono); font-weight: 700; color: #fff;">-</div>
+                            </div>
+                            <div>
+                                <span class="form-label" style="font-size: 9px;">Routing Signature</span>
+                                <div id="ledgerRoutingNum" style="font-family: var(--font-mono); color: #fff;">-</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Client Summary Card -->
+                    <div class="wealth-card" style="justify-content: flex-start; gap: 12px;">
+                        <span class="balance-lbl">Sovereign Profile Specifications</span>
+                        <div>
+                            <span class="form-label" style="font-size: 9px;">Signature Identity</span>
+                            <h3 id="ledgerClientName" style="font-family: var(--font-luxury); color: #fff; margin-top: 4px;">-</h3>
+                        </div>
+                        <div style="margin-top: 12px;">
+                            <span class="form-label" style="font-size: 9px;">Clearing Status</span>
+                            <div style="color: var(--secondary); font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                                🟢 LEDGER LINK OK
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NoSQL Injection Console (A03 Sandbox) -->
+                <div class="nosql-card">
+                    <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 12px;">
+                        <input type="text" id="nosqlFilterInput" class="form-input" placeholder='Search filter JSON e.g. {"category": "Utilities"}' style="flex-grow: 1; font-family: var(--font-mono);">
+                        <button onclick="triggerNoSqlFilterSearch()" class="btn btn-secondary">Filter Transactions</button>
+                    </div>
+                    <div class="form-label" style="font-family: var(--font-luxury); font-size: 10px; color: var(--primary);">In-Memory NoSQL Pipeline Telemetry Console</div>
+                    <div id="nosqlConsoleFeed" class="nosql-feed">DATABASE IDLE. Enter category filter payload parameters...</div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px; font-family: var(--font-mono);">
+                        💡 <span style="color: var(--primary);">NoSQL Bypass Payload Hint:</span> Try entering <code>{"category": {"$ne": "Utilities"}}</code> or <code>{"amount": {"$gt": 0}}</code> to bypass category isolation!
+                    </div>
+                </div>
+
+                <!-- Ledger list -->
+                <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 32px;">
+                    <h2 style="font-family: var(--font-luxury); font-size: 16px; margin-bottom: 20px; color: var(--primary);">Transaction Ledger Feed</h2>
+                    
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Flow</th>
+                                    <th>Sender Node</th>
+                                    <th>Recipient Node</th>
+                                    <th>Debit/Credit Amount</th>
+                                    <th>Sector Category</th>
+                                    <th>Audit Memo Description</th>
+                                    <th>Fulfillment Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ledgerTableBody">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 32px;">No transactions found in database collection.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2.2 Wire Dispatcher View -->
+            <section id="view-transfers" class="spa-view" style="display: none;">
+                <div class="header-panel">
+                    <div>
+                        <h1>Wire Dispatch Center</h1>
+                        <p style="color: var(--text-muted); margin-top: 4px;">Execute high-speed wire transfers across commercial banking nodes</p>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 32px;">
+                    <!-- Wire form -->
+                    <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 32px; height: fit-content;">
+                        <h2 style="font-family: var(--font-luxury); font-size: 15px; color: var(--primary); margin-bottom: 20px;">Execute Wire Transfer</h2>
+                        
+                        <form id="transferForm" onsubmit="handleTransferSubmit(event)">
+                            <div class="form-group">
+                                <label class="form-label" for="wireRecipient">Recipient Account Number</label>
+                                <input type="text" id="wireRecipient" class="form-input" placeholder="e.g. 10008273" required>
+                            </div>
+
+                            <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div class="form-group">
+                                    <label class="form-label" for="wireAmount">Wire Amount ($)</label>
+                                    <input type="number" step="0.01" id="wireAmount" class="form-input" placeholder="450.00" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="wireCategory">Sector Category</label>
+                                    <select id="wireCategory" class="form-input" style="background: #111422; color: #fff; height: 46px;" required>
+                                        <option value="General">General</option>
+                                        <option value="Utilities">Utilities</option>
+                                        <option value="Investments">Investments</option>
+                                        <option value="Secret">Secret Vault</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="wireDesc">Audit Memo</label>
+                                <input type="text" id="wireDesc" class="form-input" placeholder="e.g. Consulting fee payouts" required>
+                            </div>
+
+                            <button type="submit" class="btn" style="width: 100%;">DISPATCH TRANSACTION</button>
+                        </form>
+                    </div>
+
+                    <!-- Rate Limit Test utilities (A04 Sandbox) -->
+                    <div style="background: var(--card-bg); border: 1px dashed var(--border-color); border-radius: 10px; padding: 32px;">
+                        <h2 style="font-family: var(--font-luxury); font-size: 15px; color: var(--secondary); margin-bottom: 12px;">Automated Bot Stress Visualizer (A04)</h2>
+                        <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 24px;">
+                            This stress test tool dispatches **10 consecutive wire requests** in fraction seconds to verify rate limiting. If rate limits are missing, the wires will complete without blocks, depleting balances instantly.
+                        </p>
+                        
+                        <div style="background: #090a0f; border: 1px solid var(--border-color); border-radius: 6px; padding: 16px; font-family: var(--font-mono); font-size: 12px; margin-bottom: 20px; line-height: 1.5; color: var(--secondary);">
+                            <div style="font-weight: 700; color: #fff; margin-bottom: 6px;">[RATE-LIMIT STRESS LOGS]</div>
+                            <div id="rateLimitStressOutput">Status: READY. Awaiting trigger...</div>
+                        </div>
+
+                        <button onclick="triggerAutomatedStressWMS()" class="btn btn-secondary" style="width: 100%;">
+                            ⚡ LAUNCH AUTOMATED BATCH TRANSFERS (x10)
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- WMS Portal Client JavaScript -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

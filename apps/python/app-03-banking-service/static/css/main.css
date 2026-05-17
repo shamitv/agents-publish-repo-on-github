@@ -1,0 +1,363 @@
+/* -------------------------------------------------------------
+   App 03 - Sleek Wealth Management Banking SPA Styles
+   ------------------------------------------------------------- */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Montserrat:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap');
+
+:root {
+    --bg-dark: #08090e;
+    --card-bg: #0f111a;
+    --border-color: #1c2135;
+    --primary: #cfb997; /* Champagne Gold */
+    --primary-hover: #e0cca9;
+    --primary-glow: rgba(207, 185, 151, 0.3);
+    --secondary: #00e676; /* Vivid Emerald Green */
+    --secondary-glow: rgba(0, 230, 118, 0.3);
+    --text-white: #f3f4f6;
+    --text-muted: #717d96;
+    --font-luxury: 'Cinzel', serif;
+    --font-sans: 'Montserrat', sans-serif;
+    --font-mono: 'Share Tech Mono', monospace;
+    --danger: #ff3d71;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--bg-dark);
+    font-family: var(--font-sans);
+    color: var(--text-white);
+    min-height: 100vh;
+    display: flex;
+    overflow-x: hidden;
+}
+
+/* Auth Backdrop */
+.auth-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100vw;
+    height: 100vh;
+    background: radial-gradient(circle at center, #1b1610 0%, var(--bg-dark) 100%);
+}
+
+.auth-card {
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 48px;
+    width: 100%;
+    max-width: 460px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+    position: relative;
+}
+
+.auth-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+}
+
+.auth-card h1 {
+    font-family: var(--font-luxury);
+    font-size: 24px;
+    color: var(--primary);
+    text-align: center;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+    text-shadow: 0 0 10px var(--primary-glow);
+}
+
+/* App SPA Container */
+#appLayout {
+    display: flex;
+    width: 100%;
+    height: 100vh;
+}
+
+/* Sidebar Navigation */
+.sidebar {
+    width: 290px;
+    background: #090b10;
+    border-right: 2px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 40px 24px;
+    flex-shrink: 0;
+}
+
+.sidebar .brand {
+    font-family: var(--font-luxury);
+    font-size: 16px;
+    color: var(--primary);
+    letter-spacing: 1.5px;
+    text-align: center;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 24px;
+    margin-bottom: 40px;
+    text-shadow: 0 0 8px var(--primary-glow);
+}
+
+.sidebar .nav-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    list-style: none;
+}
+
+.sidebar .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+.sidebar .nav-link:hover, .sidebar .nav-link.active {
+    color: var(--text-white);
+    background: rgba(207, 185, 151, 0.05);
+    border-color: rgba(207, 185, 151, 0.15);
+}
+
+.sidebar .nav-link.active {
+    border-left: 3px solid var(--secondary);
+    border-radius: 0 8px 8px 0;
+    text-shadow: 0 0 6px var(--secondary-glow);
+}
+
+/* Main Workspace */
+.main-content {
+    flex-grow: 1;
+    height: 100%;
+    overflow-y: auto;
+    padding: 48px;
+    background-color: var(--bg-dark);
+}
+
+.header-panel {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 40px;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 24px;
+}
+
+.header-panel h1 {
+    font-family: var(--font-luxury);
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+}
+
+/* Wealth Ledger Widgets */
+.grid-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 28px;
+    margin-bottom: 40px;
+}
+
+.wealth-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 28px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.3s ease;
+}
+
+.wealth-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 0 20px var(--primary-glow);
+}
+
+.wealth-card .balance-lbl {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 8px;
+}
+
+.wealth-card .balance-val {
+    font-family: var(--font-mono);
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--secondary);
+    text-shadow: 0 0 10px var(--secondary-glow);
+}
+
+/* NoSQL console box */
+.nosql-card {
+    background: #090a0f;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 32px;
+}
+
+.nosql-feed {
+    background: #040406;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 16px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--primary);
+    white-space: pre-wrap;
+    line-height: 1.5;
+    margin-top: 12px;
+    max-height: 140px;
+    overflow-y: auto;
+}
+
+/* Forms */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+
+.form-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+}
+
+.form-input {
+    background: #111422;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 12px 16px;
+    color: #fff;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 8px var(--primary-glow);
+}
+
+/* Buttons */
+.btn {
+    background: var(--primary);
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    padding: 12px 24px;
+    font-family: var(--font-luxury);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn:hover {
+    background: var(--primary-hover);
+    box-shadow: 0 0 15px var(--primary-glow);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: transparent;
+    color: var(--secondary);
+    border: 1px solid var(--secondary);
+}
+
+.btn-secondary:hover {
+    background: rgba(0, 230, 118, 0.08);
+    box-shadow: 0 0 12px var(--secondary-glow);
+}
+
+/* Table */
+.table-wrapper {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+th {
+    background: #090b10;
+    color: var(--primary);
+    font-family: var(--font-luxury);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+td {
+    padding: 18px 24px;
+    font-size: 14px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+tr:hover td {
+    background: rgba(207, 185, 151, 0.01);
+}
+
+/* Badges */
+.badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+}
+
+.badge-credit {
+    background: rgba(0, 230, 118, 0.1);
+    color: var(--secondary);
+    border: 1px solid rgba(0, 230, 118, 0.2);
+}
+
+.badge-debit {
+    background: rgba(255, 61, 113, 0.1);
+    color: var(--danger);
+    border: 1px solid rgba(255, 61, 113, 0.2);
+}
