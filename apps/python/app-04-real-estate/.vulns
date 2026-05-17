@@ -1,0 +1,48 @@
+{
+  "app_id": "app-04",
+  "app_name": "Real Estate Listing Platform",
+  "language": "python",
+  "framework": "flask",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "app.py",
+      "method": "process_image_metadata",
+      "line_range": "130-155",
+      "description": "OS Command Injection. The image analyzer tool uses subprocess.Popen with shell=True to execute a command containing an unvalidated property file path or image metadata name, permitting arbitrary shell execution",
+      "severity": "high",
+      "cwe": "CWE-78"
+    },
+    {
+      "owasp_id": "A05",
+      "category": "Security Misconfiguration",
+      "location": "app.py",
+      "method": "app_config",
+      "line_range": "12-25",
+      "description": "Security Misconfiguration. Flask debug mode is explicitly set to True in production run configs, and it utilizes a default widely known secret key (secret_key=dev), permitting session tampering and remote debugger access",
+      "severity": "medium",
+      "cwe": "CWE-1188"
+    },
+    {
+      "owasp_id": "A10",
+      "category": "Server-Side Request Forgery",
+      "location": "app.py",
+      "method": "import_external_image",
+      "line_range": "165-190",
+      "description": "Server-Side Request Forgery (SSRF). The remote image import endpoint fetches image resources from user-provided URLs using requests.get without validating, restricting, or sanitizing internal local network IPs",
+      "severity": "high",
+      "cwe": "CWE-918"
+    }
+  ],
+  "decoys": [
+    {
+      "location": "app.py",
+      "description": "Standard session authorization check before uploading property directories — secure auth decoy"
+    },
+    {
+      "location": "app.py",
+      "description": "Decoy secure parameterized SQL queries for standard listing searches — secure search decoy"
+    }
+  ]
+}
