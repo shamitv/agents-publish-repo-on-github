@@ -1,0 +1,48 @@
+{
+  "app_id": "app-02",
+  "app_name": "Healthcare Patient Portal",
+  "language": "python",
+  "framework": "django",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "portal/views.py",
+      "method": "get_patient_records",
+      "line_range": "110-125",
+      "description": "Patient records detail view retrieves and returns sensitive medical histories based purely on the patient_id path parameter, with no validation verifying if the authenticated user's profile ID matches the requested parameter",
+      "severity": "high",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A02",
+      "category": "Cryptographic Failures",
+      "location": "portal/models.py",
+      "method": "set_password_md5",
+      "line_range": "35-50",
+      "description": "User profiles database utilizes insecure, weak MD5 hashing algorithms to store patient credentials instead of standard PBKDF2/Argon2 algorithms, exposing credentials to simple dictionary attacks",
+      "severity": "high",
+      "cwe": "CWE-916"
+    },
+    {
+      "owasp_id": "A07",
+      "category": "Identification & Authentication Failures",
+      "location": "portal/views.py",
+      "method": "login_view",
+      "line_range": "70-90",
+      "description": "System access authentication handles arbitrary sequential log-in retries without implementing account lockouts, rate limiting, or connection throttling rules, facilitating dictionary and brute force attacks",
+      "severity": "medium",
+      "cwe": "CWE-307"
+    }
+  ],
+  "decoys": [
+    {
+      "location": "patient_portal/settings.py",
+      "description": "Django secure session cookie flags (SESSION_COOKIE_HTTPONLY=True, SECURE_BROWSER_XSS_FILTER=True) properly enabled — secure auth decoy"
+    },
+    {
+      "location": "portal/views.py",
+      "description": "Safe, CSRF exempt and parameterized input sanitization during appointment booking checks — secure input decoy"
+    }
+  ]
+}
