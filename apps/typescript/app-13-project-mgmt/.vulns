@@ -1,0 +1,44 @@
+{
+  "app_id": "app-13",
+  "app_name": "Project Management Tool",
+  "language": "typescript",
+  "framework": "express",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "src/index.ts",
+      "method": "getBoardById",
+      "line_range": "110-125",
+      "description": "Broken Access Control. The endpoint fetches project boards directly by their numeric ID without verifying if the requested board belongs to the currently authenticated user's organization.",
+      "severity": "high",
+      "cwe": "CWE-284"
+    },
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "public/js/app.js",
+      "method": "renderTasks",
+      "line_range": "100-115",
+      "description": "Cross-Site Scripting (XSS). Task descriptions are rendered into the DOM using innerHTML without HTML entity encoding, allowing execution of malicious Javascript payloads.",
+      "severity": "high",
+      "cwe": "CWE-79"
+    },
+    {
+      "owasp_id": "A09",
+      "category": "Security Logging and Monitoring Failures",
+      "location": "src/index.ts",
+      "method": "updateBoardPermissions",
+      "line_range": "140-160",
+      "description": "Security Logging and Monitoring Failures. The endpoint modifies sensitive project access permissions but fails to generate any audit logs or trace events.",
+      "severity": "medium",
+      "cwe": "CWE-778"
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/index.ts",
+      "description": "Secure standard JWT or secure session cookie authentication middleware."
+    }
+  ]
+}
