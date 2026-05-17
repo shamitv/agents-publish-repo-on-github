@@ -1,0 +1,44 @@
+{
+  "app_id": "app-12",
+  "app_name": "Crypto Wallet Service",
+  "language": "typescript",
+  "framework": "nestjs",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A02",
+      "category": "Cryptographic Failures",
+      "location": "src/wallet/wallet.service.ts",
+      "method": "createWallet",
+      "line_range": "20-35",
+      "description": "Cryptographic Failures. Wallet private keys are stored in the database in plaintext without any encryption or secure enclave protection.",
+      "severity": "critical",
+      "cwe": "CWE-256"
+    },
+    {
+      "owasp_id": "A04",
+      "category": "Insecure Design",
+      "location": "src/wallet/wallet.controller.ts",
+      "method": "transferFunds",
+      "line_range": "40-60",
+      "description": "Insecure Design. The transfer funds endpoint executes immediately upon request without any transaction confirmation step, multi-step validation, or intent verification.",
+      "severity": "high",
+      "cwe": "CWE-352"
+    },
+    {
+      "owasp_id": "A07",
+      "category": "Identification and Authentication Failures",
+      "location": "src/wallet/wallet.service.ts",
+      "method": "executeTransfer",
+      "line_range": "45-70",
+      "description": "Identification and Authentication Failures. High-value transactions (transfers of any amount) are processed without requiring Multi-Factor Authentication (MFA) or step-up authentication.",
+      "severity": "high",
+      "cwe": "CWE-308"
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/auth/auth.guard.ts",
+      "description": "Standard JWT authentication guard protecting endpoints."
+    }
+  ]
+}
