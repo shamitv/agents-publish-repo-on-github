@@ -1,0 +1,53 @@
+{
+  "app_id": "app-09",
+  "app_name": "Legal Document Management",
+  "language": "java",
+  "framework": "spring-boot",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "src/main/java/com/legal/controller/DocumentController.java",
+      "method": "downloadDocument",
+      "line_range": "25-35",
+      "description": "Document download endpoint performs no validation to verify if the currently authenticated client has ownership or case access authorization to retrieve the requested document, leading to horizontal IDOR bypass",
+      "severity": "high",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A02",
+      "category": "Cryptographic Failures",
+      "location": "src/main/java/com/legal/model/Document.java",
+      "method": null,
+      "line_range": "15-30",
+      "description": "Highly sensitive corporate legal contracts, lawsuit briefs, and depositions are stored directly in plaintext database columns without any encryption at rest",
+      "severity": "high",
+      "cwe": "CWE-311"
+    },
+    {
+      "owasp_id": "A06",
+      "category": "Vulnerable and Outdated Components",
+      "location": "pom.xml",
+      "method": null,
+      "line_range": "10-25",
+      "description": "Application imports and uses log4j-core:2.14.1 as logging dependency, making it vulnerable to Log4Shell (CVE-2021-44228) when logging user-controlled request headers",
+      "severity": "critical",
+      "cwe": "CWE-1395",
+      "secondary_location": "src/main/java/com/legal/controller/DocumentController.java"
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/main/java/com/legal/config/SecurityConfig.java",
+      "description": "Session fixation protection configured to migrateSession() — properly secured"
+    },
+    {
+      "location": "src/main/java/com/legal/config/SecurityConfig.java",
+      "description": "BCryptPasswordEncoder used for secure client credentials storage — safe decoy"
+    },
+    {
+      "location": "src/main/java/com/legal/controller/CaseController.java",
+      "description": "@PreAuthorize limits attorney-only endpoints securely — access controls verified"
+    }
+  ]
+}
