@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apex Court Legal Document Portal</title>
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+    <!-- 1. Auth Portal (Hidden by default when logged in) -->
+    <div id="authPortal" class="auth-wrapper" style="display: none;">
+        <div class="auth-card">
+            <header style="text-align: center; margin-bottom: 32px;">
+                <h1>⚖ Apex Counsel</h1>
+                <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">Secure Client-Attorney Document Vault</p>
+            </header>
+            
+            <div id="loginError" style="display: none; background: rgba(178, 59, 59, 0.15); border: 1px solid var(--danger); padding: 12px; border-radius: 6px; text-align: center; color: #fca5a5; font-size: 13px; font-weight: 600; margin-bottom: 20px;">
+                Invalid credentials. Access Denied.
+            </div>
+
+            <form id="loginForm" onsubmit="handleLoginSubmit(event)">
+                <div class="form-group">
+                    <label class="form-label" for="username">Portal Username</label>
+                    <input type="text" id="username" class="form-input" placeholder="e.g. attorney" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input type="password" id="password" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn" style="width: 100%; margin-top: 12px;">Authenticate & Enter</button>
+            </form>
+
+            <div style="margin-top: 24px; background: rgba(255,255,255,0.01); padding: 16px; border-radius: 6px; font-size: 12px; line-height: 1.6; border: 1px solid var(--border-color);">
+                <span style="font-weight: 600; color: var(--primary); font-family: var(--font-serif);">Credential Seeds:</span><br>
+                • Legal Counsel: <code>attorney</code> / <code>attorney123</code><br>
+                • Client Acme: <code>client_acme</code> / <code>client123</code><br>
+                • Client Zenith: <code>client_zenith</code> / <code>client123</code>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Main Boardroom Layout -->
+    <div id="appLayout" style="display: none;">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div>
+                <div class="brand">
+                    <span>⚖ Apex Counsel</span>
+                </div>
+                <nav>
+                    <ul class="nav-menu">
+                        <li><a onclick="showView('dashboard')" id="nav-dashboard" class="nav-link active">🏛 Dashboard</a></li>
+                        <li><a onclick="showView('cases')" id="nav-cases" class="nav-link">💼 Case Files</a></li>
+                        <li><a onclick="showView('audit')" id="nav-audit" class="nav-link">🔍 Audit Logs</a></li>
+                    </ul>
+                </nav>
+            </div>
+            
+            <div style="border-top: 1px solid var(--border-color); padding-top: 24px; display: flex; flex-direction: column; gap: 16px;">
+                <div>
+                    <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Active Counsel Profile</div>
+                    <div id="currentUserLabel" style="font-size: 15px; font-weight: 600; color: #fff; margin-top: 4px;">-</div>
+                    <div id="currentUserRoleLabel" style="font-size: 11px; font-family: var(--font-serif); color: var(--primary); margin-top: 2px;">-</div>
+                </div>
+                <button onclick="handleLogout()" class="btn btn-secondary" style="width: 100%; padding: 10px;">Terminate Session</button>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="main-content">
+            
+            <!-- 2.1 Dashboard View -->
+            <section id="view-dashboard" class="spa-view">
+                <div class="header-panel">
+                    <div>
+                        <h1>Counsel Dashboard</h1>
+                        <p style="color: var(--text-muted); margin-top: 4px;">Overview of active litigations and privileged filings</p>
+                    </div>
+                </div>
+
+                <div class="grid-cards">
+                    <div class="card-widget">
+                        <span class="title">Active Litigations</span>
+                        <span id="statActiveCases" class="value">0</span>
+                    </div>
+                    <div class="card-widget">
+                        <span class="title">Archived/Closed Cases</span>
+                        <span id="statClosedCases" class="value">0</span>
+                    </div>
+                </div>
+
+                <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 32px;">
+                    <h2 style="font-family: var(--font-serif); font-size: 18px; margin-bottom: 20px; color: var(--primary);">Assigned Case Portfolios</h2>
+                    <div class="table-wrapper" style="margin-top: 0;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Filing Case Title</th>
+                                    <th>Corporate Client</th>
+                                    <th>Status</th>
+                                    <th>Filing Date</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dashboardCasesTableBody">
+                                <tr>
+                                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 32px;">No active cases registered.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2.2 Case Files Explorer View -->
+            <section id="view-cases" class="spa-view" style="display: none;">
+                <div class="header-panel">
+                    <div>
+                        <h1>Case Portfolio Manager</h1>
+                        <p style="color: var(--text-muted); margin-top: 4px;">Browse legal pleadings, exhibits, and corporate briefs</p>
+                    </div>
+                    <button onclick="openAddCaseModal()" id="addCaseBtn" class="btn" style="display: none;">+ Establish Case File</button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1.3fr; gap: 32px;">
+                    <!-- Case queue list -->
+                    <div>
+                        <h2 style="font-family: var(--font-serif); font-size: 18px; margin-bottom: 16px;">Litigation Queues</h2>
+                        <div class="table-wrapper" style="margin-top: 0;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Case Title</th>
+                                        <th>Owner</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="casesQueueTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Selected Case Documents Panel -->
+                    <div id="caseDetailsPanel" class="card-widget" style="display: none; justify-content: flex-start; gap: 24px; padding: 32px; height: fit-content;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
+                            <div>
+                                <h2 id="caseDetailTitle" style="font-family: var(--font-serif); font-size: 20px; color: var(--primary);">Case Title</h2>
+                                <p id="caseDetailClient" style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Client: -</p>
+                            </div>
+                            <span id="caseDetailStatusBadge" class="badge badge-active">ACTIVE</span>
+                        </div>
+
+                        <div>
+                            <div class="form-label">Brief Description</div>
+                            <p id="caseDetailDesc" style="font-size: 14px; margin-top: 4px; line-height: 1.6; color: var(--text-muted);"></p>
+                        </div>
+
+                        <!-- Documents vault -->
+                        <div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <div class="form-label">Exhibits & Document Vault</div>
+                                <button onclick="openAddDocModal()" class="btn btn-secondary" style="padding: 6px 12px; font-size: 11px; border-radius: 4px;">+ File Document</button>
+                            </div>
+
+                            <div class="table-wrapper" style="margin-top: 0; background: rgba(0,0,0,0.15);">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Filings</th>
+                                            <th>Counsel</th>
+                                            <th>Filing Date</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="caseDocumentsTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2.3 Legal Vault Plaintext Reader View -->
+            <section id="view-document-reader" class="spa-view" style="display: none;">
+                <div class="header-panel">
+                    <div>
+                        <h1 id="docReaderTitle">Document Vault</h1>
+                        <p style="color: var(--text-muted); margin-top: 4px;">Privileged Legal Document Content Reader</p>
+                    </div>
+                    <button onclick="showView('cases')" class="btn btn-secondary">← Back to Cases</button>
+                </div>
+
+                <div style="background: var(--card-bg); border: 2px solid var(--border-color); border-radius: 12px; padding: 40px;">
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 24px;">
+                        <div>
+                            <div class="form-label">Document filename</div>
+                            <div id="docReaderFilename" style="font-family: var(--font-mono); color: var(--primary); font-size: 15px; margin-top: 4px;">-</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div class="form-label">Filed by counsel</div>
+                            <div id="docReaderAuthor" style="font-size: 14px; font-weight: 600; margin-top: 4px;">-</div>
+                        </div>
+                    </div>
+
+                    <div class="form-label">Decoded Cleartext Vault Content</div>
+                    
+                    <!-- Aged Law Parchment Reader (A02 target: prints the document completely unencrypted!) -->
+                    <div id="docPlaintextContent" class="legal-document-viewer"></div>
+                </div>
+            </section>
+
+            <!-- 2.4 Log4j Auditing Station View -->
+            <section id="view-audit" class="spa-view" style="display: none;">
+                <div class="header-panel">
+                    <div>
+                        <h1>System Audit & Event Dispatcher</h1>
+                        <p style="color: var(--text-muted); margin-top: 4px;">Audit system logging pipelines and verify message parameters</p>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 32px;">
+                    <!-- Log dispatch control -->
+                    <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 32px;">
+                        <h2 style="font-family: var(--font-serif); font-size: 18px; color: var(--primary); margin-bottom: 20px;">Auditable Metadata Event</h2>
+                        
+                        <form id="auditForm" onsubmit="dispatchAuditEvent(event)">
+                            <div class="form-group">
+                                <label class="form-label" for="auditHeader">Target HTTP Request Header</label>
+                                <select id="auditHeader" class="form-input" style="background: #120505; color: #fff; height: 46px;" required>
+                                    <option value="User-Agent">User-Agent Header</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="auditPayload">Logging Audit payload / string</label>
+                                <textarea id="auditPayload" class="form-input" style="height: 120px; font-family: var(--font-mono);" required>Apex WMS Audit Dispatcher v1.02</textarea>
+                            </div>
+
+                            <button type="submit" class="btn" style="width: 100%;">Audit & Dispatch Log String</button>
+                        </form>
+                    </div>
+
+                    <!-- Dispatch responses -->
+                    <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 32px; display: flex; flex-direction: column; justify-content: space-between; min-height: 380px;">
+                        <div>
+                            <h3 style="font-family: var(--font-serif); font-size: 15px; color: var(--primary); margin-bottom: 16px;">Console Logs Feed</h3>
+                            <div id="auditConsoleFeed" style="background: #000; border: 1px solid var(--border-color); padding: 16px; border-radius: 6px; font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); min-height: 240px; overflow-y: auto; white-space: pre-wrap; line-height: 1.6;">Console idle. Dispatch audit payload to monitor telemetry...</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- 3. Add Case Modal -->
+    <div id="addCaseModal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Establish New Litigation File</h2>
+                <button onclick="closeAddCaseModal()" class="modal-close">×</button>
+            </div>
+            <form id="addCaseForm" onsubmit="handleAddCaseSubmit(event)">
+                <div class="form-group">
+                    <label class="form-label" for="addCaseTitle">Litigation Title</label>
+                    <input type="text" id="addCaseTitle" class="form-input" placeholder="e.g. Acme vs Globex Corp Patent Infringement" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="addCaseOwner">Corporate Client Username</label>
+                    <input type="text" id="addCaseOwner" class="form-input" placeholder="e.g. client_acme" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="addCaseDesc">Brief Case Description</label>
+                    <textarea id="addCaseDesc" class="form-input" style="height: 100px;" placeholder="Details about this legal file..."></textarea>
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">Establish Case File</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 4. Add Document Modal -->
+    <div id="addDocModal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>File Legal Document under Case</h2>
+                <button onclick="closeAddDocModal()" class="modal-close">×</button>
+            </div>
+            <form id="addDocForm" onsubmit="handleAddDocSubmit(event)">
+                <div class="form-group">
+                    <label class="form-label" for="addDocTitle">Document Title</label>
+                    <input type="text" id="addDocTitle" class="form-input" placeholder="e.g. CEO Witness Deposition" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="addDocFilename">Physical Filename</label>
+                    <input type="text" id="addDocFilename" class="form-input" placeholder="e.g. deposition_ceo.txt" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="addDocContent">Plaintext File Content (A02 target)</label>
+                    <textarea id="addDocContent" class="form-input" style="height: 120px; font-family: var(--font-mono);" placeholder="Enter raw legal brief, contract text..." required></textarea>
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">File Privileged Brief</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- WMS Portal Client JavaScript -->
+    <script src="/js/app.js"></script>
+</body>
+</html>
