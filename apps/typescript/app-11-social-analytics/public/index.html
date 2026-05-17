@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Analytics Platform</title>
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+    <!-- 1. Auth Portal -->
+    <div id="authPortal" class="auth-wrapper" style="display: none;">
+        <div class="auth-card">
+            <header style="text-align: center; margin-bottom: 32px;">
+                <h1>NEON METRICS</h1>
+                <p style="color: var(--text-muted); font-size: 12px; margin-top: 4px;">SOCIAL CAMPAIGN INTELLIGENCE</p>
+            </header>
+            
+            <div id="loginError" style="display: none; background: rgba(255, 51, 102, 0.1); border: 1px solid var(--danger); padding: 12px; border-radius: 8px; text-align: center; color: var(--danger); font-size: 13px; font-weight: 500; margin-bottom: 20px;">
+                Access Denied: Invalid Credentials
+            </div>
+
+            <form id="loginForm" onsubmit="handleLoginSubmit(event)">
+                <div class="form-group">
+                    <label class="form-label" for="username">Operator ID</label>
+                    <input type="text" id="username" class="form-input" placeholder="alice" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="password">Passphrase</label>
+                    <input type="password" id="password" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn" style="width: 100%; margin-top: 8px;">INITIALIZE SESSION</button>
+            </form>
+
+            <div style="margin-top: 24px; padding: 16px; border-radius: 8px; font-size: 12px; color: var(--text-muted); border: 1px solid var(--border-color); background: rgba(0,0,0,0.2);">
+                <span>Test Operators:</span><br>
+                • <code>alice</code> / <code>alice123</code><br>
+                • <code>bob</code> / <code>bob123</code>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Main Terminal Layout -->
+    <div id="appLayout" style="display: none;">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div>
+                <div class="brand">
+                    <span style="font-size: 24px;">⚡</span> NEON
+                </div>
+                <nav>
+                    <ul class="nav-menu">
+                        <li><a onclick="showView('dashboard')" id="nav-dashboard" class="nav-link active">📊 Analytics Board</a></li>
+                        <li><a onclick="showView('preview')" id="nav-preview" class="nav-link">🔗 URL Previews</a></li>
+                    </ul>
+                </nav>
+            </div>
+            
+            <div style="border-top: 1px solid var(--border-color); padding-top: 24px;">
+                <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Active Session</div>
+                <div id="currentUserLabel" style="font-size: 16px; font-weight: 600; color: #fff; margin-top: 4px;">-</div>
+                <button onclick="handleLogout()" class="btn btn-secondary" style="width: 100%; padding: 8px; margin-top: 16px; font-size: 12px;">LOGOUT</button>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="main-content">
+            
+            <!-- 2.1 Dashboard View -->
+            <section id="view-dashboard" class="spa-view">
+                <div class="header-panel">
+                    <div>
+                        <h1>Campaign Performance</h1>
+                        <p style="color: var(--text-muted); margin-top: 8px;">Real-time metrics and social engagement tracking</p>
+                    </div>
+                </div>
+
+                <!-- Custom Widget Adder (A03 XSS Sandbox) -->
+                <div class="cyber-panel">
+                    <h2 style="font-size: 16px; color: var(--text-white); margin-bottom: 16px;">Add Custom Metric Widget</h2>
+                    <form onsubmit="handleAddWidget(event)" style="display: flex; gap: 16px; align-items: flex-end;">
+                        <div class="form-group" style="margin-bottom: 0; flex-grow: 1;">
+                            <label class="form-label" for="widgetTitle">Widget Title (A03 XSS Target)</label>
+                            <input type="text" id="widgetTitle" class="form-input" placeholder="e.g. Q3 Conversions or <img src=x onerror=alert(1)>" required>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0; width: 150px;">
+                            <label class="form-label" for="widgetValue">Initial Value</label>
+                            <input type="text" id="widgetValue" class="form-input" placeholder="e.g. 5,000" required>
+                        </div>
+                        <button type="submit" class="btn">Create</button>
+                    </form>
+                </div>
+
+                <!-- Widgets Grid -->
+                <div id="widgetsGrid" class="widget-grid"></div>
+            </section>
+
+            <!-- 2.2 URL Preview View (A10 SSRF Sandbox) -->
+            <section id="view-preview" class="spa-view" style="display: none;">
+                <div class="header-panel">
+                    <div>
+                        <h1>Campaign Link Inspector</h1>
+                        <p style="color: var(--text-muted); margin-top: 8px;">Verify external link metadata before broad publication</p>
+                    </div>
+                </div>
+
+                <div class="cyber-panel">
+                    <h2 style="font-size: 16px; color: var(--secondary); margin-bottom: 12px;">Remote Fetch Tool (A10 SSRF)</h2>
+                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 24px;">
+                        Enter a target URL to fetch preview metadata. Warning: Network fetcher does not restrict internal IP routing.
+                    </p>
+                    
+                    <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+                        <input type="text" id="ssrfUrlInput" class="form-input" placeholder="http://127.0.0.1:8011/api/auth/me" style="flex-grow: 1;">
+                        <button onclick="triggerSsrfPreview()" class="btn btn-secondary">Analyze URL</button>
+                    </div>
+                    
+                    <div class="form-label">Network Inspector Feed</div>
+                    <div id="ssrfConsoleFeed" class="terminal-feed">Awaiting URL input...</div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Application JavaScript -->
+    <script src="/js/app.js"></script>
+</body>
+</html>
