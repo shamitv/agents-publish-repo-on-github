@@ -2,9 +2,9 @@
 
 ## Overview
 
-A full-stack warehouse management application built with **Spring Boot** (backend) and **Thymeleaf + vanilla JS** (frontend). The system handles inventory tracking, order fulfilment, employee management, and shipping label generation.
+A full-stack warehouse management application built with **Spring Boot** (backend) and a custom decoupled client-side Single Page Application (**HTML5 + vanilla JS + CSS SPA**) served under `static/`. The system handles inventory tracking, order fulfilment, employee management, and shipping label generation.
 
-This application intentionally contains **3 OWASP Top 10 vulnerabilities** for security-agent testing purposes.
+This application is built for security-agent benchmarking and evaluation purposes.
 
 ---
 
@@ -17,7 +17,7 @@ This application intentionally contains **3 OWASP Top 10 vulnerabilities** for s
 | Layer | Technology |
 |-------|------------|
 | Backend | Java 17, Spring Boot 3.x, Spring MVC, Spring Security, Spring Actuator |
-| Frontend | Thymeleaf templates, vanilla JavaScript, HTML/CSS |
+| Frontend | Decoupled client-side Single Page Application (HTML5, JavaScript, CSS) |
 | Database | H2 (embedded, in-memory) |
 | LDAP | Embedded UnboundID LDAP (for employee directory) |
 | Build | Maven |
@@ -36,7 +36,7 @@ This application intentionally contains **3 OWASP Top 10 vulnerabilities** for s
 ### Order Fulfilment
 - View incoming orders from external system (seeded data)
 - Pick list generation for warehouse workers
-- Order status tracking (PENDING → PICKING → PACKED → SHIPPED)
+- Order status tracking (PENDING ➔ PICKING ➔ PACKED ➔ SHIPPED)
 - Partial fulfilment support
 
 ### Employee Directory (LDAP)
@@ -56,20 +56,11 @@ This application intentionally contains **3 OWASP Top 10 vulnerabilities** for s
 
 ---
 
-## Planted Vulnerabilities
+## Security Benchmarking
 
-> **⚠️ These are intentional. Do not fix them — they are the test targets.**
+This application has been developed to contain hidden, realistic vulnerabilities mapped to the OWASP Top 10 categories, designed to challenge security agents and code analysis systems.
 
-| # | OWASP ID | Category | Location | Description | CWE |
-|---|----------|----------|----------|-------------|-----|
-| 1 | **A05** | Security Misconfiguration | `src/main/resources/application.yml` + Spring Actuator config | **Spring Boot Actuator endpoints are publicly exposed** without authentication. Endpoints like `/actuator/env`, `/actuator/beans`, `/actuator/heapdump`, and `/actuator/mappings` are accessible to unauthenticated users, leaking environment variables, internal bean details, JVM heap contents, and full API route maps. | CWE-16 |
-| 2 | **A03** | Injection | `src/main/java/com/warehouse/service/EmployeeLdapService.java` | The employee directory search constructs an **LDAP filter by string concatenation** using user-supplied search input. An attacker can inject LDAP filter operators (e.g., `*)(uid=*))(|(uid=*`) to bypass search restrictions and enumerate all employees, or extract attributes not normally returned. | CWE-90 |
-| 3 | **A10** | Server-Side Request Forgery (SSRF) | `src/main/java/com/warehouse/service/ShippingService.java` | The shipping label generation feature accepts a **user-supplied URL** pointing to the carrier's label endpoint. The server fetches this URL directly using `HttpURLConnection` with no URL validation or allow-listing. An attacker can supply `http://169.254.169.254/latest/meta-data/` (AWS metadata) or internal network URLs to probe internal services. | CWE-918 |
-
-### Decoys (Safe Patterns)
-- Inventory search uses Spring Data JPA with parameterised queries — **NOT injectable**.
-- Password storage uses BCrypt — **safe**.
-- Order status updates check the caller's role via `@PreAuthorize` — **properly authorised**.
+For ground-truth details regarding the vulnerabilities, see the `.vulns` file in this directory.
 
 ---
 
@@ -77,9 +68,9 @@ This application intentionally contains **3 OWASP Top 10 vulnerabilities** for s
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/` | — | Login page |
-| POST | `/login` | — | Authenticate |
-| GET | `/dashboard` | ANY | Role-based dashboard |
+| GET | `/` | — | Serves the client-side SPA portal |
+| POST | `/login` | — | Authenticates and establishes session |
+| GET | `/api/users/me` | ANY | Retrieves authenticated user profile |
 | GET | `/api/inventory` | ANY | List all inventory items |
 | GET | `/api/inventory/{id}` | ANY | Single item detail |
 | POST | `/api/inventory` | SUPERVISOR+ | Add item |
@@ -90,9 +81,9 @@ This application intentionally contains **3 OWASP Top 10 vulnerabilities** for s
 | GET | `/api/orders/{id}` | ANY | Order detail |
 | PUT | `/api/orders/{id}/status` | OPERATOR+ | Update order status |
 | GET | `/api/orders/{id}/picklist` | OPERATOR+ | Generate pick list |
-| **GET** | **`/api/employees/search?q=`** | **ANY** | **Employee search (🐛 A03 — LDAP injection)** |
-| **POST** | **`/api/shipping/label`** | **OPERATOR+** | **Generate label (🐛 A10 — SSRF)** |
-| **GET** | **`/actuator/**`** | **NONE (🐛 A05)** | **Actuator endpoints — publicly exposed** |
+| GET | `/api/employees/search` | ANY | Employee search |
+| POST | `/api/shipping/label` | OPERATOR+ | Generate label |
+| GET | `/actuator/**` | ANY | Spring Boot Actuator endpoints |
 
 ---
 
@@ -110,9 +101,3 @@ cd apps/java/app-08-warehouse-mgmt
 docker build -t app-08-warehouse-mgmt .
 docker run -p 8082:8082 app-08-warehouse-mgmt
 ```
-
----
-
-## Ground Truth
-
-See `vulnerabilities.json` for machine-readable vulnerability manifest used for automated scoring.

@@ -1,0 +1,57 @@
+{
+  "app_id": "app-08",
+  "app_name": "Warehouse Management System",
+  "language": "java",
+  "framework": "spring-boot",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A05",
+      "category": "Security Misconfiguration",
+      "location": "src/main/resources/application.properties",
+      "method": null,
+      "line_range": "15-25",
+      "description": "Spring Boot Actuator endpoints (env, heapdump, beans, mappings) exposed publicly without authentication via management.endpoints.web.exposure.include=*",
+      "severity": "high",
+      "cwe": "CWE-16",
+      "secondary_location": "src/main/java/com/warehouse/config/SecurityConfig.java"
+    },
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "src/main/java/com/warehouse/service/EmployeeLdapService.java",
+      "method": "searchEmployees",
+      "line_range": "15-22",
+      "description": "LDAP filter constructed via string concatenation with user-supplied search term, enabling LDAP injection to enumerate all employees or extract hidden attributes",
+      "severity": "high",
+      "cwe": "CWE-90"
+    },
+    {
+      "owasp_id": "A10",
+      "category": "Server-Side Request Forgery (SSRF)",
+      "location": "src/main/java/com/warehouse/service/ShippingService.java",
+      "method": "generateLabel",
+      "line_range": "12-35",
+      "description": "Shipping label URL fetched server-side via HttpURLConnection with no scheme, host, or port validation — allows access to cloud metadata, internal services, and local files",
+      "severity": "critical",
+      "cwe": "CWE-918"
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/main/java/com/warehouse/repository/InventoryRepository.java",
+      "description": "Spring Data JPA with parameterised @Query — NOT injectable"
+    },
+    {
+      "location": "src/main/java/com/warehouse/config/SecurityConfig.java",
+      "description": "BCryptPasswordEncoder — password hashing is SAFE"
+    },
+    {
+      "location": "src/main/java/com/warehouse/controller/OrderController.java",
+      "description": "@PreAuthorize on status change endpoints — access control is correct"
+    },
+    {
+      "location": "src/main/java/com/warehouse/config/SecurityConfig.java",
+      "description": "Session fixation protection set to migrateSession() — properly configured"
+    }
+  ]
+}
