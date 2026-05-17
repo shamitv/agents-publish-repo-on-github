@@ -16,3 +16,6 @@ node_modules/
 .env
 .idea/
 .vscode/
+.DS_Store
+**/.DS_Store
+
