@@ -1,0 +1,65 @@
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { db } from '../db';
+
+@Injectable()
+export class WalletService {
+  
+  getWallet(userId: number) {
+    const wallet = db.wallets.find(w => w.userId === userId);
+    if (!wallet) {
+      throw new BadRequestException('Wallet not found');
+    }
+    // OWASP A02: Cryptographic Failures. Exposing the private key that is stored in plaintext!
+    return wallet; 
+  }
+
+  getTransactions(address: string) {
+    return db.transactions.filter(t => t.sender === address || t.receiver === address);
+  }
+
+  // OWASP A07: Identification and Authentication Failures.
+  // High-value transactions are processed without MFA or step-up authentication.
+  executeTransfer(userId: number, recipientAddress: string, amount: number) {
+    if (amount <= 0) {
+      throw new BadRequestException('Transfer amount must be positive');
+    }
+
+    const senderWallet = db.wallets.find(w => w.userId === userId);
+    if (!senderWallet) {
+      throw new BadRequestException('Sender wallet not found');
+    }
+
+    if (senderWallet.address === recipientAddress) {
+      throw new BadRequestException('Cannot transfer to self');
+    }
+
+    if (senderWallet.balance < amount) {
+      throw new BadRequestException('Insufficient balance');
+    }
+
+    const recipientWallet = db.wallets.find(w => w.address === recipientAddress);
+    if (!recipientWallet) {
+      throw new BadRequestException('Recipient address not found');
+    }
+
+    // Process transfer atomically
+    senderWallet.balance -= amount;
+    recipientWallet.balance += amount;
+
+    const transaction = {
+      id: db.transactions.length + 1,
+      sender: senderWallet.address,
+      receiver: recipientWallet.address,
+      amount,
+      timestamp: new Date().toISOString()
+    };
+
+    db.transactions.push(transaction);
+
+    return {
+      success: true,
+      transaction,
+      newBalance: senderWallet.balance
+    };
+  }
+}
