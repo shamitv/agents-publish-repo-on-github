@@ -59,10 +59,10 @@ Each application simulates a realistic business system with **2–4 deliberately
 
 | # | App Name | Domain | Vulnerabilities |
 |---|----------|--------|-----------------|
-| 06 | Enterprise HR Management System | HR | A01, A02, A08 |
-| 07 | Airline Booking System | Travel | A03, A04, A07 |
-| 08 | Warehouse Management System | Logistics | A03, A05, A10 |
-| 09 | Legal Document Management | Legal | A01, A02, A06 |
+| 06 | [Enterprise HR Management System](apps/java/app-06-hr-management/README.md) | HR | A01, A02, A08 |
+| 07 | [Airline Booking System](apps/java/app-07-airline-booking/README.md) | Travel | A03, A04, A07 |
+| 08 | [Warehouse Management System](apps/java/app-08-warehouse-mgmt/README.md) | Logistics | A03, A05, A10 |
+| 09 | [Legal Document Management](apps/java/app-09-legal-documents/README.md) | Legal | A01, A02, A06 |
 | 10 | Telecom Billing Platform | Telecom | A03, A04, A09 |
 | 26 | Pharmaceutical Drug Tracking | Pharma | A01, A02, A08 |
 | 27 | Hotel Reservation System | Hospitality | A03, A05, A07 |
