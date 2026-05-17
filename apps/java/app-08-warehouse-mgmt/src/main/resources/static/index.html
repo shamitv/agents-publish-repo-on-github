@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apex WMS — Control Panel</title>
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+    <!-- Auth Portal (Hidden by default when logged in) -->
+    <div id="authPortal" class="auth-wrapper" style="display: none;">
+        <div class="auth-card">
+            <header style="text-align: center; margin-bottom: 32px;">
+                <div style="font-size: 24px; font-weight: 700; color: var(--primary); letter-spacing: 1px; text-transform: uppercase;">
+                    ⚡ Apex WMS
+                </div>
+                <p style="color: var(--text-muted); font-size: 13px; margin-top: 8px;">Warehouse Control & Logistics Portal</p>
+            </header>
+            
+            <div id="loginError" style="display: none; background: rgba(231, 29, 54, 0.15); border: 1px solid var(--warning); padding: 12px; border-radius: 8px; text-align: center; color: var(--warning); font-size: 13px; font-weight: 600; margin-bottom: 20px;">
+                Invalid username or password.
+            </div>
+
+            <form id="loginForm" onsubmit="handleLoginSubmit(event)">
+                <div class="form-group">
+                    <label class="form-label" for="username">Operator Username</label>
+                    <input type="text" id="username" class="form-input" placeholder="e.g. operator" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="password">Security Password</label>
+                    <input type="password" id="password" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn" style="width: 100%; margin-top: 12px;">Establish Session</button>
+            </form>
+
+            <div style="margin-top: 24px; background: rgba(255,255,255,0.02); padding: 16px; border-radius: 8px; font-size: 12px; line-height: 1.6; border: 1px solid var(--border-color);">
+                <span style="font-weight: 600; color: var(--primary);">System Seeding:</span><br>
+                • Operator: <code>operator</code> / <code>operator123</code><br>
+                • Supervisor: <code>supervisor</code> / <code>supervisor123</code><br>
+                • Administrator: <code>admin</code> / <code>admin123</code>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main WMS Layout Wrapper -->
+    <div id="appLayout" style="display: none;">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div>
+                <div class="brand">
+                    <span>📦 Apex WMS</span>
+                </div>
+                <nav>
+                    <ul class="nav-menu">
+                        <li><a onclick="showView('dashboard')" id="nav-dashboard" class="nav-link active">📊 Dashboard</a></li>
+                        <li><a onclick="showView('inventory')" id="nav-inventory" class="nav-link">📋 Inventory</a></li>
+                        <li><a onclick="showView('orders')" id="nav-orders" class="nav-link">🚚 Orders</a></li>
+                        <li><a onclick="showView('employees')" id="nav-employees" class="nav-link">👥 Employees</a></li>
+                        <li><a onclick="showView('shipping')" id="nav-shipping" class="nav-link">🏷 Shipping</a></li>
+                    </ul>
+                </nav>
+            </div>
+            
+            <div style="border-top: 1px solid var(--border-color); padding-top: 24px; display: flex; flex-direction: column; gap: 16px;">
+                <div>
+                    <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Operator ID</div>
+                    <div id="currentUserLabel" style="font-size: 15px; font-weight: 600; color: #fff; margin-top: 4px;">-</div>
+                    <div id="currentUserRoleLabel" style="font-size: 11px; font-family: var(--font-mono); color: var(--primary); margin-top: 2px;">-</div>
+                </div>
+                <button onclick="handleLogout()" class="btn btn-secondary" style="width: 100%; padding: 10px;">Terminate Session</button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- 1. Dashboard View -->
+            <section id="view-dashboard" class="spa-view">
+                <div class="header-panel">
+                    <div>
+                        <h1>Warehouse Dashboard</h1>
+                        <p style="color: var(--text-muted); margin-top: 4px;">Real-time tracking of stocking, fulfillment, and operations</p>
+                    </div>
+                </div>
+
+                <div class="grid-cards">
+                    <div class="card-widget">
+                        <span class="title">Active Catalog Parts</span>
+                        <span id="statTotalItems" class="value">0</span>
+                    </div>
+                    <div class="card-widget">
+                        <span class="title" style="color: var(--warning);">Low Stock Threshold Alerts</span>
+                        <span id="statLowStockCount" class="value" style="color: var(--warning);">0</span>
+                    </div>
+                    <div class="card-widget">
+                        <span class="title">Active Orders Fulfillment</span>
+                        <span id="statPendingOrders" class="value">0</span>
+                    </div>
+                </div>
+
+                <div class="glass-card" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 14px; padding: 32px;">
+                    <h2 style="font-size: 18px; margin-bottom: 20px; color: var(--warning);">Critical Low-Stock Warnings</h2>
+                    <div class="table-wrapper" style="margin-top: 0;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>SKU</th>
+                                    <th>Item Name</th>
+                                    <th>Aisle Location</th>
+                                    <th>Current stock</th>
+                                    <th>Alert Threshold</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lowStockTableBody">
+                                <tr>
+                                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 32px;">All catalog items satisfy threshold levels.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. Inventory View -->
+            <section id="view-inventory" class="spa-view" style="display: none;">
+                <div class="header-panel">
+                    <div>
+                        <h1>Inventory Catalog</h1>
+                        <p style="color: var(--text-muted); margin-top: 4px;">Search and manage warehouse items stock allocations</p>
+                    </div>
+                    <button onclick="openAddInventoryModal()" id="addInventoryBtn" class="btn" style="display: none;">+ Add Catalog Item</button>
+                </div>
+
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>SKU</th>
+                                <th>Item Name</th>
+                                <th>Location (Aisle/Shelf/Bin)</th>
+                                <th>Weight</th>
+                                <th>Unit Price</th>
+                                <th>Current Qty</th>
+                                <th>Min Qty</th>
+                                <th>Restocked</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventoryTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 3. Orders View -->
+            <section id="view-orders" class="spa-view" style="display: none;">
+                <div class="header-panel">
+                    <div>
+                        <h1>Fulfillment Operations</h1>
+                        <p style="color: var(--text-muted); margin-top: 4px;">Track orders and execute pick lists processing</p>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 32px;">
+                    <!-- Orders List Column -->
+                    <div>
+                        <h2 style="font-size: 18px; margin-bottom: 16px;">System Orders Queue</h2>
+                        <div class="table-wrapper" style="margin-top: 0;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Order ID</th>
+                                        <th>Customer</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ordersQueueTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Selected Order Details Column -->
+                    <div id="orderDetailsCard" class="card-widget" style="display: none; justify-content: flex-start; gap: 24px; padding: 32px; height: fit-content;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
+                            <div>
+                                <h2 id="orderDetailNumber" style="font-size: 20px; color: var(--primary);">ORD-99001</h2>
+                                <p id="orderDetailCustomer" style="font-size: 14px; margin-top: 4px;">Acme Industries</p>
+                            </div>
+                            <span id="orderDetailStatusBadge" class="badge badge-pending">PENDING</span>
+                        </div>
+
+                        <div>
+                            <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Shipping Destination</div>
+                            <div id="orderDetailAddress" style="font-size: 14px; margin-top: 4px; line-height: 1.5;">-</div>
+                        </div>
+
+                        <!-- Pick List / Items block -->
+                        <div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Order Items</div>
+                                <button onclick="generatePickList()" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; border-radius: 6px;">📋 Generate Pick List</button>
+                            </div>
+                            
+                            <div class="table-wrapper" style="margin-top: 0; background: rgba(0,0,0,0.15);">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Item / Location</th>
+                                            <th>Qty</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="orderItemsTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Transition triggers block -->
+                        <div id="orderFulfillmentActions" style="border-top: 1px solid var(--border-color); padding-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
+                            <!-- Filled dynamically depending on status -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. Employee Directory View -->
+            <section id="view-employees" class="spa-view" style="display: none;">
+                <div class="header-panel">
+                    <div>
+                        <h1>Employee Directory Lookup</h1>
+                        <p style="color: var(--text-muted); margin-top: 4px;">Search shift members and staff mappings via WMS directory</p>
+                    </div>
+                </div>
+
+                <div class="glass-card" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 14px; padding: 32px;">
+                    <div style="display: flex; gap: 16px; margin-bottom: 28px;">
+                        <input type="text" id="employeeSearchInput" class="form-input" placeholder="Enter name, title, or directory ID..." style="max-width: 500px;">
+                        <button onclick="triggerEmployeeSearch()" class="btn">Search Directory</button>
+                    </div>
+
+                    <div class="table-wrapper" style="margin-top: 0;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Full Name</th>
+                                    <th>Surname</th>
+                                    <th>Mail Address</th>
+                                    <th>Job Title</th>
+                                    <th>Department</th>
+                                </tr>
+                            </thead>
+                            <tbody id="employeesTableBody">
+                                <tr>
+                                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 32px;">Enter a directory search term above.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. Shipping Station View -->
+            <section id="view-shipping" class="spa-view" style="display: none;">
+                <div class="header-panel">
+                    <div>
+                        <h1>Shipping Label Operations</h1>
+                        <p style="color: var(--text-muted); margin-top: 4px;">Download and print carrier-generated transport labels</p>
+                    </div>
+                </div>
+
+                <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
+                    <!-- Form block -->
+                    <div class="glass-card" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 14px; padding: 32px;">
+                        <form id="shippingLabelForm" onsubmit="triggerLabelDownload(event)">
+                            <div class="form-group">
+                                <label class="form-label" for="labelOrderId">Select Order ID</label>
+                                <select id="labelOrderId" class="form-input" style="background: #1c1c22; border: 1px solid var(--border-color); color: #fff; width: 100%; height: 46px;" required>
+                                    <!-- Populated dynamically -->
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="labelCarrier">Transport Carrier</label>
+                                <input type="text" id="labelCarrier" class="form-input" placeholder="e.g. DHL Logistics" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="labelTracking">Tracking reference</label>
+                                <input type="text" id="labelTracking" class="form-input" placeholder="e.g. TRK-88009-X" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="labelUrl">Carrier Label URL</label>
+                                <input type="text" id="labelUrl" class="form-input" placeholder="e.g. http://carrier-api.local/labels/label-101.jpg" required>
+                            </div>
+                            <button type="submit" class="btn" style="width: 100%; margin-top: 12px;">Fetch & Register Label</button>
+                        </form>
+                    </div>
+
+                    <!-- Label preview block -->
+                    <div class="glass-card" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 14px; padding: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 380px;">
+                        <h3 style="font-size: 15px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 24px; width: 100%; text-align: left;">Label Rendering Preview</h3>
+                        <div id="labelPreviewHolder" style="border: 2px dashed var(--border-color); border-radius: 8px; width: 100%; height: 100%; min-height: 280px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: rgba(0,0,0,0.25);">
+                            <span style="color: var(--text-muted); font-size: 13px;">No active shipping label processed yet.</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 6. Inventory Addition Modal (hidden by default) -->
+    <div id="addInventoryModal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2 style="font-size: 18px; color: var(--primary);">Add New Catalog Item</h2>
+                <button onclick="closeAddInventoryModal()" class="modal-close">×</button>
+            </div>
+            <form id="addInventoryForm" onsubmit="handleAddInventorySubmit(event)">
+                <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label class="form-label" for="addSku">Part SKU Code</label>
+                        <input type="text" id="addSku" class="form-input" placeholder="e.g. SKU-WH-026" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="addName">Catalog Name</label>
+                        <input type="text" id="addName" class="form-input" placeholder="e.g. High-Pressure Valve" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="addDesc">Part Description</label>
+                    <textarea id="addDesc" class="form-input" style="height: 80px;" placeholder="Details about this part..."></textarea>
+                </div>
+                <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label class="form-label" for="addQty">Stock Qty</label>
+                        <input type="number" id="addQty" class="form-input" placeholder="e.g. 50" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="addMinQty">Threshold Level</label>
+                        <input type="number" id="addMinQty" class="form-input" placeholder="e.g. 15" required>
+                    </div>
+                </div>
+                <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+                    <div class="form-group">
+                        <label class="form-label" for="addAisle">Aisle</label>
+                        <input type="text" id="addAisle" class="form-input" placeholder="e.g. 02">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="addShelf">Shelf</label>
+                        <input type="text" id="addShelf" class="form-input" placeholder="e.g. B">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="addBin">Bin</label>
+                        <input type="text" id="addBin" class="form-input" placeholder="e.g. 3">
+                    </div>
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">Create Catalog Entry</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- WMS Client Logic -->
+    <script src="/js/app.js"></script>
+</body>
+</html>
