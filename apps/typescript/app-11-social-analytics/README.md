@@ -1,20 +1,72 @@
-# $app
+# App 11 — Social Media Analytics Dashboard
 
-**Language:** $lang
+## Overview
 
-**Purpose:** Placeholder description for $app. This is a full‑stack sample application used to demonstrate common OWASP Top 10 vulnerabilities such as CORS misconfiguration, broken access control, injection, etc.
+A full-stack analytics platform built with **Express / TypeScript** (Backend) and a decoupled client-side Single Page Application (**HTML5 + vanilla JS + CSS SPA**) served under static asset routes. The system manages social media metrics tracking, custom widgets, and campaign URL previews.
 
-## How to Run
-
-\`\`\`sh
-# Install dependencies (example)
-# Adjust commands per language/framework
-\`\`\`
-
-## Vulnerabilities
-
-The ground‑truth list of planted vulnerabilities is defined in `vulnerabilities.json`.
+This application is built for security-agent benchmarking and evaluation purposes.
 
 ---
 
-*This file is auto‑generated for scaffold purposes.*
+## Business Domain
+
+**Marketing / Social Media** — Used by marketing professionals to track campaign performance, monitor engagement, and preview external links.
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Backend | Node.js, Express, TypeScript |
+| Frontend | Decoupled client-side SPA (HTML5, JS, CSS) |
+| Database | In-Memory Object Store |
+| Containerisation | Docker |
+
+---
+
+## Features
+
+### Analytics Dashboard
+- Dynamic widgets displaying real-time marketing metrics.
+- Customizable dashboard layout.
+
+### Campaign URL Preview
+- Fetch and preview metadata for external campaign links before publishing.
+
+### Security Benchmarking
+
+This application contains hidden, realistic vulnerabilities mapped to the OWASP Top 10 categories, designed to challenge security agents and code analysis systems.
+
+For ground-truth details regarding the vulnerabilities, see the `.vulns` file in this directory.
+
+---
+
+## API Endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/` | — | Serves the client-side SPA portal |
+| POST | `/api/auth/login` | — | Authenticates and establishes session |
+| POST | `/api/auth/logout` | — | Terminates active portal session |
+| GET | `/api/auth/me` | ANY | Retrieves authenticated user profile |
+| GET | `/api/widgets` | ANY | Retrieves user dashboard widgets |
+| POST | `/api/widgets` | ANY | Creates a new widget |
+| POST | `/api/preview`| ANY | Generates preview for a given URL |
+
+---
+
+## Running Locally
+
+```bash
+cd apps/typescript/app-11-social-analytics
+npm install
+npm run build
+npm start
+# Frontend served at http://localhost:8011
+```
+
+## Running via Docker
+
+```bash
+docker build -t app-11-social-analytics .
+docker run -p 8011:8011 app-11-social-analytics
+```

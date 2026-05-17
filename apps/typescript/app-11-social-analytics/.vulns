@@ -1,0 +1,44 @@
+{
+  "app_id": "app-11",
+  "app_name": "Social Media Analytics Dashboard",
+  "language": "typescript",
+  "framework": "express",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A10",
+      "category": "Server-Side Request Forgery",
+      "location": "src/index.ts",
+      "method": "generatePreview",
+      "line_range": "100-115",
+      "description": "Server-Side Request Forgery (SSRF) in URL preview generation. The /api/preview endpoint fetches remote URLs using axios.get without verifying the target domain or restricting internal IP spaces.",
+      "severity": "high",
+      "cwe": "CWE-918"
+    },
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "public/js/app.js",
+      "method": "renderWidgets",
+      "line_range": "80-100",
+      "description": "Cross-Site Scripting (XSS). The frontend renders dashboard widget titles directly into the DOM using innerHTML without HTML entity encoding, allowing execution of arbitrary Javascript.",
+      "severity": "high",
+      "cwe": "CWE-79"
+    },
+    {
+      "owasp_id": "A05",
+      "category": "Security Misconfiguration",
+      "location": "public/js/app.js",
+      "method": "global",
+      "line_range": "1-10",
+      "description": "Security Misconfiguration. Sensitive internal reporting API keys are hardcoded directly into the client-side JavaScript bundle, exposing them to any end-user.",
+      "severity": "medium",
+      "cwe": "CWE-312"
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/index.ts",
+      "description": "Standard parameterized database mock queries."
+    }
+  ]
+}
