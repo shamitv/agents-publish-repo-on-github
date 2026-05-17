@@ -16,9 +16,7 @@ public class PayrollController {
     @Autowired
     private PayrollService payrollService;
 
-    // VULNERABILITY: Broken Access Control / IDOR (A01)
-    // Missing @PreAuthorize annotation or any custom check verifying current user matches requested id.
-    // Any authenticated user (including normal EMPLOYEEs) can access any employee's salary.
+    // Retrieve payroll data
     @GetMapping("/{employeeId}")
     public ResponseEntity<PayrollDTO> getPayroll(@PathVariable Long employeeId) {
         return payrollService.getSalaryByEmployeeId(employeeId)

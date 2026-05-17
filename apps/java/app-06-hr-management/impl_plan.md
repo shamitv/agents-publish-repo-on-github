@@ -52,7 +52,7 @@ CREATE TABLE employees (
     department_id BIGINT REFERENCES departments(id),
     manager_id BIGINT REFERENCES employees(id),
     hire_date DATE NOT NULL,
-    ssn_encrypted VARCHAR(255),         -- 🐛 A02: XOR cipher with hard-coded key
+    ssn_encrypted VARCHAR(255),
     is_active BOOLEAN DEFAULT TRUE
 );
 
@@ -90,7 +90,7 @@ CREATE TABLE leave_requests (
 ### 3.1 Models & DTOs
 | Class | Purpose |
 |-------|---------|
-| `Employee` | JPA entity — includes `ssnEncrypted` field with **XOR encryption helper** (🐛 A02) |
+| `Employee` | JPA entity — includes `ssnEncrypted` field with XOR encryption helper |
 | `Department` | JPA entity with self-referencing parent |
 | `Salary` | JPA entity linked to Employee |
 | `LeaveRequest` | JPA entity with status workflow |
@@ -108,36 +108,15 @@ CREATE TABLE leave_requests (
 
 #### `EmployeeService`
 - CRUD operations for employees
-- `encryptSsn(String rawSsn)` / `decryptSsn(String encrypted)` — **🐛 A02: uses XOR with hard-coded key `0xDEADBEEF`**
-  ```java
-  // VULNERABILITY: Reversible XOR cipher with hard-coded key
-  private static final int XOR_KEY = 0xDEADBEEF;
-  public String encryptSsn(String ssn) {
-      byte[] bytes = ssn.getBytes();
-      byte[] keyBytes = ByteBuffer.allocate(4).putInt(XOR_KEY).array();
-      for (int i = 0; i < bytes.length; i++) {
-          bytes[i] ^= keyBytes[i % keyBytes.length];
-      }
-      return Base64.getEncoder().encodeToString(bytes);
-  }
-  ```
+- `encryptSsn(String rawSsn)` / `decryptSsn(String encrypted)` — Encrypts and decrypts SSN values.
 
 #### `PayrollService`
 - `getSalaryByEmployeeId(Long employeeId)` — returns salary data
 - `generateMonthlyReport()` — builds CSV of all salaries
-- **No authorisation logic inside service** — relies (incorrectly) on controller
+- No authorisation logic inside service — relies on controller
 
 #### `EmployeeImportService`
-- `importEmployees(InputStream fileStream)` — **🐛 A08: deserialises Java objects directly**
-  ```java
-  // VULNERABILITY: Insecure deserialization — no class filter
-  public List<Employee> importEmployees(InputStream stream) throws Exception {
-      ObjectInputStream ois = new ObjectInputStream(stream);
-      List<Employee> employees = (List<Employee>) ois.readObject();
-      ois.close();
-      return employeeRepository.saveAll(employees);
-  }
-  ```
+- `importEmployees(InputStream fileStream)` — Processes and imports employee data in bulk.
 
 #### `LeaveService`
 - Submit, approve/reject leave requests
@@ -156,18 +135,10 @@ CREATE TABLE leave_requests (
 - `GET /api/employees/{id}` — single employee detail
 - `POST /api/employees` — create (HR_ADMIN only via `@PreAuthorize`)
 - `PUT /api/employees/{id}` — update (HR_ADMIN only)
-- `POST /api/employees/import` — **🐛 A08: accepts `.ser` file upload, passes to `EmployeeImportService`**
+- `POST /api/employees/import` — accepts bulk import file upload, passes to `EmployeeImportService`
 
-#### `PayrollController`  ← **🐛 A01 HERE**
-- `GET /api/payroll/{employeeId}` — **Missing `@PreAuthorize` annotation. Any authenticated user can access any employee's salary.**
-  ```java
-  // VULNERABILITY: No authorization check — any authenticated user can view any salary
-  @GetMapping("/api/payroll/{employeeId}")
-  public ResponseEntity<PayrollDTO> getPayroll(@PathVariable Long employeeId) {
-      return ResponseEntity.ok(payrollService.getSalaryByEmployeeId(employeeId));
-  }
-  ```
-- `GET /api/payroll/report` — correctly restricted to HR_ADMIN
+#### `PayrollController`
+- `GET /api/payroll/{employeeId}` — returns payroll details for the employee.
 
 #### `LeaveController`
 - Standard leave CRUD — correctly scoped to current user or manager's reports
@@ -203,7 +174,7 @@ public class SecurityConfig {
     }
 }
 ```
-- Note: **CORS is not explicitly configured** — defaults to same-origin since frontend is served by same Spring Boot app via Thymeleaf. However, the REST API endpoints have no CORS headers, which becomes relevant if a separate frontend client is used.
+- Note: CORS is not explicitly configured — defaults to same-origin since frontend is served by same Spring Boot app via Thymeleaf.
 
 ---
 
@@ -222,7 +193,7 @@ public class SecurityConfig {
 | `org-chart.html` | `/org-chart` | Interactive org chart |
 
 ### 4.2 JavaScript (vanilla)
-- `static/js/payroll.js` — Fetches `/api/payroll/{id}` via `fetch()` — demonstrates the A01 vuln from the browser
+- `static/js/payroll.js` — Fetches `/api/payroll/{id}` via `fetch()` to show salary details
 - `static/js/org-chart.js` — Renders org chart using DOM manipulation
 - `static/js/leave-calendar.js` — Simple calendar view for leave dates
 
@@ -240,64 +211,14 @@ public class SecurityConfig {
 - `LeaveServiceTest` — submission, approval, overlap detection
 
 ### 5.2 Integration Tests
-- `PayrollControllerTest` — **verify that the A01 bug exists**: an EMPLOYEE-role user successfully fetches another employee's salary
-- `EmployeeImportTest` — verify `.ser` upload path works (demonstrates A08)
+- `PayrollControllerTest` — verify salary lookup endpoint
+- `EmployeeImportTest` — verify bulk import file upload path
 
 ---
 
 ## 6. Vulnerability Manifest
 
-Create `vulnerabilities.json`:
-```json
-{
-  "app_id": "app-06",
-  "app_name": "Enterprise HR Management System",
-  "language": "java",
-  "framework": "spring-boot",
-  "vulnerabilities": [
-    {
-      "owasp_id": "A01",
-      "category": "Broken Access Control",
-      "location": "src/main/java/com/hr/controller/PayrollController.java",
-      "method": "getPayroll",
-      "line_range": "25-30",
-      "description": "Payroll endpoint returns salary data for any employee to any authenticated user without role or ownership check",
-      "severity": "high",
-      "cwe": "CWE-639"
-    },
-    {
-      "owasp_id": "A08",
-      "category": "Software and Data Integrity Failures",
-      "location": "src/main/java/com/hr/service/EmployeeImportService.java",
-      "method": "importEmployees",
-      "line_range": "18-24",
-      "description": "Bulk employee import uses ObjectInputStream.readObject() on untrusted upload without class filtering",
-      "severity": "critical",
-      "cwe": "CWE-502"
-    },
-    {
-      "owasp_id": "A02",
-      "category": "Cryptographic Failures",
-      "location": "src/main/java/com/hr/service/EmployeeService.java",
-      "method": "encryptSsn",
-      "line_range": "45-55",
-      "description": "SSN encryption uses reversible XOR cipher with hard-coded key 0xDEADBEEF",
-      "severity": "high",
-      "cwe": "CWE-327"
-    }
-  ],
-  "decoys": [
-    {
-      "location": "src/main/java/com/hr/config/SecurityConfig.java",
-      "description": "BCryptPasswordEncoder with default strength — this is SAFE and should NOT be flagged"
-    },
-    {
-      "location": "src/main/java/com/hr/repository/EmployeeRepository.java",
-      "description": "Spring Data JPA parameterised queries — NOT injectable"
-    }
-  ]
-}
-```
+Vulnerability manifest and metadata are stored in `.vulns` inside the application directory.
 
 ---
 
@@ -327,9 +248,9 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 - [ ] All 14 API endpoints functional
 - [ ] Login/logout works with 3 roles
 - [ ] Thymeleaf pages render correctly
-- [ ] **A01 vuln verifiable:** EMPLOYEE can GET `/api/payroll/2` and see another employee's salary
-- [ ] **A08 vuln verifiable:** uploading a crafted `.ser` file triggers deserialization
-- [ ] **A02 vuln verifiable:** SSN can be decrypted by anyone who reads the source code
-- [ ] Decoy patterns are genuinely safe
-- [ ] `vulnerabilities.json` is accurate
+- [ ] Employee salary lookup endpoint functions correctly
+- [ ] Bulk import endpoint functions correctly
+- [ ] SSN encryption and decryption functions correctly
+- [ ] Decoy patterns are in place
+- [ ] `.vulns` ground truth is accurate
 - [ ] Docker image builds and runs

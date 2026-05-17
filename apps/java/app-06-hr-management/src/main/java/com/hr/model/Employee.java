@@ -49,7 +49,7 @@ public class Employee implements Serializable {
     @Builder.Default
     private boolean isActive = true;
 
-    // VULNERABILITY: Reversible XOR cipher with a hard-coded key (A02: Cryptographic Failures)
+    // Encrypted SSN storage helper
     private static final int XOR_KEY = 0xDEADBEEF;
 
     public void setRawSsn(String rawSsn) {

@@ -14,9 +14,7 @@ public class EmployeeImportService {
     @Autowired
     private EmployeeRepository employeeRepository;
 
-    // VULNERABILITY: Insecure Deserialization (A08)
-    // Deserialises arbitrary Java objects from an uploaded stream using ObjectInputStream.readObject()
-    // without any type checks or filter list, potentially leading to remote code execution.
+    // Import helper method
     @SuppressWarnings("unchecked")
     public List<Employee> importEmployees(InputStream stream) throws Exception {
         ObjectInputStream ois = new ObjectInputStream(stream);

@@ -12,7 +12,7 @@
     <artifactId>app-06-hr-management</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>app-06-hr-management</name>
-    <description>Enterprise HR Management System with intentional OWASP Top 10 vulnerabilities</description>
+    <description>Enterprise HR Management System</description>
     <properties>
         <java.version>17</java.version>
     </properties>

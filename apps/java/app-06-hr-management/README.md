@@ -4,7 +4,7 @@
 
 A full-stack Human Resources management application built with **Spring Boot** (backend) and **Thymeleaf + vanilla JS** (frontend). The system manages employee directories, payroll processing, leave requests, and organisational charts.
 
-This application intentionally contains **3 OWASP Top 10 vulnerabilities** for security-agent testing purposes.
+This application is built for security-agent benchmarking and evaluation purposes.
 
 ---
 
@@ -53,19 +53,11 @@ This application intentionally contains **3 OWASP Top 10 vulnerabilities** for s
 
 ---
 
-## Planted Vulnerabilities
+## Security Benchmarking
 
-> **⚠️ These are intentional. Do not fix them — they are the test targets.**
+This application has been developed to contain hidden, realistic vulnerabilities mapped to the OWASP Top 10 categories, designed to challenge security agents and code analysis systems.
 
-| # | OWASP ID | Category | Location | Description | CWE |
-|---|----------|----------|----------|-------------|-----|
-| 1 | **A01** | Broken Access Control | `src/main/java/com/hr/controller/PayrollController.java` | The `/api/payroll/{employeeId}` endpoint returns salary data for **any** authenticated user, regardless of role. No authorisation check verifies the caller is HR_ADMIN or the employee themselves. An `EMPLOYEE`-role user can enumerate other employees' salaries by iterating IDs. | CWE-639 |
-| 2 | **A08** | Software & Data Integrity Failures | `src/main/java/com/hr/service/EmployeeImportService.java` | The bulk employee import feature accepts a serialised Java object (`ObjectInputStream.readObject()`) from an uploaded `.ser` file without any class-filtering or allow-list. An attacker can craft a malicious serialised payload to achieve remote code execution. | CWE-502 |
-| 3 | **A02** | Cryptographic Failures | `src/main/java/com/hr/model/Employee.java` / `schema.sql` | Social Security Numbers (SSNs) are stored using a **reversible XOR cipher** with a hard-coded key embedded in the source code. The key is `0xDEADBEEF`. This provides no real confidentiality. | CWE-327 |
-
-### Decoy (Safe Pattern)
-- The login endpoint uses `BCryptPasswordEncoder` with default strength — this is **not** vulnerable and should **not** be flagged.
-- SQL queries in `EmployeeRepository` use Spring Data JPA parameterised queries — **not** injectable.
+For ground-truth details regarding the vulnerabilities, see the `.vulns` file in this directory.
 
 ---
 
@@ -80,9 +72,9 @@ This application intentionally contains **3 OWASP Top 10 vulnerabilities** for s
 | GET | `/api/employees/{id}` | ANY | Employee detail |
 | POST | `/api/employees` | HR_ADMIN | Create employee |
 | PUT | `/api/employees/{id}` | HR_ADMIN | Update employee |
-| **GET** | **`/api/payroll/{employeeId}`** | **ANY (🐛 A01)** | **Salary data — missing authz** |
+| GET | `/api/payroll/{employeeId}` | ANY | Salary data |
 | GET | `/api/payroll/report` | HR_ADMIN | Monthly payroll CSV |
-| POST | `/api/employees/import` | HR_ADMIN | **Bulk import (🐛 A08)** |
+| POST | `/api/employees/import` | HR_ADMIN | Bulk import |
 | GET | `/api/leave/requests` | ANY | Leave requests for current user |
 | POST | `/api/leave/requests` | ANY | Submit leave request |
 | PUT | `/api/leave/requests/{id}/approve` | MANAGER | Approve leave |
@@ -104,9 +96,3 @@ cd apps/java/app-06-hr-management
 docker build -t app-06-hr-management .
 docker run -p 8080:8080 app-06-hr-management
 ```
-
----
-
-## Ground Truth
-
-See `vulnerabilities.json` for machine-readable vulnerability manifest used for automated scoring.

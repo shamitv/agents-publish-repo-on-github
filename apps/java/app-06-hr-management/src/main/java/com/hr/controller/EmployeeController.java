@@ -92,8 +92,7 @@ public class EmployeeController {
         return ResponseEntity.noContent().build();
     }
 
-    // VULNERABILITY: Java Deserialization Endpoint (A08)
-    // Accessible only to HR_ADMIN, but accepts serialised files (.ser) that are dangerous to parse.
+    // Import employees endpoint
     @PostMapping("/import")
     @PreAuthorize("hasRole('HR_ADMIN')")
     public ResponseEntity<List<EmployeeDTO>> importEmployees(@RequestParam("file") MultipartFile file) {
