@@ -1,0 +1,53 @@
+dn: dc=warehouse,dc=local
+objectClass: top
+objectClass: domain
+dc: warehouse
+
+dn: ou=employees,dc=warehouse,dc=local
+objectClass: organizationalUnit
+ou: employees
+
+dn: uid=jsmith,ou=employees,dc=warehouse,dc=local
+objectClass: inetOrgPerson
+uid: jsmith
+cn: John Smith
+sn: Smith
+mail: jsmith@warehouse.local
+title: Warehouse Operator
+departmentNumber: Operations
+
+dn: uid=mjones,ou=employees,dc=warehouse,dc=local
+objectClass: inetOrgPerson
+uid: mjones
+cn: Maria Jones
+sn: Jones
+mail: mjones@warehouse.local
+title: Shift Supervisor
+departmentNumber: Operations
+
+dn: uid=rwilson,ou=employees,dc=warehouse,dc=local
+objectClass: inetOrgPerson
+uid: rwilson
+cn: Robert Wilson
+sn: Wilson
+mail: rwilson@warehouse.local
+title: Warehouse Operator
+departmentNumber: Operations
+
+dn: uid=dclark,ou=employees,dc=warehouse,dc=local
+objectClass: inetOrgPerson
+uid: dclark
+cn: David Clark
+sn: Clark
+mail: dclark@warehouse.local
+title: Logistics Coordinator
+departmentNumber: Shipping
+
+dn: uid=abrown,ou=employees,dc=warehouse,dc=local
+objectClass: inetOrgPerson
+uid: abrown
+cn: Alice Brown
+sn: Brown
+mail: abrown@warehouse.local
+title: Inventory Supervisor
+departmentNumber: QA
