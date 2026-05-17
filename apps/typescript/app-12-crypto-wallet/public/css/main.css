@@ -1,0 +1,309 @@
+/* -------------------------------------------------------------
+   App 12 - Dark Crypto Wallet SPA Styles
+   ------------------------------------------------------------- */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+:root {
+    --bg-dark: #08080a;
+    --card-bg: #111216;
+    --border-color: #20222a;
+    --primary: #f5b301; /* Crypto Gold */
+    --primary-hover: #ffc11a;
+    --primary-glow: rgba(245, 179, 1, 0.3);
+    --secondary: #6366f1; /* Indigo */
+    --text-white: #ffffff;
+    --text-muted: #808495;
+    --font-sans: 'DM Sans', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --danger: #ef4444;
+    --success: #10b981;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--bg-dark);
+    font-family: var(--font-sans);
+    color: var(--text-white);
+    min-height: 100vh;
+    display: flex;
+    overflow-x: hidden;
+}
+
+/* Auth Backdrop */
+.auth-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100vw;
+    height: 100vh;
+    background: radial-gradient(circle at center, #1a1a20 0%, var(--bg-dark) 100%);
+}
+
+.auth-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 48px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+    position: relative;
+    overflow: hidden;
+}
+
+.auth-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    box-shadow: 0 0 15px var(--primary-glow);
+}
+
+.auth-card h1 {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 24px;
+    color: var(--text-white);
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+/* App SPA Container */
+#appLayout {
+    display: flex;
+    width: 100%;
+    height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 280px;
+    background: #0d0e12;
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 32px 24px;
+    flex-shrink: 0;
+}
+
+.sidebar .brand {
+    font-size: 20px;
+    color: var(--primary);
+    font-weight: 700;
+    text-align: left;
+    margin-bottom: 40px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sidebar .nav-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    list-style: none;
+}
+
+.sidebar .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.sidebar .nav-link:hover, .sidebar .nav-link.active {
+    color: var(--text-white);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar .nav-link.active {
+    color: var(--primary);
+    background: rgba(245, 179, 1, 0.1);
+}
+
+/* Main Workspace */
+.main-content {
+    flex-grow: 1;
+    height: 100%;
+    overflow-y: auto;
+    padding: 40px 48px;
+    background-color: var(--bg-dark);
+}
+
+.header-panel {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 40px;
+}
+
+.header-panel h1 {
+    font-size: 28px;
+    font-weight: 700;
+}
+
+/* Wallet Card (Gold Gradient) */
+.wallet-card {
+    background: linear-gradient(135deg, #2a220a 0%, #151104 100%);
+    border: 1px solid rgba(245, 179, 1, 0.3);
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    margin-bottom: 40px;
+    position: relative;
+    overflow: hidden;
+}
+
+.wallet-card::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(245,179,1,0.15) 0%, transparent 70%);
+}
+
+.wallet-card .balance-lbl {
+    font-size: 14px;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 8px;
+}
+
+.wallet-card .balance-val {
+    font-size: 42px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 24px;
+}
+
+.wallet-card .address-box {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-white);
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Action Cards */
+.action-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 32px;
+}
+
+/* Table */
+.table-wrapper {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+th {
+    background: #0d0e12;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+td {
+    padding: 16px 24px;
+    font-size: 14px;
+    border-bottom: 1px solid var(--border-color);
+    font-family: var(--font-mono);
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+/* Forms */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.form-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.form-input {
+    background: #15161c;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+/* Buttons */
+.btn {
+    background: var(--primary);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    background: var(--primary-hover);
+    box-shadow: 0 0 15px var(--primary-glow);
+}
+
+.badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+}
+.badge-in { background: rgba(16,185,129,0.1); color: var(--success); }
+.badge-out { background: rgba(239,68,68,0.1); color: var(--danger); }
