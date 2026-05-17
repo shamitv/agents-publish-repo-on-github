@@ -1,0 +1,52 @@
+{
+  "app_id": "app-07",
+  "app_name": "Airline Booking System",
+  "language": "java",
+  "framework": "spring-boot",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "src/main/java/com/airline/repository/FlightSearchDao.java",
+      "method": "searchFlights",
+      "line_range": "15-22",
+      "description": "Flight search SQL query built via string concatenation with user-supplied origin, destination, and date values",
+      "severity": "critical",
+      "cwe": "CWE-89"
+    },
+    {
+      "owasp_id": "A07",
+      "category": "Identification and Authentication Failures",
+      "location": "src/main/java/com/airline/config/SecurityConfig.java",
+      "method": "filterChain",
+      "line_range": "28-30",
+      "description": "Session fixation protection disabled via sessionFixation().none() — session ID not rotated on login",
+      "severity": "high",
+      "cwe": "CWE-384"
+    },
+    {
+      "owasp_id": "A04",
+      "category": "Insecure Design",
+      "location": "src/main/java/com/airline/service/BookingService.java",
+      "method": "createBooking",
+      "line_range": "20-42",
+      "description": "No rate limiting, no payment timeout, no concurrency control on booking creation — allows inventory hoarding",
+      "severity": "high",
+      "cwe": "CWE-799"
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/main/java/com/airline/config/SecurityConfig.java",
+      "description": "BCryptPasswordEncoder — password hashing is SAFE"
+    },
+    {
+      "location": "src/main/java/com/airline/repository/FlightRepository.java",
+      "description": "Spring Data JPA with @Query and named params — NOT injectable"
+    },
+    {
+      "location": "src/main/java/com/airline/controller/BookingController.java",
+      "description": "PNR lookup validates ownership — access control is correct here"
+    }
+  ]
+}
