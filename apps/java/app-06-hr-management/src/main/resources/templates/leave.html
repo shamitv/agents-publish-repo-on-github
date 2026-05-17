@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Management — Leave Requests</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo">
+                <span>Enterprise HR</span>
+            </div>
+            <nav>
+                <ul class="nav-links">
+                    <li class="nav-item">
+                        <a th:href="@{/dashboard}">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/employees}">Employees</a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/payroll}">Payroll</a>
+                    </li>
+                    <li class="nav-item active">
+                        <a th:href="@{/leave}">Leave Requests</a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/org-chart}">Org Chart</a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="user-profile-badge">
+                <div class="user-avatar" th:text="${#strings.substring(currentUser.firstName,0,1)}">U</div>
+                <div class="user-info">
+                    <span class="user-name" th:text="${currentUser.firstName + ' ' + currentUser.lastName}">User Name</span>
+                    <span class="user-role" th:text="${currentUser.role}">Role</span>
+                </div>
+                <a th:href="@{/logout}" style="margin-left: auto; color: var(--danger); font-size: 13px; text-decoration: none;">Logout</a>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="page-header">
+                <div class="page-title">
+                    <h1>Leave Management</h1>
+                    <p>Request leave, track approval status, and manage team requests</p>
+                </div>
+                <button class="btn" onclick="openRequestModal()">Request Leave</button>
+            </header>
+
+            <div class="table-container glass" style="padding: 24px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Employee</th>
+                            <th>Type</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaveRequestsBody">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Request Leave Modal -->
+    <div id="requestModal" class="modal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h3>Submit Leave Request</h3>
+                <button class="close-btn" onclick="closeRequestModal()">&times;</button>
+            </div>
+            <form id="leaveForm" onsubmit="submitLeave(event)">
+                <div class="form-group">
+                    <label for="leaveType">Leave Type</label>
+                    <select id="leaveType" class="form-input" style="background-color: var(--bg-color);">
+                        <option value="VACATION">Vacation</option>
+                        <option value="SICK">Sick Leave</option>
+                        <option value="PERSONAL">Personal Leave</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="startDate">Start Date</label>
+                    <input type="date" id="startDate" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="endDate">End Date</label>
+                    <input type="date" id="endDate" class="form-input" required>
+                </div>
+                <button type="submit" class="btn" style="margin-top: 16px;">Submit Request</button>
+            </form>
+        </div>
+    </div>
+
+    <script th:src="@{/js/leave.js}"></script>
+</body>
+</html>

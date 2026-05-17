@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise HR Management System — Login</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card glass">
+            <h2>Enterprise HR</h2>
+            <p>Sign in to access employee management portals</p>
+
+            <div th:if="${param.error}" class="error-banner">
+                Invalid email or password. Please try again.
+            </div>
+
+            <form th:action="@{/login}" method="post">
+                <div class="form-group">
+                    <label for="username">Email Address</label>
+                    <input type="email" id="username" name="username" class="form-input" placeholder="e.g. admin@hr.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" class="form-input" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn">
+                    Sign In
+                </button>
+            </form>
+
+            <div style="margin-top: 24px; text-align: left; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 6px; border: 1px dashed rgba(255,255,255,0.1);">
+                <p style="font-size: 11px; margin-bottom: 4px; font-weight: 600; color: var(--primary);">Demo Credentials:</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 11px; color: var(--text-muted);">
+                    <div>admin@hr.com</div><div>admin (HR_ADMIN)</div>
+                    <div>manager@hr.com</div><div>manager (MANAGER)</div>
+                    <div>alice@hr.com</div><div>alice (EMPLOYEE)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

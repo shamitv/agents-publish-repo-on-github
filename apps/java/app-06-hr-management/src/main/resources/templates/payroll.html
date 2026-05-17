@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Management — Payroll</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo">
+                <span>Enterprise HR</span>
+            </div>
+            <nav>
+                <ul class="nav-links">
+                    <li class="nav-item">
+                        <a th:href="@{/dashboard}">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/employees}">Employees</a>
+                    </li>
+                    <li class="nav-item active">
+                        <a th:href="@{/payroll}">Payroll</a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/leave}">Leave Requests</a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/org-chart}">Org Chart</a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="user-profile-badge">
+                <div class="user-avatar" th:text="${#strings.substring(currentUser.firstName,0,1)}">U</div>
+                <div class="user-info">
+                    <span class="user-name" th:text="${currentUser.firstName + ' ' + currentUser.lastName}">User Name</span>
+                    <span class="user-role" th:text="${currentUser.role}">Role</span>
+                </div>
+                <a th:href="@{/logout}" style="margin-left: auto; color: var(--danger); font-size: 13px; text-decoration: none;">Logout</a>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="page-header">
+                <div class="page-title">
+                    <h1>Payroll Management</h1>
+                    <p>View and manage salary information across departments</p>
+                </div>
+                <div class="action-buttons" sec:authorize="hasRole('ROLE_HR_ADMIN')">
+                    <a th:href="@{/api/payroll/report}" class="btn" style="text-decoration: none;">Export Payroll Report (CSV)</a>
+                </div>
+            </header>
+
+            <div class="grid">
+                <!-- Fetch Salary Details Form (Vulnerable A01 Target) -->
+                <div class="card glass" style="grid-column: span 2;">
+                    <h3>Lookup Employee Salary</h3>
+                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">
+                        Enter an Employee ID below to fetch their payroll details. 
+                        <strong>Note:</strong> Due to a security misconfiguration (A01), any authenticated user can view anyone's salary.
+                    </p>
+                    <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+                        <input type="number" id="payrollEmployeeId" class="form-input" placeholder="e.g. 3" style="max-width: 200px;">
+                        <button class="btn" onclick="fetchPayrollSalary()" style="width: auto; padding: 12px 24px;">Get Details</button>
+                    </div>
+
+                    <div id="payrollResult" class="glass" style="display: none; padding: 24px; border: 1px solid var(--card-border);">
+                        <h4 style="color: var(--primary); margin-bottom: 16px; font-size: 16px;">Payroll Details Found</h4>
+                        <div style="display: grid; grid-template-columns: 150px 1fr; gap: 12px; font-size: 14px;">
+                            <div style="color: var(--text-muted);">Employee Name:</div>
+                            <div id="payrollName" style="font-weight: 500;">-</div>
+                            <div style="color: var(--text-muted);">Department:</div>
+                            <div id="payrollDept" style="font-weight: 500;">-</div>
+                            <div style="color: var(--text-muted);">Base Salary:</div>
+                            <div id="payrollSalary" style="font-weight: 700; color: var(--success); font-size: 16px;">$0.00</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script th:src="@{/js/payroll.js}"></script>
+</body>
+</html>

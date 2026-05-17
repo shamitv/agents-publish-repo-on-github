@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Management — Employees</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo">
+                <span>Enterprise HR</span>
+            </div>
+            <nav>
+                <ul class="nav-links">
+                    <li class="nav-item">
+                        <a th:href="@{/dashboard}">Dashboard</a>
+                    </li>
+                    <li class="nav-item active">
+                        <a th:href="@{/employees}">Employees</a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/payroll}">Payroll</a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/leave}">Leave Requests</a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/org-chart}">Org Chart</a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="user-profile-badge">
+                <div class="user-avatar" th:text="${#strings.substring(currentUser.firstName,0,1)}">U</div>
+                <div class="user-info">
+                    <span class="user-name" th:text="${currentUser.firstName + ' ' + currentUser.lastName}">User Name</span>
+                    <span class="user-role" th:text="${currentUser.role}">Role</span>
+                </div>
+                <a th:href="@{/logout}" style="margin-left: auto; color: var(--danger); font-size: 13px; text-decoration: none;">Logout</a>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="page-header">
+                <div class="page-title">
+                    <h1>Employee Directory</h1>
+                    <p>Browse, search, and manage corporate employee directories</p>
+                </div>
+                <div class="action-buttons" sec:authorize="hasRole('ROLE_HR_ADMIN')" style="display: flex; gap: 12px;">
+                    <button class="btn btn-secondary" onclick="openImportModal()">Bulk Import (.ser)</button>
+                    <button class="btn" onclick="openCreateModal()">Add Employee</button>
+                </div>
+            </header>
+
+            <div class="glass" style="padding: 24px; margin-bottom: 24px; display: flex; gap: 16px;">
+                <input type="text" id="searchInput" class="form-input" placeholder="Search by name or email..." style="max-width: 400px;">
+                <button class="btn" onclick="performSearch()" style="width: auto; padding: 12px 24px;">Search</button>
+            </div>
+
+            <div class="table-container glass" style="padding: 24px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Department</th>
+                            <th>Role</th>
+                            <th>SSN</th>
+                            <th sec:authorize="hasRole('ROLE_HR_ADMIN')">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="employeeTableBody">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Create/Edit Employee Modal -->
+    <div id="employeeModal" class="modal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h3 id="modalTitle">Add New Employee</h3>
+                <button class="close-btn" onclick="closeEmployeeModal()">&times;</button>
+            </div>
+            <form id="employeeForm" onsubmit="saveEmployee(event)">
+                <input type="hidden" id="empId">
+                <div class="form-group">
+                    <label for="empFirstName">First Name</label>
+                    <input type="text" id="empFirstName" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="empLastName">Last Name</label>
+                    <input type="text" id="empLastName" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="empEmail">Email</label>
+                    <input type="email" id="empEmail" class="form-input" required>
+                </div>
+                <div class="form-group" id="passwordGroup">
+                    <label for="empPassword">Password</label>
+                    <input type="password" id="empPassword" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label for="empRole">System Role</label>
+                    <select id="empRole" class="form-input" style="background-color: var(--bg-color);">
+                        <option value="EMPLOYEE">EMPLOYEE</option>
+                        <option value="MANAGER">MANAGER</option>
+                        <option value="HR_ADMIN">HR_ADMIN</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="empDept">Department</label>
+                    <select id="empDept" class="form-input" style="background-color: var(--bg-color);">
+                        <option th:each="dept : ${departments}" th:value="${dept.id}" th:text="${dept.name}"></option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="empSsn">SSN (Social Security Number)</label>
+                    <input type="text" id="empSsn" class="form-input" placeholder="e.g. 999-xx-xxxx">
+                </div>
+                <div class="form-group">
+                    <label for="empSalary">Annual Salary</label>
+                    <input type="number" id="empSalary" class="form-input" step="0.01" required>
+                </div>
+                <button type="submit" class="btn" style="margin-top: 16px;">Save Employee</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Import Modal (Vulnerable A08 Target) -->
+    <div id="importModal" class="modal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h3>Bulk Employee Import</h3>
+                <button class="close-btn" onclick="closeImportModal()">&times;</button>
+            </div>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">
+                Upload a Java Serialised object file (`.ser`) containing a List of Employees to import them in bulk.
+            </p>
+            <form id="importForm" onsubmit="uploadImportFile(event)">
+                <div class="form-group">
+                    <label for="importFile">Choose `.ser` File</label>
+                    <input type="file" id="importFile" class="form-input" accept=".ser" required>
+                </div>
+                <button type="submit" class="btn" style="margin-top: 16px;">Upload & Import</button>
+            </form>
+        </div>
+    </div>
+
+    <script th:src="@{/js/employees.js}"></script>
+</body>
+</html>

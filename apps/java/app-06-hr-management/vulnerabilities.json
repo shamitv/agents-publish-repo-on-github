@@ -1,0 +1,48 @@
+{
+  "app_id": "app-06",
+  "app_name": "Enterprise HR Management System",
+  "language": "java",
+  "framework": "spring-boot",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "src/main/java/com/hr/controller/PayrollController.java",
+      "method": "getPayroll",
+      "line_range": "17-23",
+      "description": "Payroll endpoint returns salary data for any employee to any authenticated user without role or ownership check",
+      "severity": "high",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A08",
+      "category": "Software and Data Integrity Failures",
+      "location": "src/main/java/com/hr/service/EmployeeImportService.java",
+      "method": "importEmployees",
+      "line_range": "18-26",
+      "description": "Bulk employee import uses ObjectInputStream.readObject() on untrusted upload without class filtering",
+      "severity": "critical",
+      "cwe": "CWE-502"
+    },
+    {
+      "owasp_id": "A02",
+      "category": "Cryptographic Failures",
+      "location": "src/main/java/com/hr/model/Employee.java",
+      "method": "setRawSsn",
+      "line_range": "42-69",
+      "description": "SSN encryption uses reversible XOR cipher with hard-coded key 0xDEADBEEF",
+      "severity": "high",
+      "cwe": "CWE-327"
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/main/java/com/hr/config/SecurityConfig.java",
+      "description": "BCryptPasswordEncoder with default strength — this is SAFE and should NOT be flagged"
+    },
+    {
+      "location": "src/main/java/com/hr/repository/EmployeeRepository.java",
+      "description": "Spring Data JPA parameterised queries — NOT injectable"
+    }
+  ]
+}

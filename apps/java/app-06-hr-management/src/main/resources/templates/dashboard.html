@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Management — Dashboard</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo">
+                <span>Enterprise HR</span>
+            </div>
+            <nav>
+                <ul class="nav-links">
+                    <li class="nav-item active">
+                        <a th:href="@{/dashboard}">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/employees}">Employees</a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/payroll}">Payroll</a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/leave}">Leave Requests</a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/org-chart}">Org Chart</a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="user-profile-badge">
+                <div class="user-avatar" th:text="${#strings.substring(currentUser.firstName,0,1)}">U</div>
+                <div class="user-info">
+                    <span class="user-name" th:text="${currentUser.firstName + ' ' + currentUser.lastName}">User Name</span>
+                    <span class="user-role" th:text="${currentUser.role}">Role</span>
+                </div>
+                <a th:href="@{/logout}" style="margin-left: auto; color: var(--danger); font-size: 13px; text-decoration: none;">Logout</a>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="page-header">
+                <div class="page-title">
+                    <h1 th:text="${'Welcome, ' + currentUser.firstName + '!'}">Welcome!</h1>
+                    <p>Enterprise HR Management Portal Overview</p>
+                </div>
+            </header>
+
+            <div class="grid">
+                <div class="card glass">
+                    <h3>My Profile</h3>
+                    <p style="margin-top: 8px; font-size: 14px; color: var(--text-muted);">Email:</p>
+                    <p style="font-size: 15px; font-weight: 500;" th:text="${currentUser.email}">email</p>
+                    <p style="margin-top: 8px; font-size: 14px; color: var(--text-muted);">Department:</p>
+                    <p style="font-size: 15px; font-weight: 500;" th:text="${currentUser.department != null ? currentUser.department.name : 'None'}">dept</p>
+                </div>
+
+                <div class="card glass">
+                    <h3>My Account Role</h3>
+                    <div class="value" style="margin-top: 8px;" th:text="${currentUser.role}">EMPLOYEE</div>
+                </div>
+
+                <div class="card glass">
+                    <h3>Quick Links</h3>
+                    <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+                        <a th:href="@{/employees}" class="btn btn-secondary" style="justify-content: flex-start; padding: 8px 12px;">Browse Directory</a>
+                        <a th:href="@{/leave}" class="btn btn-secondary" style="justify-content: flex-start; padding: 8px 12px;">Request Leave</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Context Info -->
+            <div class="card glass" style="padding: 32px;">
+                <h3 style="color: var(--primary); font-size: 18px; margin-bottom: 12px;">Testing Vulnerability Context</h3>
+                <p style="font-size: 14px; line-height: 1.6; color: var(--text-muted);">
+                    This app is configured as a test target with several intentional flaws to verify detection capabilities of automated vulnerability scanning systems. Try navigating through the directory, payroll, or file import features to see normal behavior versus exploited logic.
+                </p>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
