@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collab Workspace</title>
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+    <!-- 1. Auth Portal -->
+    <div id="authPortal" class="auth-wrapper" style="display: none;">
+        <div class="auth-card">
+            <h1>CollabSpace</h1>
+            <p style="color: var(--text-muted); font-size: 14px; text-align: center; margin-bottom: 24px;">Log in to your workspace</p>
+            
+            <div id="loginError" style="display: none; background: #fef2f2; border: 1px solid var(--danger); padding: 12px; border-radius: 8px; text-align: center; color: var(--danger); font-size: 13px; margin-bottom: 20px;">
+                Invalid credentials
+            </div>
+
+            <form id="loginForm" onsubmit="handleLoginSubmit(event)">
+                <div class="form-group">
+                    <label class="form-label" for="username">Username</label>
+                    <input type="text" id="username" class="form-input" placeholder="alice" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input type="password" id="password" class="form-input" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn" style="width: 100%; margin-top: 8px;">Log In</button>
+            </form>
+
+            <div style="margin-top: 24px; padding: 16px; border-radius: 8px; font-size: 12px; color: var(--text-muted); border: 1px solid var(--border-color); background: var(--bg-light);">
+                <span>Test Accounts:</span><br>
+                • <code>alice</code> (Org 101)<br>
+                • <code>charlie</code> (Org 202)
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Main Layout -->
+    <div id="appLayout" style="display: none;">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div>
+                <div class="brand">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    CollabSpace
+                </div>
+                <nav>
+                    <ul class="nav-menu">
+                        <li><a onclick="showView('dashboard')" id="nav-dashboard" class="nav-link active">My Boards</a></li>
+                    </ul>
+                </nav>
+            </div>
+            
+            <div style="border-top: 1px solid var(--border-color); padding-top: 20px;">
+                <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Organization ID: <span id="currentOrgLabel">-</span></div>
+                <div id="currentUserLabel" style="font-size: 14px; font-weight: 600; color: var(--text-main); margin-top: 4px;">-</div>
+                <button onclick="handleLogout()" class="btn btn-outline" style="width: 100%; padding: 8px; margin-top: 16px; font-size: 12px;">Log Out</button>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="main-content">
+            
+            <!-- Dashboard View -->
+            <section id="view-dashboard" class="spa-view">
+                <div class="header-panel">
+                    <div>
+                        <h1>My Boards</h1>
+                    </div>
+                </div>
+
+                <!-- A01 Target Input -->
+                <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; margin-bottom: 32px; max-width: 400px;">
+                    <div style="font-size: 12px; font-weight: 600; color: var(--primary); text-transform: uppercase; margin-bottom: 8px;">Direct Board Access (A01)</div>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="number" id="directBoardId" class="form-input" placeholder="Board ID (e.g., 3)" style="flex-grow: 1;">
+                        <button onclick="loadBoard(document.getElementById('directBoardId').value)" class="btn">Go</button>
+                    </div>
+                    <p style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">Try loading Board ID 3 (belongs to Org 202) while logged in as Alice (Org 101).</p>
+                </div>
+
+                <div id="boardsGrid" class="boards-grid"></div>
+            </section>
+
+            <!-- Active Board View -->
+            <section id="view-board" class="spa-view" style="display: none;">
+                <div class="header-panel">
+                    <div>
+                        <button onclick="showView('dashboard')" class="btn btn-outline" style="margin-bottom: 16px; padding: 6px 12px; font-size: 12px;">← Back to Boards</button>
+                        <h1 id="activeBoardTitle">Loading...</h1>
+                    </div>
+                    
+                    <!-- A09 Target -->
+                    <div style="display: flex; gap: 8px; align-items: center; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; background: var(--card-bg);">
+                        <span style="font-size: 12px; font-weight: 600;">Visibility:</span>
+                        <select id="boardVisibilitySelect" class="form-input" style="padding: 4px 8px;" onchange="updateBoardVisibility()">
+                            <option value="PUBLIC">PUBLIC</option>
+                            <option value="INTERNAL">INTERNAL</option>
+                            <option value="PRIVATE">PRIVATE</option>
+                        </select>
+                        <span style="font-size: 11px; color: var(--warning); margin-left: 8px;">(A09: Unlogged Action)</span>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 24px;">
+                    <!-- Task List -->
+                    <div style="flex-grow: 1; max-width: 600px;">
+                        <h3 style="font-size: 16px; margin-bottom: 16px; border-bottom: 2px solid var(--border-color); padding-bottom: 8px;">Backlog</h3>
+                        <div id="tasksList" class="task-list"></div>
+                    </div>
+                    
+                    <!-- Add Task (A03 Target) -->
+                    <div style="width: 320px;">
+                        <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px;">
+                            <h3 style="font-size: 14px; margin-bottom: 16px;">Create New Task</h3>
+                            <form onsubmit="handleCreateTask(event)">
+                                <div class="form-group">
+                                    <label class="form-label" for="taskTitle">Task Title</label>
+                                    <input type="text" id="taskTitle" class="form-input" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="taskDesc">Description (A03 XSS Target)</label>
+                                    <textarea id="taskDesc" class="form-input" rows="4" placeholder="<img src=x onerror=alert(1)>" required></textarea>
+                                </div>
+                                <button type="submit" class="btn" style="width: 100%;">Add Task</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>
