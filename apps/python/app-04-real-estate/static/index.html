@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sovereign Realty Terminus</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+    <!-- 1. Auth Portal (Hidden by default when logged in) -->
+    <div id="authPortal" class="auth-wrapper" style="display: none;">
+        <div class="auth-card">
+            <header style="text-align: center; margin-bottom: 32px;">
+                <h1 style="font-family: var(--font-luxury);">⚜ SOVEREIGN</h1>
+                <p style="color: var(--text-muted); font-size: 11px; margin-top: 6px; letter-spacing: 1px; font-family: var(--font-mono);">EXQUISITE REALTY NETWORK</p>
+            </header>
+            
+            <div id="loginError" style="display: none; background: rgba(230, 57, 70, 0.15); border: 1px solid var(--danger); padding: 12px; border-radius: 6px; text-align: center; color: #ff7e88; font-size: 13px; font-weight: 600; margin-bottom: 20px; font-family: var(--font-mono);">
+                ERROR: SECURITY ACCESS PERMIT DENIED
+            </div>
+
+            <form id="loginForm" onsubmit="handleLoginSubmit(event)">
+                <div class="form-group">
+                    <label class="form-label" for="username">Operator Key ID</label>
+                    <input type="text" id="username" class="form-input" placeholder="e.g. alice" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="password">Passphrase PIN</label>
+                    <input type="password" id="password" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn" style="width: 100%; margin-top: 12px;">ESTABLISH COMMUNICATION</button>
+            </form>
+
+            <div style="margin-top: 24px; background: rgba(255,255,255,0.01); padding: 16px; border-radius: 6px; font-size: 11px; line-height: 1.6; border: 1px solid var(--border-color); font-family: var(--font-mono);">
+                <span style="font-weight: 600; color: var(--primary);">COORDINATE SIGN-IN SEEDS:</span><br>
+                • Buyer Alice: <code>alice</code> / <code>alice123</code><br>
+                • Buyer Bob: <code>bob</code> / <code>bob123</code><br>
+                • Listing Agent: <code>agent_smith</code> / <code>agent123</code>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Main Terminal Layout -->
+    <div id="appLayout" style="display: none;">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div>
+                <div class="brand">
+                    <span>⚜ SOVEREIGN</span>
+                </div>
+                <nav>
+                    <ul class="nav-menu">
+                        <li><a onclick="showView('board')" id="nav-board" class="nav-link active">🏛 Property Listings</a></li>
+                        <li><a onclick="showView('messages')" id="nav-messages" class="nav-link">📩 Agent Messages</a></li>
+                    </ul>
+                </nav>
+            </div>
+            
+            <div style="border-top: 1px solid var(--border-color); padding-top: 24px; display: flex; flex-direction: column; gap: 16px;">
+                <div>
+                    <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-family: var(--font-luxury);">Operator link</div>
+                    <div id="currentUserLabel" style="font-size: 16px; font-weight: 600; color: #fff; margin-top: 4px; font-family: var(--font-mono);">-</div>
+                    <div id="currentUserRoleLabel" style="font-size: 11px; color: var(--primary); margin-top: 2px; font-family: var(--font-luxury);">-</div>
+                </div>
+                <button onclick="handleLogout()" class="btn btn-secondary" style="width: 100%; padding: 10px;">SEVER CONNECT</button>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="main-content">
+            
+            <!-- 2.1 Property Listings Board -->
+            <section id="view-board" class="spa-view">
+                <div class="header-panel">
+                    <div>
+                        <h1>Sovereign Property Board</h1>
+                        <p style="color: var(--text-muted); margin-top: 4px;">Exclusive premium real estate holdings and high-density conversions</p>
+                    </div>
+                    <button onclick="openAddPropertyModal()" class="btn">+ List Property</button>
+                </div>
+
+                <!-- Media Importer and Subprocess Sandbox (SSRF A10 & Command Injection A03 Sandboxes) -->
+                <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-bottom: 40px;">
+                    <!-- SSRF Media Importer -->
+                    <div class="cyber-card">
+                        <h2 style="font-family: var(--font-luxury); font-size: 14px; color: var(--primary); margin-bottom: 12px;">Holographic Layout Remote Downloader (A10)</h2>
+                        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
+                            <input type="text" id="ssrfUrlInput" class="form-input" placeholder="http://internal-dns/layout.jpg" style="flex-grow: 1; font-family: var(--font-mono);">
+                            <button onclick="triggerSsrfImport()" class="btn btn-secondary">Download Photo</button>
+                        </div>
+                        <div class="form-label" style="font-family: var(--font-luxury); font-size: 10px; color: var(--primary);">Network Request Trace logs</div>
+                        <div id="ssrfConsoleFeed" class="terminal-feed">SSRF Sandbox Idle. Enter a layout URL above...</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px; font-family: var(--font-mono);">
+                            💡 <span style="color: var(--primary);">A10 SSRF target:</span> Try probing internal subnets or local interfaces like <code>http://127.0.0.1:8084/api/properties</code>!
+                        </div>
+                    </div>
+
+                    <!-- Command OS Injection Analyzer -->
+                    <div class="cyber-card">
+                        <h2 style="font-family: var(--font-luxury); font-size: 14px; color: var(--primary); margin-bottom: 12px;">Property Description Subprocess Analyzer (A03)</h2>
+                        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
+                            <input type="text" id="osCommandInput" class="form-input" placeholder="realty_vault.txt" style="flex-grow: 1; font-family: var(--font-mono);">
+                            <button onclick="triggerSubprocessAnalyze()" class="btn btn-secondary">Inspect file</button>
+                        </div>
+                        <div class="form-label" style="font-family: var(--font-luxury); font-size: 10px; color: var(--primary);">OS Subprocess Stdout Logs</div>
+                        <div id="osConsoleFeed" class="terminal-feed">OS Shell Sandbox Idle. Enter property file name...</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px; font-family: var(--font-mono);">
+                            💡 <span style="color: var(--primary);">A03 shell exploit payload:</span> Try injecting shell operators like <code>realty_vault.txt; whoami</code>!
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Properties Board -->
+                <div id="listingsGrid" class="listing-grid"></div>
+            </section>
+
+            <!-- 2.2 Agent Messages Queue -->
+            <section id="view-messages" class="spa-view" style="display: none;">
+                <div class="header-panel">
+                    <div>
+                        <h1>Agent Routing Queue</h1>
+                        <p style="color: var(--text-muted); margin-top: 4px;">Review message streams, callback codes, and contact requests</p>
+                    </div>
+                </div>
+
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Listing Title</th>
+                                <th>Sender Client</th>
+                                <th>Callback Number</th>
+                                <th>Contact message Content</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody id="messagesTableBody">
+                            <tr>
+                                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 32px;">No active messages found in ledger. Only authorized agents can view messages.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- 3. Add Property Modal -->
+    <div id="addPropertyModal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Register Realty listing</h2>
+                <button onclick="closeAddPropertyModal()" class="modal-close">×</button>
+            </div>
+            <form id="addPropertyForm" onsubmit="handleAddPropertySubmit(event)">
+                <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label class="form-label" for="addTitle">Listing Title</label>
+                        <input type="text" id="addTitle" class="form-input" placeholder="e.g. Skyline Mansion" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="addCategory">Realty Category</label>
+                        <select id="addCategory" class="form-input" style="background: #111422; color: #fff; height: 46px;" required>
+                            <option value="Apartment">Apartment</option>
+                            <option value="House">House</option>
+                            <option value="Loft">Loft</option>
+                            <option value="Studio">Studio</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label class="form-label" for="addPrice">Target Price ($)</label>
+                        <input type="number" id="addPrice" class="form-input" placeholder="420000" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="addLocation">Sector Location</label>
+                        <input type="text" id="addLocation" class="form-input" placeholder="e.g. Skyline Sector B" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="addDesc">Property description</label>
+                    <textarea id="addDesc" class="form-input" style="height: 80px;" placeholder="Describe features..." required></textarea>
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">Create Realty Entry</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 4. Contact Agent Modal -->
+    <div id="contactModal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Message Listing Agent</h2>
+                <button onclick="closeContactModal()" class="modal-close">×</button>
+            </div>
+            <form id="contactForm" onsubmit="handleContactSubmit(event)">
+                <input type="hidden" id="contactPropertyId">
+                <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label class="form-label" for="contactName">Prospect Name</label>
+                        <input type="text" id="contactName" class="form-input" placeholder="e.g. Alice Vance" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="contactPhone">Callback Number</label>
+                        <input type="text" id="contactPhone" class="form-input" placeholder="555-0192" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="contactMsg">Message Detail</label>
+                    <textarea id="contactMsg" class="form-input" style="height: 80px;" placeholder="I want to schedule a virtual tour of..." required></textarea>
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">Submit Message Routing</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- WMS Portal Client JavaScript -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
