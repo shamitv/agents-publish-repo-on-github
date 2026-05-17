@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Health Vault — Patient Portal</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+    <!-- 1. Auth Portal (Hidden by default when logged in) -->
+    <div id="authPortal" class="auth-wrapper" style="display: none;">
+        <div class="auth-card">
+            <header style="text-align: center; margin-bottom: 32px;">
+                <h1 style="font-family: var(--font-header);">🔬 NEXUS VAULT</h1>
+                <p style="color: var(--text-muted); font-size: 12px; margin-top: 6px; letter-spacing: 0.5px; font-family: var(--font-mono);">DECENTRALIZED CLINICAL LOGISTICS</p>
+            </header>
+            
+            <div id="loginError" style="display: none; background: rgba(255, 23, 68, 0.15); border: 1px solid var(--danger); padding: 12px; border-radius: 6px; text-align: center; color: #ff8097; font-size: 13px; font-weight: 600; margin-bottom: 20px; font-family: var(--font-mono);">
+                ERROR: IDENTITY HANDSHAKE REJECTED
+            </div>
+
+            <form id="loginForm" onsubmit="handleLoginSubmit(event)">
+                <div class="form-group">
+                    <label class="form-label" for="username">Patient Identifier</label>
+                    <input type="text" id="username" class="form-input" placeholder="e.g. alice" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="password">Clinical Access PIN</label>
+                    <input type="password" id="password" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn" style="width: 100%; margin-top: 12px;">ESTABLISH LINK</button>
+            </form>
+
+            <div style="margin-top: 24px; background: rgba(0,0,0,0.2); padding: 16px; border-radius: 6px; font-size: 12px; line-height: 1.6; border: 1px solid var(--border-color); font-family: var(--font-mono);">
+                <span style="font-weight: 600; color: var(--secondary);">PATIENT PIN SEEDS:</span><br>
+                • Patient 1: <code>alice</code> / <code>alice123</code> (ID: 1)<br>
+                • Patient 2: <code>bob</code> / <code>bob123</code> (ID: 2)<br>
+                • Staff Doctor: <code>dr_cyber</code> / <code>staff123</code>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Main Terminal Layout -->
+    <div id="appLayout" style="display: none;">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div>
+                <div class="brand">
+                    <span>🔬 NEXUS VAULT</span>
+                </div>
+                <nav>
+                    <ul class="nav-menu">
+                        <li><a onclick="showView('dashboard')" id="nav-dashboard" class="nav-link active">🩺 Health Records</a></li>
+                        <li><a onclick="showView('scheduler')" id="nav-scheduler" class="nav-link">📅 Appointment Center</a></li>
+                    </ul>
+                </nav>
+            </div>
+            
+            <div style="border-top: 1px solid var(--border-color); padding-top: 24px; display: flex; flex-direction: column; gap: 16px;">
+                <div>
+                    <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-family: var(--font-header);">Active Link</div>
+                    <div id="currentUserLabel" style="font-size: 16px; font-weight: 600; color: #fff; margin-top: 4px; font-family: var(--font-mono);">-</div>
+                    <div id="currentUserRoleLabel" style="font-size: 11px; color: var(--primary); margin-top: 2px; font-family: var(--font-mono);">-</div>
+                </div>
+                <button onclick="handleLogout()" class="btn btn-secondary" style="width: 100%; padding: 10px;">SEVER COMMUNICATOR</button>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="main-content">
+            
+            <!-- 2.1 Health Dashboard View -->
+            <section id="view-dashboard" class="spa-view">
+                <div class="header-panel">
+                    <div>
+                        <h1>Biometric Health Vault</h1>
+                        <p style="color: var(--text-muted); margin-top: 4px;">Real-time diagnostics, vital signs telemetry, and medication histories</p>
+                    </div>
+                </div>
+
+                <div class="grid-cards">
+                    <!-- ECG Heartbeat Monitor Block -->
+                    <div class="clinical-card ecg-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span class="form-label" style="color: var(--primary);">Cardiovascular Pulse</span>
+                                <h3 style="font-family: var(--font-header); font-size: 20px; color: #fff; margin-top: 4px;">76 BPM <span style="font-size: 12px; color: var(--primary); font-family: var(--font-mono);">[ACTIVE SENSOR]</span></h3>
+                            </div>
+                            <span class="badge badge-info" style="font-size: 10px;">Vitals Stable</span>
+                        </div>
+                        <div class="ecg-line"></div>
+                    </div>
+
+                    <!-- Profile Details -->
+                    <div class="clinical-card" style="grid-column: span 1; justify-content: space-between;">
+                        <div>
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+                                <h3 id="recordPatientName" style="font-family: var(--font-header); font-size: 18px; color: var(--secondary);">-</h3>
+                                <span id="recordBloodBadge" class="badge badge-info">-</span>
+                            </div>
+                            
+                            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 14px;">
+                                <div>
+                                    <span class="form-label" style="font-size: 10px;">Clinical Patient ID</span>
+                                    <div id="recordPatientId" style="font-family: var(--font-mono); font-weight: 700; color: #fff;">-</div>
+                                </div>
+                                <div>
+                                    <span class="form-label" style="font-size: 10px;">Date of Birth</span>
+                                    <div id="recordDob" style="font-family: var(--font-mono); color: #fff;">-</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- IDOR profile switcher trigger box (A01 sandbox) -->
+                        <div style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 16px; display: flex; gap: 8px; align-items: center;">
+                            <input type="number" id="idorPatientIdInput" class="form-input" style="width: 70px; padding: 8px; text-align: center; font-family: var(--font-mono);" placeholder="ID" value="1">
+                            <button onclick="triggerIdorRecordFetch()" class="btn btn-secondary" style="flex-grow: 1; padding: 8px;">Switch Record Vault</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Prescriptions table -->
+                <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 32px;">
+                    <h2 style="font-family: var(--font-header); font-size: 16px; margin-bottom: 20px; color: var(--primary);">Active Prescriptions Vault</h2>
+                    
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Medication Formula</th>
+                                    <th>Dosage</th>
+                                    <th>Frequency Mappings</th>
+                                    <th>Physician</th>
+                                    <th>Privileged Diagnostic Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="prescriptionsTableBody">
+                                <tr>
+                                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 32px;">No active prescriptions recorded.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2.2 Appointment Scheduler View -->
+            <section id="view-scheduler" class="spa-view" style="display: none;">
+                <div class="header-panel">
+                    <div>
+                        <h1>Cardio & Pulmonary Scheduling</h1>
+                        <p style="color: var(--text-muted); margin-top: 4px;">Reserve clinic consultation times and browse booking histories</p>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1.3fr; gap: 32px;">
+                    <!-- Schedule Form -->
+                    <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 32px; height: fit-content;">
+                        <h2 style="font-family: var(--font-header); font-size: 15px; color: var(--secondary); margin-bottom: 20px;">Book Clinical Consultation</h2>
+                        
+                        <form id="appointmentForm" onsubmit="handleAppointmentSubmit(event)">
+                            <div class="form-group">
+                                <label class="form-label" for="apptDept">Clinic Department</label>
+                                <select id="apptDept" class="form-input" style="background: #0d1222; color: #fff; height: 46px;" required>
+                                    <option value="Cardiology Center">Cardiology Center</option>
+                                    <option value="Pulmonary Clinic">Pulmonary Clinic</option>
+                                    <option value="Neurology Dept">Neurology Dept</option>
+                                    <option value="General Medicine">General Medicine</option>
+                                </select>
+                            </div>
+
+                            <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div class="form-group">
+                                    <label class="form-label" for="apptDate">Target Date</label>
+                                    <input type="date" id="apptDate" class="form-input" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="apptTime">Preferred Time</label>
+                                    <input type="text" id="apptTime" class="form-input" value="09:00 AM" placeholder="e.g. 10:30 AM" required>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="apptReason">Clinical Indication / Reason</label>
+                                <textarea id="apptReason" class="form-input" style="height: 80px;" placeholder="Describe symptoms or request details..." required></textarea>
+                            </div>
+
+                            <button type="submit" class="btn" style="width: 100%;">SUBMIT REQUEST</button>
+                        </form>
+                    </div>
+
+                    <!-- Consultation lists -->
+                    <div>
+                        <h2 style="font-family: var(--font-header); font-size: 15px; margin-bottom: 16px;">Scheduled Consultations</h2>
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Patient</th>
+                                        <th>Clinic Dept</th>
+                                        <th>Schedule Timestamp</th>
+                                        <th>Diagnostic Reason</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="appointmentsTableBody">
+                                    <tr>
+                                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 32px;">No consultations scheduled.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- WMS Portal Client JavaScript -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
