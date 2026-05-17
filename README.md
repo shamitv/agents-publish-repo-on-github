@@ -77,7 +77,7 @@ Each application simulates a realistic business system with **2–4 deliberately
 |---|----------|--------|-----------------|
 | 11 | [Social Media Analytics Dashboard](apps/typescript/app-11-social-analytics/README.md) | Marketing | A03, A05, A10 |
 | 12 | [Crypto Wallet Service](apps/typescript/app-12-crypto-wallet/README.md) | FinTech | A02, A04, A07 |
-| 13 | Project Management Tool | SaaS | A01, A03, A09 |
+| 13 | [Project Management Tool](apps/typescript/app-13-project-mgmt/README.md) | SaaS | A01, A03, A09 |
 | 14 | Telemedicine Appointment System | Telehealth | A01, A02, A07 |
 | 15 | Digital Asset Management | Media | A01, A08, A10 |
 | 31 | Event Ticketing Platform | Entertainment | A03, A04, A07 |
