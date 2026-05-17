@@ -42,8 +42,8 @@ Each application simulates a realistic business system with **2–4 deliberately
 |---|----------|--------|-----------------|
 | 01 | [E-Commerce Product Catalog API](apps/python/app-01-ecommerce-catalog/README.md) | Retail | A01, A03, A09 |
 | 02 | [Healthcare Patient Portal](apps/python/app-02-patient-portal/README.md) | Healthcare | A01, A02, A07 |
-| 03 | Banking Transaction Service | FinTech | A02, A03, A04 |
-| 04 | Real Estate Listing Platform | Real Estate | A03, A05, A10 |
+| 03 | [Banking Transaction Service](apps/python/app-03-banking-service/README.md) | FinTech | A02, A03, A04 |
+| 04 | [Real Estate Listing Platform](apps/python/app-04-real-estate/README.md) | Real Estate | A03, A05, A10 |
 | 05 | Online Learning Management System | Education | A01, A05, A08 |
 | 21 | Insurance Claims Processor | Insurance | A01, A03, A09 |
 | 22 | Food Delivery Order System | Food & Beverage | A02, A04, A07 |
@@ -75,8 +75,8 @@ Each application simulates a realistic business system with **2–4 deliberately
 
 | # | App Name | Domain | Vulnerabilities |
 |---|----------|--------|-----------------|
-| 11 | Social Media Analytics Dashboard | Marketing | A03, A05, A10 |
-| 12 | Crypto Wallet Service | FinTech | A02, A04, A07 |
+| 11 | [Social Media Analytics Dashboard](apps/typescript/app-11-social-analytics/README.md) | Marketing | A03, A05, A10 |
+| 12 | [Crypto Wallet Service](apps/typescript/app-12-crypto-wallet/README.md) | FinTech | A02, A04, A07 |
 | 13 | Project Management Tool | SaaS | A01, A03, A09 |
 | 14 | Telemedicine Appointment System | Telehealth | A01, A02, A07 |
 | 15 | Digital Asset Management | Media | A01, A08, A10 |
