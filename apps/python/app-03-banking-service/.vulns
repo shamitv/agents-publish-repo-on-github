@@ -1,0 +1,48 @@
+{
+  "app_id": "app-03",
+  "app_name": "Banking Transaction Service",
+  "language": "python",
+  "framework": "fastapi",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A02",
+      "category": "Cryptographic Failures",
+      "location": "app.py",
+      "method": "API_KEYS_CONFIG",
+      "line_range": "20-35",
+      "description": "Sensitive payment gateway API keys (GATEWAY_API_KEY) are hardcoded directly into the backend source code file rather than being loaded securely from external, encrypted environment variables",
+      "severity": "high",
+      "cwe": "CWE-798"
+    },
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "app.py",
+      "method": "list_transactions",
+      "line_range": "115-135",
+      "description": "Transaction filter endpoint parses raw, unvalidated JSON input from the user and supplies it directly to the PyMongo/mongomock find() engine, allowing arbitrary NoSQL operator injection ($ne, $gt) to leak private wire accounts",
+      "severity": "high",
+      "cwe": "CWE-943"
+    },
+    {
+      "owasp_id": "A04",
+      "category": "Insecure Design",
+      "location": "app.py",
+      "method": "dispatch_transfer",
+      "line_range": "150-180",
+      "description": "wire transfer dispatch endpoint contains no rate-limiting, request throttling, or checkout limits, allowing malicious bots or automated scripts to trigger infinite consecutive transfers and drain accounts",
+      "severity": "medium",
+      "cwe": "CWE-307"
+    }
+  ],
+  "decoys": [
+    {
+      "location": "app.py",
+      "description": "Safe, cryptographically signed HTTP cookies for session auth handshakes — secure auth decoy"
+    },
+    {
+      "location": "app.py",
+      "description": "Safe, parameterized username lookup on login — secure query decoy"
+    }
+  ]
+}
