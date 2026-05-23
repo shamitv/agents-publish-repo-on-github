@@ -35,6 +35,43 @@
       "cwe": "CWE-778"
     }
   ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "User Enumeration → Session Forge → Admin Takeover",
+      "attack_scenario": "Attacker confirms admin username via unauthenticated existence endpoint, then forges a Flask session cookie using the hardcoded secret_key visible in source code, gaining admin-level access without any credentials.",
+      "impact": "account_takeover",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A01",
+          "description": "GET /api/users/exists returns 200/404 per username, confirming valid accounts without authentication",
+          "location": "app.py",
+          "method": "user_exists",
+          "severity": "low",
+          "cwe": "CWE-204"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A05",
+          "description": "Flask secret_key is a hardcoded string in source code, allowing any party with source access to forge valid signed session cookies for any user or role",
+          "location": "app.py",
+          "method": "app_config",
+          "severity": "medium",
+          "cwe": "CWE-798"
+        },
+        {
+          "step": 3,
+          "owasp_id": "A05",
+          "description": "No CSRF tokens on any state-changing endpoint — the forged session cookie is sufficient to invoke admin-only mutations",
+          "location": "app.py",
+          "method": "all_post_endpoints",
+          "severity": "low",
+          "cwe": "CWE-352"
+        }
+      ]
+    }
+  ],
   "decoys": [
     {
       "location": "app.py",

@@ -36,6 +36,43 @@
       "cwe": "CWE-918"
     }
   ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "LDAP Injection \u2192 Directory Structure Disclosure \u2192 Inventory Tampering",
+      "attack_scenario": "Attacker injects a malformed LDAP filter that triggers an exception; the verbose error response reveals internal DN paths and account naming conventions. The attacker authenticates with a discovered worker account and calls the unprotected inventory adjustment endpoint to zero out stock counts.",
+      "impact": "data_modification",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A03",
+          "description": "LDAP filter built by direct string concatenation of user input in searchEmployees(), enabling injection to enumerate arbitrary directory entries",
+          "location": "src/main/java/com/warehouse/service/EmployeeLdapService.java",
+          "method": "searchEmployees",
+          "severity": "medium",
+          "cwe": "CWE-90"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A05",
+          "description": "LDAP exceptions including internal DN paths are returned verbatim in the HTTP 500 error body, revealing directory structure to the attacker",
+          "location": "src/main/java/com/warehouse/controller/EmployeeController.java",
+          "method": "search",
+          "severity": "low",
+          "cwe": "CWE-209"
+        },
+        {
+          "step": 3,
+          "owasp_id": "A01",
+          "description": "POST /api/inventory/{id}/adjust requires only authentication (no role check), allowing any worker account to modify stock quantities for any item",
+          "location": "src/main/java/com/warehouse/controller/InventoryController.java",
+          "method": "adjustQuantity",
+          "severity": "high",
+          "cwe": "CWE-862"
+        }
+      ]
+    }
+  ],
   "decoys": [
     {
       "location": "src/main/java/com/warehouse/repository/InventoryRepository.java",

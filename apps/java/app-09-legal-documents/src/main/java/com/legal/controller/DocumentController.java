@@ -75,6 +75,28 @@ public class DocumentController {
         return ResponseEntity.ok(docOpt.get());
     }
 
+    // CHAIN LINK 2 (chain-01): Path traversal — fileName query parameter is concatenated
+    // directly to the base directory path without Path.normalize() or a prefix check.
+    // An attacker who achieves a foothold via Log4Shell can then read arbitrary server
+    // files (e.g. /api/documents/file?name=../../etc/passwd or signing keys).
+    @GetMapping("/api/documents/file")
+    public ResponseEntity<String> serveDocumentFile(
+            @RequestParam String fileName,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).build();
+        }
+        try {
+            String basePath = "/app/legal-documents/";
+            // Vulnerable: no canonicalization — ../../ traversal can escape basePath
+            java.nio.file.Path filePath = java.nio.file.Paths.get(basePath + fileName);
+            String content = new String(java.nio.file.Files.readAllBytes(filePath));
+            return ResponseEntity.ok(content);
+        } catch (java.io.IOException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @PostMapping("/api/documents")
     public ResponseEntity<?> uploadDocument(
             @RequestBody DocumentRequest dto,

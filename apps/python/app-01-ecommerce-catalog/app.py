@@ -131,6 +131,19 @@ def logout():
     session.clear()
     return jsonify({'success': True})
 
+# CHAIN LINK 1 (chain-01): User enumeration endpoint.
+# Returns 200 if a username exists, 404 if not — individually a low-severity
+# information-disclosure issue, but enables the first step of the session-forge chain.
+@app.route('/api/users/exists', methods=['GET'])
+def user_exists():
+    username = request.args.get('username', '').strip()
+    cursor = db_conn.cursor()
+    cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+    row = cursor.fetchone()
+    if row:
+        return jsonify({'exists': True})
+    return jsonify({'exists': False}), 404
+
 @app.route('/api/auth/me', methods=['GET'])
 def get_me():
     if 'user_id' in session:

@@ -35,6 +35,43 @@
       "cwe": "CWE-327"
     }
   ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Credential Hash Harvest \u2192 Offline Crack \u2192 Payroll + SSN Exfiltration",
+      "attack_scenario": "A low-privilege employee iterates the audit endpoint to collect password hashes for all employees, cracks the hashes offline using a wordlist attack, re-authenticates as an HR Admin, then dumps all payroll records and decrypts SSNs using the hardcoded XOR key.",
+      "impact": "db_exfiltration",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A01",
+          "description": "GET /api/employees/{id}/audit exposes passwordHash for any employee to any authenticated user — no role or ownership check",
+          "location": "src/main/java/com/hr/controller/EmployeeController.java",
+          "method": "getEmployeeAudit",
+          "severity": "medium",
+          "cwe": "CWE-639"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A02",
+          "description": "Seed data uses short common passwords; hashes crackable offline with a standard wordlist, providing access to higher-privilege accounts",
+          "location": "src/main/java/com/hr/config/DataInitializer.java",
+          "method": "seed",
+          "severity": "low",
+          "cwe": "CWE-521"
+        },
+        {
+          "step": 3,
+          "owasp_id": "A01",
+          "description": "Payroll endpoint returns salary and encrypted SSN for any employee to any authenticated session without role or ownership validation",
+          "location": "src/main/java/com/hr/controller/PayrollController.java",
+          "method": "getPayroll",
+          "severity": "high",
+          "cwe": "CWE-639"
+        }
+      ]
+    }
+  ],
   "decoys": [
     {
       "location": "src/main/java/com/hr/config/SecurityConfig.java",

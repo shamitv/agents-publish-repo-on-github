@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import java.util.HashMap;
+
 @RestController
 @RequestMapping("/api/employees")
 public class EmployeeController {
@@ -90,6 +92,24 @@ public class EmployeeController {
     public ResponseEntity<Void> deleteEmployee(@PathVariable Long id) {
         employeeService.deleteEmployee(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // CHAIN LINK 1 (chain-01): Audit endpoint exposes raw employee data including the
+    // passwordHash field. The missing @PreAuthorize means any authenticated employee can
+    // call this for any employee ID. Individually a minor IDOR, but the exposed hash
+    // enables the offline-crack step that unlocks higher-privilege sessions.
+    @GetMapping("/{id}/audit")
+    public ResponseEntity<?> getEmployeeAudit(@PathVariable Long id) {
+        return employeeService.getEmployeeById(id).map(emp -> {
+            Map<String, Object> auditData = new HashMap<>();
+            auditData.put("id", emp.getId());
+            auditData.put("firstName", emp.getFirstName());
+            auditData.put("lastName", emp.getLastName());
+            auditData.put("email", emp.getEmail());
+            auditData.put("role", emp.getRole());
+            auditData.put("passwordHash", emp.getPasswordHash());
+            return ResponseEntity.ok(auditData);
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     // Import employees endpoint

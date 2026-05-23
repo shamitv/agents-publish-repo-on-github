@@ -35,6 +35,43 @@
       "cwe": "CWE-778"
     }
   ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Board IDOR \u2192 Stored XSS in Task Comments \u2192 Session Token Exfiltration",
+      "attack_scenario": "Attacker accesses a cross-org board via IDOR, posts a script payload as a task comment. When the victim org's manager views the board and the comment is rendered via innerHTML, the script exfiltrates their session_id cookie (readable because httpOnly is absent). Attacker hijacks the manager session.",
+      "impact": "account_takeover",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A01",
+          "description": "GET /api/boards/:id does not verify board.orgId matches the authenticated user's orgId, allowing cross-organization board and task access",
+          "location": "src/index.ts",
+          "method": "GET /api/boards/:id",
+          "severity": "medium",
+          "cwe": "CWE-639"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A03",
+          "description": "Task comments stored and returned without HTML sanitization; script tags in comment content execute as Stored XSS when rendered via innerHTML by the frontend",
+          "location": "src/index.ts",
+          "method": "POST /api/boards/:boardId/tasks/:taskId/comments",
+          "severity": "medium",
+          "cwe": "CWE-79"
+        },
+        {
+          "step": 3,
+          "owasp_id": "A07",
+          "description": "Session cookie set without httpOnly flag; JavaScript can read document.cookie, enabling the XSS payload to exfiltrate the session token",
+          "location": "src/index.ts",
+          "method": "POST /api/auth/login cookie",
+          "severity": "medium",
+          "cwe": "CWE-1004"
+        }
+      ]
+    }
+  ],
   "decoys": [
     {
       "location": "src/index.ts",

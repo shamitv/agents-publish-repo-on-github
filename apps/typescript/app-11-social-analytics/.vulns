@@ -35,6 +35,43 @@
       "cwe": "CWE-312"
     }
   ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "SSRF to Cloud Metadata \u2192 Full Credential Response \u2192 IAM Key Exfiltration",
+      "attack_scenario": "Attacker posts the AWS IMDS URL to the SSRF preview endpoint; the now-untruncated response returns full IAM credential JSON including AccessKeyId, SecretAccessKey, and Token, enabling lateral movement across the cloud environment.",
+      "impact": "lateral_movement",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A10",
+          "description": "POST /api/preview fetches any URL server-side via axios without IP or hostname validation, allowing access to cloud metadata services at 169.254.169.254",
+          "location": "src/index.ts",
+          "method": "POST /api/preview",
+          "severity": "medium",
+          "cwe": "CWE-918"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A05",
+          "description": "SSRF response body previously truncated to 500 chars; truncation removed, returning the full metadata credential payload (600+ bytes for AWS IMDSv1)",
+          "location": "src/index.ts",
+          "method": "POST /api/preview",
+          "severity": "low",
+          "cwe": "CWE-200"
+        },
+        {
+          "step": 3,
+          "owasp_id": "A05",
+          "description": "GET /api/debug/headers returns all request headers verbatim including internal proxy headers injected by cloud load balancers",
+          "location": "src/index.ts",
+          "method": "GET /api/debug/headers",
+          "severity": "low",
+          "cwe": "CWE-200"
+        }
+      ]
+    }
+  ],
   "decoys": [
     {
       "location": "src/index.ts",
