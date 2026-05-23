@@ -36,6 +36,34 @@
       "secondary_location": "src/main/java/com/legal/controller/DocumentController.java"
     }
   ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Log4Shell Trigger \u2192 Path Traversal \u2192 Legal Document Exfiltration",
+      "attack_scenario": "Attacker submits a case title containing a JNDI expression; Log4j 2.14.1 evaluates it, triggering Log4Shell RCE. The executed payload then calls the path-traversal file endpoint to read signing keys and legal document content from the server filesystem.",
+      "impact": "lateral_movement",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A06",
+          "description": "Case title logged verbatim via Log4j 2.14.1 logger.info(); a JNDI expression in the title triggers Log4Shell remote code execution",
+          "location": "src/main/java/com/legal/controller/CaseController.java",
+          "method": "createCase",
+          "severity": "medium",
+          "cwe": "CWE-693"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A01",
+          "description": "GET /api/documents/file?name= concatenates the parameter to a base path without normalization, allowing path traversal to read arbitrary server files",
+          "location": "src/main/java/com/legal/controller/DocumentController.java",
+          "method": "serveDocumentFile",
+          "severity": "high",
+          "cwe": "CWE-22"
+        }
+      ]
+    }
+  ],
   "decoys": [
     {
       "location": "src/main/java/com/legal/config/SecurityConfig.java",

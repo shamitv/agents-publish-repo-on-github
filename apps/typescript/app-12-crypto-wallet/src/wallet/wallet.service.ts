@@ -62,4 +62,45 @@ export class WalletService {
       newBalance: senderWallet.balance
     };
   }
+
+  // CHAIN LINK 3 (chain-01): Transfer by raw address — no ownership check against
+  // the calling user. Any authenticated user supplying a valid fromAddress can drain
+  // funds from wallets they do not own.\n  executeTransferByAddress(fromAddress: string, toAddress: string, amount: number) {
+    if (amount <= 0) {
+      throw new BadRequestException('Transfer amount must be positive');
+    }
+
+    const senderWallet = db.wallets.find(w => w.address === fromAddress);
+    if (!senderWallet) {
+      throw new BadRequestException('Source wallet not found');
+    }
+
+    if (fromAddress === toAddress) {
+      throw new BadRequestException('Cannot transfer to self');
+    }
+
+    if (senderWallet.balance < amount) {
+      throw new BadRequestException('Insufficient balance');
+    }
+
+    const recipientWallet = db.wallets.find(w => w.address === toAddress);
+    if (!recipientWallet) {
+      throw new BadRequestException('Recipient address not found');
+    }
+
+    senderWallet.balance -= amount;
+    recipientWallet.balance += amount;
+
+    const transaction = {
+      id: db.transactions.length + 1,
+      sender: fromAddress,
+      receiver: toAddress,
+      amount,
+      timestamp: new Date().toISOString()
+    };
+
+    db.transactions.push(transaction);
+
+    return { success: true, transaction, newBalance: senderWallet.balance };
+  }
 }

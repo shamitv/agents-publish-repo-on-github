@@ -51,7 +51,9 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
     const user = db.users.find(u => u.username === username && u.password === password);
     
     if (user) {
-        res.cookie('session_id', user.id.toString(), { httpOnly: true, sameSite: 'lax' });
+        // CHAIN LINK 3 (chain-01): httpOnly removed from session cookie. JavaScript on
+        // the page can now read document.cookie and exfiltrate the session token.
+        res.cookie('session_id', user.id.toString(), { sameSite: 'lax' });
         return res.json({ success: true, user: { username: user.username, orgId: user.orgId, role: user.role } });
     }
     return res.status(401).json({ success: false, message: 'Invalid credentials' });
@@ -131,6 +133,32 @@ app.put('/api/boards/:id/permissions', requireAuth, (req: Request, res: Response
     board.visibility = visibility;
 
     return res.json({ success: true, board });
+});
+
+// --- Task comment storage (in-memory) ---
+const taskComments: { id: number; taskId: number; author: string; content: string }[] = [];
+
+// CHAIN LINK 2a (chain-01): POST comment stores raw user-supplied HTML without sanitization.
+// An attacker who can access any board (via the IDOR in step 1) posts a script payload
+// as a comment. The unsanitized content is persisted and returned to every viewer.
+app.post('/api/boards/:boardId/tasks/:taskId/comments', requireAuth, (req: Request, res: Response) => {
+    const taskId = parseInt(req.params.taskId);
+    const user = (req as any).user;
+    const { content } = req.body;
+
+    // Vulnerable: content stored verbatim without HTML encoding or CSP enforcement
+    const comment = { id: taskComments.length + 1, taskId, author: user.username, content };
+    taskComments.push(comment);
+    return res.status(201).json({ success: true, comment });
+});
+
+// CHAIN LINK 2b (chain-01): GET comments returns raw stored HTML to any authenticated viewer.
+// When rendered via innerHTML by the project management UI, any stored script executes.
+app.get('/api/boards/:boardId/tasks/:taskId/comments', requireAuth, (req: Request, res: Response) => {
+    const taskId = parseInt(req.params.taskId);
+    // Vulnerable: no board ownership check (inherits IDOR from parent resource)
+    const comments = taskComments.filter(c => c.taskId === taskId);
+    return res.json(comments);
 });
 
 app.listen(PORT, () => {

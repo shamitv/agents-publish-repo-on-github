@@ -35,6 +35,43 @@
       "cwe": "CWE-918"
     }
   ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Debug Environment Exposure \u2192 SSRF Internal Recon \u2192 OS Command Injection RCE",
+      "attack_scenario": "Attacker reads internal environment variables via the exposed debug endpoint to discover service topology, then uses SSRF to probe internal endpoints and gather further context, then injects shell commands into the analyze endpoint to achieve RCE and exfiltrate data.",
+      "impact": "lateral_movement",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A05",
+          "description": "GET /api/debug/env returns full process environment variables and working directory without authentication",
+          "location": "app.py",
+          "method": "debug_env",
+          "severity": "low",
+          "cwe": "CWE-215"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A10",
+          "description": "SSRF endpoint fetches arbitrary URLs with no IP-space restriction, enabling internal network mapping",
+          "location": "app.py",
+          "method": "import_external_image",
+          "severity": "high",
+          "cwe": "CWE-918"
+        },
+        {
+          "step": 3,
+          "owasp_id": "A03",
+          "description": "OS command injection via shell=True subprocess with user-controlled filename — executes arbitrary system commands",
+          "location": "app.py",
+          "method": "analyze_listing",
+          "severity": "high",
+          "cwe": "CWE-78"
+        }
+      ]
+    }
+  ],
   "decoys": [
     {
       "location": "app.py",

@@ -212,6 +212,15 @@ def import_external_image():
         return jsonify({'success': False, 'error': str(ex)}), 400
 
 # --- AGENT COMMUNICATIONS APIs ---
+# CHAIN LINK 1 (chain-01): Debug environment introspection endpoint left active in production.
+# Individually this is a low-impact misconfiguration, but it reveals internal file paths,
+# service URLs, and environment variables that make the SSRF and command-injection steps
+# far more precise and reliable.
+@app.route('/api/debug/env', methods=['GET'])
+def debug_env():
+    env_dump = {k: v for k, v in os.environ.items()}
+    return jsonify({'env': env_dump, 'cwd': os.getcwd()})
+
 @app.route('/api/messages', methods=['POST'])
 def create_message():
     data = request.get_json() or {}

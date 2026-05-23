@@ -35,6 +35,43 @@
       "cwe": "CWE-307"
     }
   ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "User Enumeration \u2192 Offline MD5 Crack \u2192 Medical Records Exfiltration",
+      "attack_scenario": "Attacker enumerates valid patient usernames via distinct login error messages, cracks the unsalted MD5 password hash offline, authenticates, uses the patient search endpoint to collect all patient IDs, then dumps every patient's medical records via the IDOR endpoint.",
+      "impact": "db_exfiltration",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A07",
+          "description": "Login endpoint returns distinct error messages for unknown username vs wrong password, enabling username enumeration",
+          "location": "portal/views.py",
+          "method": "login_view",
+          "severity": "low",
+          "cwe": "CWE-204"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A02",
+          "description": "Passwords stored as unsalted MD5 hashes, crackable offline via rainbow tables or GPU brute force",
+          "location": "portal/models.py",
+          "method": "set_password_md5",
+          "severity": "high",
+          "cwe": "CWE-916"
+        },
+        {
+          "step": 3,
+          "owasp_id": "A01",
+          "description": "Patient search endpoint returns IDs for all patients regardless of the authenticated user's own identity, enabling mass IDOR enumeration",
+          "location": "portal/views.py",
+          "method": "search_patients",
+          "severity": "low",
+          "cwe": "CWE-639"
+        }
+      ]
+    }
+  ],
   "decoys": [
     {
       "location": "patient_portal/settings.py",

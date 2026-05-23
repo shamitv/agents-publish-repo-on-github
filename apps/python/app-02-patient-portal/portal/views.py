@@ -115,6 +115,10 @@ def login_view(request):
 
     # VULNERABILITY A07: Login authentication performs arbitrary sequential attempts without limits.
     # No brute force lockouts or connection throttling rules.
+    #
+    # CHAIN LINK 1 (chain-01): Distinct error messages per failure type enable username enumeration.
+    # An attacker can distinguish "account does not exist" from "wrong password" and build a
+    # valid username list before launching a targeted offline password attack.
     try:
         profile = PatientProfile.objects.get(username=username)
         if profile.check_password_md5(password):
@@ -129,10 +133,10 @@ def login_view(request):
                     'patient_id': profile.id
                 }
             })
+        # Different message for wrong password vs unknown user
+        return JsonResponse({'success': False, 'message': 'Incorrect password for this account'}, status=401)
     except PatientProfile.DoesNotExist:
-        pass
-
-    return JsonResponse({'success': False, 'message': 'Invalid medical credentials'}, status=401)
+        return JsonResponse({'success': False, 'message': 'Account not found in patient registry'}, status=401)
 
 @csrf_exempt
 def logout_view(request):
@@ -155,6 +159,19 @@ def get_me(request):
         })
     except PatientProfile.DoesNotExist:
         return JsonResponse({'message': 'Unauthenticated'}, status=401)
+
+# CHAIN LINK 2 (chain-01): Patient search returns patient IDs without restricting to the
+# authenticated user's own record. Individually low-severity, but supplies the IDs needed
+# for the IDOR exploit in get_patient_records.
+def search_patients(request):
+    """Search patients by name — returns IDs usable in subsequent IDOR requests."""
+    if 'patient_id' not in request.session:
+        return JsonResponse({'message': 'Unauthenticated'}, status=401)
+    query = request.GET.get('name', '').strip()
+    results = PatientProfile.objects.filter(full_name__icontains=query).values(
+        'id', 'username', 'full_name', 'blood_type'
+    )
+    return JsonResponse({'patients': list(results)})
 
 def get_patient_records(request, patient_id):
     """Browse sensitive medical histories."""
