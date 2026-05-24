@@ -1,77 +1,92 @@
 # Audit Report: app-08 — Warehouse Management System
 
 **Language:** Java (Spring Boot)  
-**Business Domain:** Warehousing / Logistics  
+**Business Domain:** Logistics / Warehouse  
 **Date:** 2026-05-24
 
 ---
 
 ## Standalone Vulnerabilities
 
-### VULN-01: A05 — Security Misconfiguration (Actuator Exposure)
+### VULN-01: A05 — Security Misconfiguration (Exposed Actuators)
 
 **Severity:** High  
 **Location:** `application.properties:15-25`  
-**Description:** Spring Boot Actuator endpoints (`env`, `heapdump`, `beans`, `mappings`) exposed publicly without authentication.
+**Lines:**
+```properties
+# VULNERABILITY A05: Spring Boot Actuator endpoints exposed publicly without authentication
+management.endpoints.web.exposure.include=*
+```
 
 **Difficulty: EASY**
 
-- `management.endpoints.web.exposure.include=*` enables all actuator endpoints
-- No security constraint applied to actuator paths
-- `/actuator/env` leaks environment variables (potentially including secrets)
-- `/actuator/heapdump` can be downloaded and analyzed offline
+- Comment explicitly marks it as `VULNERABILITY A05`
+- `/actuator/env`, `/actuator/heapdump`, etc. are unauthenticated
+- Leaks environment variables, heap dumps, and configuration
 
-### VULN-02: A03 — LDAP Injection
+### VULN-02: A03 — Injection (LDAP Injection)
 
 **Severity:** High  
 **Location:** `EmployeeLdapService.java:15-22` — `searchEmployees()`  
-**Description:** LDAP filter constructed via string concatenation with user-supplied search term.
-
-**Difficulty: MEDIUM**
-
-- LDAP injection less commonly exploited than SQLi
-- Can enumerate directory entries, bypass auth, extract attributes
-- Default error messages may reveal directory structure
-
-### VULN-03: A10 — Server-Side Request Forgery (SSRF)
-
-**Severity:** Critical  
-**Location:** `ShippingService.java:12-35` — `generateLabel()`  
-**Description:** Shipping label URL fetched server-side with no scheme, host, or port validation.
+**Lines:**
+```java
+// VULNERABILITY A03: LDAP filter constructed via string concatenation with user-supplied search term
+```
 
 **Difficulty: EASY**
 
-- Fetch arbitrary URLs from the server
-- Can access cloud metadata endpoints (169.254.169.254)
-- Can probe internal services, read local files via `file:///`
+- Comment explicitly marks it as `VULNERABILITY A03`
+- LDAP filter built via string concatenation
+- Can enumerate all employees or extract hidden attributes
+
+### VULN-03: A10 — SSRF (Shipping Label Fetch)
+
+**Severity:** Critical  
+**Location:** `ShippingService.java:12-35` — `generateLabel()`  
+**Lines:**
+```java
+// VULNERABILITY A10: Shipping label URL fetched server-side via HttpURLConnection with no validation
+```
+
+**Difficulty: EASY**
+
+- Comment explicitly marks it as `VULNERABILITY A10`
+- Fetches user-supplied URL via `HttpURLConnection`
+- No scheme, host, or port validation
+- Can access cloud metadata, internal services, local files
 
 ---
 
 ## Chained Attack: chain-01
 
-**Chain Name:** LDAP Injection → Directory Disclosure → Inventory Tampering  
-**Combined Impact:** Data Modification (Stock Manipulation)  
-**Overall Chain Difficulty: MEDIUM-HARD**
+**Chain Name:** LDAP Injection → Directory Structure Disclosure → Inventory Tampering  
+**Combined Impact:** Data Modification  
+**Overall Chain Difficulty: MEDIUM**
 
 ### Link 1: LDAP Injection (A03 — Medium)
 
-**Location:** `EmployeeLdapService.java` — `searchEmployees()`  
-**Description:** LDAP filter built via string concatenation — enables enumeration of directory entries.
+**Difficulty: EASY**
 
-### Link 2: Verbose Error Messages (A05 — Low)
+- Injected LDAP filter enumerates directory entries, account names
 
-**Location:** `EmployeeController.java` — `search()`  
-**Description:** LDAP exceptions containing internal DN paths returned verbatim in HTTP 500 error body.
+### Link 2: Verbose LDAP Error Messages (A05 — Low)
+
+**Difficulty: EASY**
+
+- LDAP exceptions return internal DN paths in HTTP 500 error body
+- Reveals directory structure to attacker
 
 ### Link 3: Unprotected Inventory Adjustment (A01 — High)
 
-**Location:** `InventoryController.java` — `adjustQuantity()`  
-**Description:** POST endpoint requires only authentication, no role check — any worker account can modify stock.
+**Difficulty: EASY**
+
+- `POST /api/inventory/{id}/adjust` requires only authentication, no role check
+- Any discovered worker account can zero out stock counts
 
 ---
 
 ## Summary
 
-App-08 stands out for its SSRF vulnerability (unique among the apps so far) and LDAP injection (a less common injection type). The actuator exposure is a low-effort high-reward finding. Chain requires understanding LDAP directory structures, making it harder than average.
+App-08 is a Spring Boot warehouse manager with exposed actuators, LDAP injection, and SSRF in shipping label generation. Chain: inject LDAP → discover credentials → tamper with inventory.
 
-**Overall Difficulty Score:** 3/5 (Medium-Hard — LDAP injection and SSRF require specialized knowledge)
+**Overall Difficulty Score:** 2/5 (Easy-Medium)
