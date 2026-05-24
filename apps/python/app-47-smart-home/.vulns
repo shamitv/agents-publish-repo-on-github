@@ -1,0 +1,85 @@
+{
+  "app_id": "app-47",
+  "app_name": "Smart Home Device Manager",
+  "language": "python",
+  "framework": "fastapi",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A05",
+      "category": "Security Misconfiguration",
+      "location": "app.py",
+      "method": "debug_devices",
+      "line_range": "110-118",
+      "description": "An unauthenticated debug endpoint (/api/debug/devices) is exposed, leaking details of all registered devices along with their private access API tokens.",
+      "severity": "high",
+      "cwe": "CWE-200"
+    },
+    {
+      "owasp_id": "A08",
+      "category": "Software and Data Integrity Failures",
+      "location": "app.py",
+      "method": "update_firmware",
+      "line_range": "132-163",
+      "description": "The firmware update endpoint accepts any URL and downloads the firmware binary without checking signatures, hashes, or origin authority.",
+      "severity": "high",
+      "cwe": "CWE-494"
+    },
+    {
+      "owasp_id": "A10",
+      "category": "Server-Side Request Forgery",
+      "location": "app.py",
+      "method": "fetch_sensor_data",
+      "line_range": "120-130",
+      "description": "The sensor data proxy endpoint processes user-provided URLs without validating if they point to private network addresses or internal hosts, allowing SSRF.",
+      "severity": "medium",
+      "cwe": "CWE-918"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Debug Token Leak → SSRF Internal Recon → Unsigned Firmware Injection",
+      "attack_scenario": "An attacker queries the public /api/debug/devices debug endpoint to leak private device tokens. They then use the SSRF vulnerability in the sensor proxy endpoint to scan internal port ranges and locate private network hosts. Finally, the attacker uses the firmware update endpoint to point a device to a malicious unsigned binary stored on an internal host, achieving persistent compromise of the smart device.",
+      "impact": "lateral_movement",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A05",
+          "description": "Debug endpoint leaks device tokens.",
+          "location": "app.py",
+          "method": "debug_devices",
+          "severity": "medium",
+          "cwe": "CWE-200"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A10",
+          "description": "SSRF in sensor data proxy allows internal service scanning.",
+          "location": "app.py",
+          "method": "fetch_sensor_data",
+          "severity": "medium",
+          "cwe": "CWE-918"
+        },
+        {
+          "step": 3,
+          "owasp_id": "A08",
+          "description": "Firmware update accepts arbitrary unsigned firmware binaries.",
+          "location": "app.py",
+          "method": "update_firmware",
+          "severity": "medium",
+          "cwe": "CWE-494"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "app.py",
+      "description": "Proper validation of the X-Device-Token header against registered device tokens in /api/devices/{device_id}/command, preventing command injection or spoofing."
+    },
+    {
+      "location": "app.py",
+      "description": "Rate-limited status polling on /api/devices/{device_id}/status using an in-memory timestamp store to enforce a request cooldown period."
+    }
+  ]
+}
