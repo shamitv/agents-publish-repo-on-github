@@ -118,6 +118,27 @@ app-01 (E-Commerce — pickle RCE), app-05 (LMS — pickle RCE), app-26 (Pharma 
 
 ---
 
+## Chain Difficulty Breakdown
+
+Each application's chained vulnerability scenario is independently rated based on the exploitability and complexity of the attack chain itself. This is separate from the overall app difficulty (above) which considers standalone vulnerabilities as well.
+
+| Difficulty | Count | Criteria |
+|-----------|-------|----------|
+| **Easy** | 13 | All chain links are trivially discoverable (e.g., explicit comments, conspicuous secrets, distinct error messages, predictable IDs) |
+| **Medium** | 36 | Chain requires some security domain knowledge (e.g., NoSQL operator syntax, MD5 offline cracking, JWT manipulation, SSRF payload construction) |
+| **Hard** | 1 | Chain requires advanced exploit techniques (e.g., Spring Boot Actuator + H2 RCE, Log4Shell payload delivery, deserialization gadget chaining) |
+
+### Easy Chain (13)
+app-01 (E-Commerce Catalog), app-04 (Real Estate Platform), app-05 (Learning Mgmt System), app-11 (Social Analytics), app-12 (Crypto Wallet), app-13 (Project Mgmt), app-18 (P2P Lending), app-20 (Fitness Tracker), app-21 (Insurance Claims), app-22 (Food Delivery), app-23 (Govt Permits), app-39 (Wedding Planner), app-44 (Election Polling)
+
+### Medium Chain (36)
+app-02 (Patient Portal), app-03 (Banking Service), app-06 (HR Mgmt), app-07 (Airline Booking), app-08 (Warehouse Mgmt), app-09 (Legal Documents), app-10 (Telecom Billing), app-14 (Telemedicine), app-15 (Digital Assets), app-16 (Restaurant Reviews), app-17 (IoT Dashboard), app-19 (CMS), app-24 (Vet Clinic), app-25 (Supply Chain), app-26 (Pharma Tracking), app-27 (Hotel Reservation), app-28 (Manufacturing QC), app-29 (Fleet Mgmt), app-30 (Auction Platform), app-31 (Event Ticketing), app-32 (Support Tickets), app-33 (Recruitment ATS), app-34 (Subscription Box), app-35 (Compliance Tracker), app-36 (Parking Mgmt), app-37 (Crop Planner), app-38 (Museum Catalog), app-40 (Pet Adoption), app-41 (Library Reservation), app-42 (Construction Tracker), app-43 (Music Streaming), app-45 (Travel & Expense), app-46 (Charity Donations), app-47 (Smart Home), app-48 (Freelancer Marketplace), app-49 (Sports League)
+
+### Hard Chain (1)
+app-50 (Energy Utility Billing — SSRF → H2 Console RCE → DB exfiltration)
+
+---
+
 ## Chained Vulnerability Scenarios
 
 Every application includes **≥ 1 chained vulnerability scenario** per the specification in [`AGENTS.md`](../../AGENTS.md). Chain impacts are distributed across all four required categories:
