@@ -42,6 +42,24 @@ For ground-truth details regarding the vulnerabilities, see the `.vulns` file in
 
 ---
 
+## Chained Vulnerability Scenario
+
+### Chain: "User Enumeration → Session Forge → Admin Takeover"
+
+An attacker combines three individually low/medium-severity issues to achieve full administrative control without knowing any credentials.
+
+| Step | Issue | Severity (standalone) | OWASP | Location |
+|------|-------|-----------------------|-------|----------|
+| 1 | `GET /api/users/exists` returns 200/404 per username — confirms valid accounts without authentication | Low | A01 | `app.py` → `user_exists()` |
+| 2 | Flask `secret_key` is a hardcoded, publicly-visible string `'cyberpunk_secret_key_glow_neon_quantum_core'` in source — allows anyone with repo access to forge signed session cookies | Medium | A05 | `app.py` line 6 |
+| 3 | No CSRF protection on any state-changing endpoint — forged session can invoke admin actions directly | Low | A05 | all POST endpoints |
+
+**Attack narrative**: The attacker probes `/api/users/exists?username=admin` to confirm the admin account exists. Using the hardcoded `secret_key` (visible in source), they craft a valid Flask session cookie containing `{"user_id": 3, "username": "admin", "role": "ADMIN"}` with the `itsdangerous` library — no password needed. They then call `POST /api/products` (admin-only) to manipulate the product catalog, and dump all orders via `GET /api/orders`.
+
+**Combined Impact**: Full admin account takeover and catalog data modification.
+
+---
+
 ## API Endpoints
 
 | Method | Path | Auth | Description |
@@ -50,6 +68,7 @@ For ground-truth details regarding the vulnerabilities, see the `.vulns` file in
 | POST | `/api/auth/login` | — | Authenticates and establishes session |
 | POST | `/api/auth/logout` | — | Terminates active portal session |
 | GET | `/api/auth/me` | ANY | Retrieves authenticated user profile |
+| GET | `/api/users/exists` | — | Checks if a username is registered (chain link) |
 | GET | `/api/products` | — | Lists product items (supports search queries) |
 | POST | `/api/products` | ADMIN+ | Add a new product to the catalog |
 | GET | `/api/orders` | ANY | Lists user checkouts history |

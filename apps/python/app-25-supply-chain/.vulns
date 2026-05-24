@@ -1,0 +1,76 @@
+{
+  "app_id": "app-25",
+  "app_name": "Supply Chain Inventory Tracker",
+  "language": "python",
+  "framework": "flask",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A06",
+      "category": "Vulnerable and Outdated Components",
+      "location": "requirements.txt",
+      "method": "PyYAML",
+      "line_range": "3-3",
+      "description": "Pins vulnerable PyYAML==5.3.1 which permits arbitrary code execution (RCE) via yaml.load() when parsing untrusted serialization inputs.",
+      "severity": "high",
+      "cwe": "CWE-502"
+    },
+    {
+      "owasp_id": "A07",
+      "category": "Identification and Authentication Failures",
+      "location": "app.py",
+      "method": "login",
+      "line_range": "87-92",
+      "description": "Passwords are stored in plaintext in the database and queried directly without hashing, and the session cookie lacks the Secure flag.",
+      "severity": "medium",
+      "cwe": "CWE-256"
+    },
+    {
+      "owasp_id": "A10",
+      "category": "Server-Side Request Forgery",
+      "location": "app.py",
+      "method": "check_supplier_api",
+      "line_range": "119-141",
+      "description": "Supplier API check endpoint allows fetching user-supplied URLs without restricting requests to external public IPs, causing SSRF.",
+      "severity": "medium",
+      "cwe": "CWE-918"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "SSRF → YAML Deserialization → Lateral Movement",
+      "attack_scenario": "An attacker uses the SSRF vulnerability in the supplier health check endpoint to fetch an internal URL. By pointing the inventory import endpoint to an internal server or using the SSRF capability to retrieve a payload, they feed a malicious YAML document to yaml.load(), triggering unsafe deserialization and arbitrary code execution.",
+      "impact": "lateral_movement",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A10",
+          "description": "SSRF endpoint fetches arbitrary URL.",
+          "location": "app.py",
+          "method": "check_supplier_api",
+          "severity": "medium",
+          "cwe": "CWE-918"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A06",
+          "description": "Deserializes fetched contents with unsafe yaml.load(), executing arbitrary system commands.",
+          "location": "app.py",
+          "method": "import_inventory",
+          "severity": "medium",
+          "cwe": "CWE-502"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "app.py",
+      "description": "Safe loading of YAML config using yaml.safe_load() on local administrator config data."
+    },
+    {
+      "location": "app.py",
+      "description": "Proper parameterized SQL queries for retrieving warehouse records by warehouse ID."
+    }
+  ]
+}

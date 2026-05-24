@@ -41,6 +41,24 @@ For ground-truth details regarding the vulnerabilities, see the `.vulns` file in
 
 ---
 
+## Chained Vulnerability Scenario
+
+### Chain: "User Enumeration → Offline MD5 Crack → Medical Records Exfiltration"
+
+Three individually modest issues combine to allow a remote attacker to read any patient's complete medical history.
+
+| Step | Issue | Severity (standalone) | OWASP | Location |
+|------|-------|-----------------------|-------|----------|
+| 1 | Login returns distinct messages: *"Account not found"* vs *"Incorrect password"* — allows enumeration of valid usernames without authentication | Low | A07 | `portal/views.py` → `login_view()` |
+| 2 | Passwords stored as unsalted MD5 hashes — crackable offline in seconds with rainbow tables or hashcat | High | A02 | `portal/models.py` → `set_password_md5()` |
+| 3 | `GET /api/patients/search?name=X` returns patient IDs for any authenticated user — feeds the IDOR on `GET /api/patients/{id}/records` | Low | A01 | `portal/views.py` → `search_patients()` |
+
+**Attack narrative**: The attacker calls `POST /api/auth/login` with candidate usernames; the distinct error text confirms which accounts exist. They then attempt login with a common password (`alice123`) or crack the MD5 hash offline. Once authenticated, they query `GET /api/patients/search?name=` (blank name returns all patients) to collect every patient ID. Finally, they loop through IDs calling `GET /api/patients/{id}/records`, reading prescriptions and diagnostic notes for every patient.
+
+**Combined Impact**: Full medical records exfiltration across all patients.
+
+---
+
 ## API Endpoints
 
 | Method | Path | Auth | Description |
@@ -49,6 +67,7 @@ For ground-truth details regarding the vulnerabilities, see the `.vulns` file in
 | POST | `/api/auth/login` | — | Authenticates and establishes session |
 | POST | `/api/auth/logout` | — | Terminates active portal session |
 | GET | `/api/auth/me` | ANY | Retrieves authenticated user profile |
+| GET | `/api/patients/search` | ANY | Search patients by name, returns patient IDs (chain link) |
 | GET | `/api/patients/{id}/records` | ANY | Browse medical history and prescriptions |
 | GET | `/api/appointments` | ANY | Lists scheduled medical consults |
 | POST | `/api/appointments` | ANY | Schedule a new clinical consultation |

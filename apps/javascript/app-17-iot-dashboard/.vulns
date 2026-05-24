@@ -1,0 +1,76 @@
+{
+  "app_id": "app-17",
+  "app_name": "IoT Device Dashboard",
+  "language": "javascript",
+  "framework": "express",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A02",
+      "category": "Cryptographic Failures",
+      "location": "src/index.js",
+      "method": "initDb",
+      "line_range": "47-56",
+      "description": "Device secret access keys are stored in plaintext in the database instead of being hashed or encrypted.",
+      "severity": "medium",
+      "cwe": "CWE-312"
+    },
+    {
+      "owasp_id": "A05",
+      "category": "Security Misconfiguration",
+      "location": "src/index.js",
+      "method": "POST /api/devices/command",
+      "line_range": "131-163",
+      "description": "Detailed configuration details (such as API secret keys) and stack traces are returned to the user on execution failure.",
+      "severity": "medium",
+      "cwe": "CWE-209"
+    },
+    {
+      "owasp_id": "A10",
+      "category": "Server-Side Request Forgery (SSRF)",
+      "location": "src/index.js",
+      "method": "POST /api/devices/refresh",
+      "line_range": "166-182",
+      "description": "The device status refresh handler calls external URLs using axios without validating if the IP is internal, allowing SSRF.",
+      "severity": "high",
+      "cwe": "CWE-918"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Diagnostic Trace Leak → SSRF Internal Network Pivoting",
+      "attack_scenario": "An attacker sends a TRIGGER-ERROR command to `/api/devices/command` to force a server exception, which leaks the telemetry API credentials: `INTERNAL-SECRET-TELEMETRY-TOKEN-2026`. The attacker then makes a POST request to `/api/devices/refresh` with `statusUrl: 'http://localhost:8017/api/internal/telemetry?token=INTERNAL-SECRET-TELEMETRY-TOKEN-2026'`, leveraging the SSRF vulnerability to bypass authentication and exfiltrate internal system telemetry.",
+      "impact": "lateral_movement",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A05",
+          "description": "Verbose stack trace leaks internal telemetry server token.",
+          "location": "src/index.js",
+          "method": "POST /api/devices/command",
+          "severity": "medium",
+          "cwe": "CWE-209"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A10",
+          "description": "Status update proxy fetches internal endpoints without IP filtering.",
+          "location": "src/index.js",
+          "method": "POST /api/devices/refresh",
+          "severity": "medium",
+          "cwe": "CWE-918"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/index.js",
+      "description": "Proper input validation on device command payload sizes in POST /api/devices/command."
+    },
+    {
+      "location": "src/index.js",
+      "description": "Proper parameterized query logic in GET /api/devices/:id to fetch device details safely."
+    }
+  ]
+}

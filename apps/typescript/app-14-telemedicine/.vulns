@@ -1,0 +1,76 @@
+{
+  "app_id": "app-14",
+  "app_name": "Telemedicine Appointment System",
+  "language": "typescript",
+  "framework": "express",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "src/index.ts",
+      "method": "GET /api/appointments/:id",
+      "line_range": "204-229",
+      "description": "Appointment details endpoint retrieves private physician notes and patient PII by ID without checking if the requesting user is the patient or doctor assigned to the appointment.",
+      "severity": "high",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A02",
+      "category": "Cryptographic Failures",
+      "location": "src/index.ts",
+      "method": "generateJWT",
+      "line_range": "11-13",
+      "description": "Authentication tokens are signed with a weak, hardcoded secret ('healthcare123') using HS256, allowing offline key cracking or token forgery.",
+      "severity": "high",
+      "cwe": "CWE-327"
+    },
+    {
+      "owasp_id": "A07",
+      "category": "Identification and Authentication Failures",
+      "location": "src/index.ts",
+      "method": "login",
+      "line_range": "151-158",
+      "description": "Session token cookie is set with httpOnly: false, permitting client-side scripts to access it and exposing users to session hijacking via XSS.",
+      "severity": "medium",
+      "cwe": "CWE-1004"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Weak JWT Signatures → IDOR Records Exfiltration",
+      "attack_scenario": "An attacker cracks or guesses the weak JWT secret offline, then crafts a custom JWT asserting a doctor role. Using this forged token, they query the appointment details endpoint to exfiltrate private patient records and doctor consultation notes via IDOR.",
+      "impact": "db_exfiltration",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A02",
+          "description": "JWT signed with weak secret key.",
+          "location": "src/index.ts",
+          "method": "login",
+          "severity": "medium",
+          "cwe": "CWE-327"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A01",
+          "description": "IDOR on appointment endpoint reveals sensitive notes and details.",
+          "location": "src/index.ts",
+          "method": "GET /api/appointments/:id",
+          "severity": "medium",
+          "cwe": "CWE-639"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/index.ts",
+      "description": "Proper Bcrypt hashing for password storage and credentials check during login."
+    },
+    {
+      "location": "src/index.ts",
+      "description": "Scoped list view `/api/appointments` restricting standard patient users to only see their own appointments."
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "app_id": "app-32",
+  "app_name": "Customer Support Ticket System",
+  "language": "typescript",
+  "framework": "express",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "src/index.ts",
+      "method": "GET /api/tickets/:id",
+      "line_range": "180-201",
+      "description": "The ticket detail retrieval endpoint fails to verify if the requesting user owns the ticket or possesses admin permissions, allowing authenticated users to access arbitrary tickets.",
+      "severity": "medium",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "src/index.ts",
+      "method": "GET /api/tickets/search",
+      "line_range": "165-177",
+      "description": "The search query parameter is directly concatenated into a raw SQL query statement, leading to SQL injection.",
+      "severity": "high",
+      "cwe": "CWE-89"
+    },
+    {
+      "owasp_id": "A05",
+      "category": "Security Misconfiguration",
+      "location": "src/index.ts",
+      "method": "GET /api/system/health",
+      "line_range": "204-224",
+      "description": "An endpoint exposes diagnostic info and verbose environment variables (including administrative recovery token and cookie secret) when requesting the system health status with diagnostic mode.",
+      "severity": "medium",
+      "cwe": "CWE-209"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Verbose Diagnostics Exposure → Administrative Ticket Export Bypass",
+      "attack_scenario": "An attacker queries the health diagnostics endpoint `/api/system/health?diagnostics=true` to leak the system configuration containing the hardcoded recovery key `SUPPORT-ADMIN-DEV-RECOVERY-KEY-2026`. The attacker then invokes the endpoint `/api/admin/export` passing this key in the `x-admin-token` header, enabling them to bulk export all tickets and users from the database.",
+      "impact": "db_exfiltration",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A05",
+          "description": "System diagnostics endpoint leaks secret admin recovery token.",
+          "location": "src/index.ts",
+          "method": "GET /api/system/health",
+          "severity": "medium",
+          "cwe": "CWE-209"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A01",
+          "description": "Admin export endpoint allows data exfiltration by verifying only the leaked recovery key.",
+          "location": "src/index.ts",
+          "method": "POST /api/admin/export",
+          "severity": "medium",
+          "cwe": "CWE-306"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/index.ts",
+      "description": "Proper Bcrypt hashing for password storage and credentials validation during user login."
+    },
+    {
+      "location": "src/index.ts",
+      "description": "Proper parameterized query logic in POST /api/tickets to insert new tickets safely."
+    },
+    {
+      "location": "src/index.ts",
+      "description": "Proper authentication and authorization check in GET /api/users/profile to ensure users only access their own profile details."
+    }
+  ]
+}

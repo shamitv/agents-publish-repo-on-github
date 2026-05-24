@@ -11,6 +11,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/bookings")
@@ -79,5 +80,31 @@ public class BookingController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    // CHAIN LINK 2 (chain-01): Boarding summary endpoint performs no ownership check —
+    // any authenticated passenger can view any booking by its PNR.
+    // CHAIN LINK 3 (chain-01): Passenger name is embedded raw in an HTML string and
+    // returned to the client; if rendered via innerHTML it executes as XSS.
+    @GetMapping("/{pnr}/boarding-summary")
+    public ResponseEntity<?> getBoardingSummary(
+            @PathVariable String pnr,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        return bookingService.getBookingByPnr(pnr)
+                .map(booking -> ResponseEntity.ok(Map.of(
+                        "pnr", booking.getPnr(),
+                        // Vulnerable: no ownership check performed before returning data
+                        // Vulnerable: passengerDisplay contains raw passenger name for HTML rendering (XSS)
+                        "passengerDisplay", "<strong>Passenger:</strong> " + booking.getPassenger().getFullName(),
+                        "flight", booking.getFlight().getFlightNumber(),
+                        "seatNumber", booking.getSeat().getSeatNumber(),
+                        "status", booking.getStatus()
+                )))
+                .orElse(ResponseEntity.notFound().build());
     }
 }

@@ -35,6 +35,43 @@
       "cwe": "CWE-307"
     }
   ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Unauthenticated Account Harvest \u2192 Cookie Interception \u2192 Unlimited Fund Drain",
+      "attack_scenario": "Attacker calls the unauthenticated /api/admin/users endpoint to harvest account numbers, intercepts a victim session cookie that travels without the Secure flag over plain HTTP, then uses that cookie to drain the victim's balance via the rate-limit-free transfer endpoint.",
+      "impact": "data_modification",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A01",
+          "description": "GET /api/admin/users endpoint is publicly accessible without authentication, returning all users' account and routing numbers",
+          "location": "app.py",
+          "method": "admin_list_users",
+          "severity": "medium",
+          "cwe": "CWE-284"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A05",
+          "description": "Session cookie is set with httponly=True but without secure=True, allowing it to be transmitted over plain HTTP and intercepted by a network attacker",
+          "location": "app.py",
+          "method": "login",
+          "severity": "low",
+          "cwe": "CWE-614"
+        },
+        {
+          "step": 3,
+          "owasp_id": "A04",
+          "description": "Transfer endpoint applies no rate limiting, per-request amount cap, or daily transaction ceiling, allowing a stolen session to drain the full balance instantly",
+          "location": "app.py",
+          "method": "dispatch_transfer",
+          "severity": "high",
+          "cwe": "CWE-799"
+        }
+      ]
+    }
+  ],
   "decoys": [
     {
       "location": "app.py",

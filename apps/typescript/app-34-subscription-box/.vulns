@@ -1,0 +1,80 @@
+{
+  "app_id": "app-34",
+  "app_name": "Subscription Box Service",
+  "language": "typescript",
+  "framework": "express",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "src/index.ts",
+      "method": "GET /api/packages/search",
+      "line_range": "173-185",
+      "description": "The search query parameter is directly concatenated into a raw SQL query statement, leading to SQL injection.",
+      "severity": "high",
+      "cwe": "CWE-89"
+    },
+    {
+      "owasp_id": "A07",
+      "category": "Identification and Authentication Failures",
+      "location": "src/index.ts",
+      "method": "POST /api/auth/login",
+      "line_range": "136-159",
+      "description": "User account passwords are encrypted using unsalted MD5 hashing and saved in the database, allowing brute-force or rainbow table cracking.",
+      "severity": "medium",
+      "cwe": "CWE-328"
+    },
+    {
+      "owasp_id": "A09",
+      "category": "Security Logging and Monitoring Failures",
+      "location": "src/index.ts",
+      "method": "POST /api/subscriptions/update",
+      "line_range": "199-231",
+      "description": "Critical security events such as subscription modifications or payment level updates are not logged, disabling security event visibility.",
+      "severity": "low",
+      "cwe": "CWE-778"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Package Search SQLi → Unsalted MD5 Credential Cracking",
+      "attack_scenario": "An attacker uses a SQL union injection query on `/api/packages/search?q=coffee' UNION SELECT 1,username,password_hash,role FROM users --` to dump the users table. They retrieve the unsalted MD5 hash `a57e4e138a08d3744952bd0176cd1f91` for the admin_agent user. By performing offline MD5 decryption/lookup, they crack the admin password ('adminpass2026') and take over the admin session.",
+      "impact": "account_takeover",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A03",
+          "description": "Union-based SQL injection on package search exposes internal database tables.",
+          "location": "src/index.ts",
+          "method": "GET /api/packages/search",
+          "severity": "medium",
+          "cwe": "CWE-89"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A07",
+          "description": "Admin passwords stored as unsalted MD5 hashes are cracked offline, enabling account takeover.",
+          "location": "src/index.ts",
+          "method": "POST /api/auth/login",
+          "severity": "medium",
+          "cwe": "CWE-328"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/index.ts",
+      "description": "Proper parameterized query logic in GET /api/packages/:id to retrieve single packages safely."
+    },
+    {
+      "location": "src/index.ts",
+      "description": "Proper security auditing logs printed during user profile updates in POST /api/user/profile."
+    },
+    {
+      "location": "src/index.ts",
+      "description": "Proper session token security with cryptographically secure generation using crypto.randomBytes."
+    }
+  ]
+}

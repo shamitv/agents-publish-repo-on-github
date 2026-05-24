@@ -1,0 +1,76 @@
+{
+  "app_id": "app-27",
+  "app_name": "Hotel Reservation System",
+  "language": "java",
+  "framework": "spring-boot",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "src/main/java/com/hotel/reservation/controller/RoomController.java",
+      "method": "searchRooms",
+      "line_range": "20-29",
+      "description": "JPQL query constructed using string concatenation with user-supplied parameters allows SQL/JPQL injection",
+      "severity": "high",
+      "cwe": "CWE-89"
+    },
+    {
+      "owasp_id": "A05",
+      "category": "Security Misconfiguration",
+      "location": "src/main/java/com/hotel/reservation/controller/AdminController.java",
+      "method": "getSystemInfo",
+      "line_range": "14-25",
+      "description": "Exposed admin debug endpoint without authentication leaks system variables and default admin credentials",
+      "severity": "medium",
+      "cwe": "CWE-215"
+    },
+    {
+      "owasp_id": "A07",
+      "category": "Identification and Authentication Failures",
+      "location": "src/main/java/com/hotel/reservation/config/SecurityConfig.java",
+      "method": "filterChain",
+      "line_range": "31-35",
+      "description": "Session fixation protection is disabled via sessionFixation().none(), meaning session IDs are not rotated upon login",
+      "severity": "medium",
+      "cwe": "CWE-384"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Debug Info Leak \u2192 Session Fixation \u2192 Account Takeover",
+      "attack_scenario": "Attacker targets the unauthenticated debug endpoint to discover default credentials and environment details, sets up session fixation targeting the admin session, and successfully takes over the admin account once the admin logs in.",
+      "impact": "account_takeover",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A05",
+          "description": "Unauthenticated debug configuration endpoint exposes system info and credentials.",
+          "location": "src/main/java/com/hotel/reservation/controller/AdminController.java",
+          "method": "getSystemInfo",
+          "severity": "medium",
+          "cwe": "CWE-215"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A07",
+          "description": "Security config session management lacks session rotation, allowing session fixation.",
+          "location": "src/main/java/com/hotel/reservation/config/SecurityConfig.java",
+          "method": "filterChain",
+          "severity": "medium",
+          "cwe": "CWE-384"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/main/java/com/hotel/reservation/repository/ReservationRepository.java",
+      "description": "JPA queries on Reservation are parameterised and safe from injection"
+    },
+    {
+      "location": "src/main/java/com/hotel/reservation/controller/GuestController.java",
+      "description": "getGuestDetails validates that GUEST users can only retrieve their own record"
+    }
+  ]
+}

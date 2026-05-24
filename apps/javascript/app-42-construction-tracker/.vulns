@@ -1,0 +1,76 @@
+{
+  "app_id": "app-42",
+  "app_name": "Construction Project Tracker",
+  "language": "javascript",
+  "framework": "express",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "src/index.js",
+      "method": "GET /api/contracts/:id",
+      "line_range": "136-152",
+      "description": "Viewing project contracts by ID lacks verification of user ownership, allowing any authenticated user to retrieve details of another manager's contracts.",
+      "severity": "medium",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A08",
+      "category": "Software and Data Integrity Failures",
+      "location": "src/index.js",
+      "method": "POST /api/contracts/template",
+      "line_range": "155-170",
+      "description": "Template layout parameters are deserialized using the insecure eval() constructor, enabling remote code execution on the hosting server.",
+      "severity": "high",
+      "cwe": "CWE-502"
+    },
+    {
+      "owasp_id": "A09",
+      "category": "Security Logging and Monitoring Failures",
+      "location": "src/index.js",
+      "method": "POST /api/contracts/:id/delete",
+      "line_range": "184-206",
+      "description": "Deleting sensitive construction contracts from the system tracker produces no audit logs, blindfolding administrators to data removal.",
+      "severity": "low",
+      "cwe": "CWE-778"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "IDOR Information Mining → Insecure Deserialization Remote Code Execution",
+      "attack_scenario": "An attacker logs in, retrieves construction contract details by calling `/api/contracts/1` (IDOR), and copies details. They then POST a template config to `/api/contracts/template` containing a system command execution payload (such as `require('child_process').execSync(...)`) evaluated unsafely via eval(), achieving Remote Code Execution.",
+      "impact": "account_takeover",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A01",
+          "description": "Contracts endpoint permits IDOR details mining.",
+          "location": "src/index.js",
+          "method": "GET /api/contracts/:id",
+          "severity": "medium",
+          "cwe": "CWE-639"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A08",
+          "description": "Template processing executes user-submitted custom layouts via eval().",
+          "location": "src/index.js",
+          "method": "POST /api/contracts/template",
+          "severity": "medium",
+          "cwe": "CWE-502"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/index.js",
+      "description": "Proper Bcrypt hashing for password storage and validation."
+    },
+    {
+      "location": "src/index.js",
+      "description": "Proper role restriction on GET /api/admin/stats checking for ADMIN role."
+    }
+  ]
+}

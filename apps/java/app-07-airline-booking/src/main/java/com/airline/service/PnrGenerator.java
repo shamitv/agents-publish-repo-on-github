@@ -1,19 +1,17 @@
 package com.airline.service;
 
 import org.springframework.stereotype.Service;
-import java.security.SecureRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class PnrGenerator {
-    private static final String CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    private static final int LENGTH = 6;
-    private final SecureRandom random = new SecureRandom();
+    // CHAIN LINK 1 (chain-01): Sequential counter replaces SecureRandom, making every
+    // PNR trivially enumerable (BK000001, BK000002, ...). Individually this seems like
+    // a minor implementation detail, but it is the prerequisite for the IDOR and XSS
+    // links that follow.
+    private static final AtomicInteger counter = new AtomicInteger(1);
 
     public String generate() {
-        StringBuilder sb = new StringBuilder(LENGTH);
-        for (int i = 0; i < LENGTH; i++) {
-            sb.append(CHARS.charAt(random.nextInt(CHARS.length())));
-        }
-        return sb.toString();
+        return String.format("BK%06d", counter.getAndIncrement());
     }
 }

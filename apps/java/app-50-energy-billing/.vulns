@@ -1,0 +1,86 @@
+{
+  "app_id": "app-50",
+  "app_name": "Energy Utility Billing",
+  "language": "java",
+  "framework": "spring-boot",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "src/main/java/com/energy/billing/controller/BillingController.java",
+      "method": "getInvoice",
+      "line_range": "21-27",
+      "description": "IDOR on invoice retrieval allows customer accounts to read details of other customers' invoices without checks",
+      "severity": "medium",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "src/main/java/com/energy/billing/controller/MeterController.java",
+      "method": "searchReadings",
+      "line_range": "20-33",
+      "description": "Meter reading native query constructed by string concatenation with user parameters allows SQL injection",
+      "severity": "high",
+      "cwe": "CWE-89"
+    },
+    {
+      "owasp_id": "A05",
+      "category": "Security Misconfiguration",
+      "location": "src/main/java/com/energy/billing/config/SecurityConfig.java",
+      "method": "filterChain",
+      "line_range": "31-36",
+      "description": "H2 web console is enabled and permitted without authentication, offering direct database access",
+      "severity": "medium",
+      "cwe": "CWE-16"
+    },
+    {
+      "owasp_id": "A10",
+      "category": "Server-Side Request Forgery",
+      "location": "src/main/java/com/energy/billing/controller/IntegrationController.java",
+      "method": "fetchSmartMeterData",
+      "line_range": "17-22",
+      "description": "Smart meter endpoint fetches user-supplied URLs without validation, enabling server-side request forgery",
+      "severity": "medium",
+      "cwe": "CWE-918"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "SSRF \u2192 H2 Console Access \u2192 Database Exfiltration",
+      "attack_scenario": "Attacker triggers SSRF via the smart meter endpoint to target the unauthenticated H2 database console listening on localhost, bypassing network blocks to execute arbitrary SQL and dump all customer data.",
+      "impact": "db_exfiltration",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A10",
+          "description": "SSRF allows sending requests to internal endpoints.",
+          "location": "src/main/java/com/energy/billing/controller/IntegrationController.java",
+          "method": "fetchSmartMeterData",
+          "severity": "medium",
+          "cwe": "CWE-918"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A05",
+          "description": "H2 database console is enabled without security check.",
+          "location": "src/main/java/com/energy/billing/config/SecurityConfig.java",
+          "method": "filterChain",
+          "severity": "medium",
+          "cwe": "CWE-16"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/main/java/com/energy/billing/controller/TariffController.java",
+      "description": "getTariffs endpoint is secured with PreAuthorize restricting access to BILLING_ADMIN role only"
+    },
+    {
+      "location": "src/main/java/com/energy/billing/controller/CustomerController.java",
+      "description": "getCustomer validates that CUSTOMER role users can only retrieve their own details"
+    }
+  ]
+}

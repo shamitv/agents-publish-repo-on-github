@@ -1,0 +1,89 @@
+{
+  "app_id": "app-21",
+  "app_name": "Insurance Claims Processor",
+  "language": "python",
+  "framework": "flask",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "app.py",
+      "method": "get_claim",
+      "line_range": "215-240",
+      "description": "Claim detail endpoint returns any claim by ID without verifying the requesting user is the claimant, exposing other customers' PII, payout amounts, and policy details.",
+      "severity": "high",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "app.py",
+      "method": "search_claims",
+      "line_range": "173-212",
+      "description": "Claim search endpoint concatenates user input directly into a raw SQL WHERE clause without parameterization, permitting SQL injection to extract arbitrary data from the database.",
+      "severity": "high",
+      "cwe": "CWE-89"
+    },
+    {
+      "owasp_id": "A09",
+      "category": "Security Logging & Monitoring Failures",
+      "location": "app.py",
+      "method": "approve_claim",
+      "line_range": "268-296",
+      "description": "High-value claim approvals and automatic payout dispatches produce no audit logs, making it impossible to detect fraudulent approvals or trace who authorized payouts.",
+      "severity": "medium",
+      "cwe": "CWE-778"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "SQL Injection → IDOR Claim Access → Silent Payout Fraud",
+      "attack_scenario": "Attacker uses SQL injection in the claim search endpoint to discover internal claim IDs and amounts. They then exploit the IDOR vulnerability on the claim detail endpoint to view and understand claim data. Finally, they leverage the lack of audit logging on the approval endpoint to approve fraudulent claims and trigger payouts without any trace.",
+      "impact": "data_modification",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A03",
+          "description": "SQL injection in claim search reveals internal claim IDs, amounts, and status values that are not normally visible to the attacker's role.",
+          "location": "app.py",
+          "method": "search_claims",
+          "severity": "medium",
+          "cwe": "CWE-89"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A01",
+          "description": "IDOR on claim detail endpoint allows viewing any claim's full details including claimant PII, policy information, and payout history.",
+          "location": "app.py",
+          "method": "get_claim",
+          "severity": "medium",
+          "cwe": "CWE-639"
+        },
+        {
+          "step": 3,
+          "owasp_id": "A09",
+          "description": "Claim approval endpoint writes no audit logs, enabling an attacker with adjuster access to approve fraudulent claims and trigger payouts silently.",
+          "location": "app.py",
+          "method": "approve_claim",
+          "severity": "low",
+          "cwe": "CWE-778"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "app.py",
+      "description": "Safe parameterized SQL query for user login — secure SQL decoy"
+    },
+    {
+      "location": "app.py",
+      "description": "Proper authorization check on /api/admin/stats requiring ADMIN role — secure access control decoy"
+    },
+    {
+      "location": "app.py",
+      "description": "Policy listing correctly scoped to current user for CUSTOMER role — secure data-scoping decoy"
+    }
+  ]
+}

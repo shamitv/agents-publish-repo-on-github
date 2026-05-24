@@ -1,0 +1,76 @@
+{
+  "app_id": "app-43",
+  "app_name": "Music Streaming Playlist Service",
+  "language": "javascript",
+  "framework": "express",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "src/index.js",
+      "method": "GET /api/playlists/:id",
+      "line_range": "146-162",
+      "description": "Viewing private playlists by ID lacks checking user ownership, allowing any authenticated user to retrieve details of another listener's playlists.",
+      "severity": "medium",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A05",
+      "category": "Security Misconfiguration",
+      "location": "src/index.js",
+      "method": "GET /api/system/status",
+      "line_range": "208-228",
+      "description": "An open diagnostics route leaks system node settings and an administrative metrics integration API token key when active debug query options are provided.",
+      "severity": "medium",
+      "cwe": "CWE-209"
+    },
+    {
+      "owasp_id": "A10",
+      "category": "Server-Side Request Forgery (SSRF)",
+      "location": "src/index.js",
+      "method": "GET /api/cover",
+      "line_range": "193-205",
+      "description": "The cover art query proxy makes HTTP calls using axios on user-supplied URL inputs with no address block restriction, enabling SSRF.",
+      "severity": "high",
+      "cwe": "CWE-918"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Diagnostics Configuration Exposure → SSRF Playlist Analytics Pivoting",
+      "attack_scenario": "An attacker queries `/api/system/status?debug=true` to obtain the metrics service token key `INTERNAL-METRICS-API-SECRET-2026`. Utilizing the cover lookup proxy `/api/cover`, they submit `url: 'http://localhost:8043/api/internal/analytics?token=INTERNAL-METRICS-API-SECRET-2026'`, leveraging the SSRF vulnerability to bypass authentication and retrieve all private playlists from the internal analytics database.",
+      "impact": "lateral_movement",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A05",
+          "description": "System status endpoint leaks metrics integration API secret token key.",
+          "location": "src/index.js",
+          "method": "GET /api/system/status",
+          "severity": "medium",
+          "cwe": "CWE-209"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A10",
+          "description": "Cover art proxy makes external requests with no IP filtering rules.",
+          "location": "src/index.js",
+          "method": "GET /api/cover",
+          "severity": "medium",
+          "cwe": "CWE-918"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/index.js",
+      "description": "Proper user scoping constraints in GET /api/playlists limiting output database entries to active listener only."
+    },
+    {
+      "location": "src/index.js",
+      "description": "Proper parameterized query logic in POST /api/tracks to add tracks to playlists safely."
+    }
+  ]
+}

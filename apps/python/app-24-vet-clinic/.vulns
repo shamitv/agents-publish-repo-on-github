@@ -1,0 +1,89 @@
+{
+  "app_id": "app-24",
+  "app_name": "Veterinary Clinic Management",
+  "language": "python",
+  "framework": "fastapi",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A02",
+      "category": "Cryptographic Failures",
+      "location": "app.py",
+      "method": "generate_token",
+      "line_range": "16-19",
+      "description": "JWT authentication tokens are signed with a weak, hardcoded secret ('secret123') using HS256, allowing an attacker to forge arbitrary tokens (such as possessing a VET or ADMIN role).",
+      "severity": "high",
+      "cwe": "CWE-327"
+    },
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "app.py",
+      "method": "search_pets",
+      "line_range": "174-191",
+      "description": "The pet search endpoint concatenates user input directly into a raw SQL query, allowing SQL injection to bypass role checks or leak DB records.",
+      "severity": "high",
+      "cwe": "CWE-89"
+    },
+    {
+      "owasp_id": "A09",
+      "category": "Security Logging & Monitoring Failures",
+      "location": "app.py",
+      "method": "update_prescription",
+      "line_range": "206-226",
+      "description": "Modifications to drug prescriptions (such as controlled substances like Ketamine) produce no audit logs or monitoring warnings, permitting undetected dosage alteration.",
+      "severity": "medium",
+      "cwe": "CWE-778"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Weak JWT → SQL Injection → Prescription Tampering",
+      "attack_scenario": "An attacker cracks or guesses the weak JWT secret, forging a Veterinarian ('VET') session token. They then use the SQL injection vulnerability on the pet search endpoint to enumerate pet IDs and find targeted records. Finally, they call the prescription update endpoint to alter controlled substance prescriptions undetected due to the absence of logging.",
+      "impact": "data_modification",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A02",
+          "description": "JWT signed with easily guessable hardcoded secret key.",
+          "location": "app.py",
+          "method": "generate_token",
+          "severity": "medium",
+          "cwe": "CWE-327"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A03",
+          "description": "SQL injection in pet search allows database exploration.",
+          "location": "app.py",
+          "method": "search_pets",
+          "severity": "medium",
+          "cwe": "CWE-89"
+        },
+        {
+          "step": 3,
+          "owasp_id": "A09",
+          "description": "Prescription updating produces no audit logs.",
+          "location": "app.py",
+          "method": "update_prescription",
+          "severity": "low",
+          "cwe": "CWE-778"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "app.py",
+      "description": "Input validation on pet age and weight fields checking for realistic positive numeric ranges using Pydantic field validators."
+    },
+    {
+      "location": "app.py",
+      "description": "Proper audit logging for appointment scheduling operations, keeping records of scheduled bookings."
+    },
+    {
+      "location": "app.py",
+      "description": "Proper parameterized SQL query for scheduling appointments."
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "app_id": "app-44",
+  "app_name": "Election Polling System",
+  "language": "javascript",
+  "framework": "express",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A02",
+      "category": "Cryptographic Failures",
+      "location": "src/index.js",
+      "method": "GET /api/candidates",
+      "line_range": "136-146",
+      "description": "Voter selections (ballots) are stored in plaintext format in the database and exposed directly to the public API, violating voter anonymity.",
+      "severity": "medium",
+      "cwe": "CWE-312"
+    },
+    {
+      "owasp_id": "A04",
+      "category": "Insecure Design",
+      "location": "src/index.js",
+      "method": "POST /api/vote/cast",
+      "line_range": "149-178",
+      "description": "The vote casting logic uses asynchronous processing delays without database transactions or locks, enabling users to submit multiple votes concurrently.",
+      "severity": "medium",
+      "cwe": "CWE-362"
+    },
+    {
+      "owasp_id": "A09",
+      "category": "Security Logging and Monitoring Failures",
+      "location": "src/index.js",
+      "method": "POST /api/admin/polls/close",
+      "line_range": "181-190",
+      "description": "Critical administrative commands such as closing election polls are performed without security logs or audit trails, leaving system state modifications unrecorded.",
+      "severity": "low",
+      "cwe": "CWE-778"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Predictable Voter Ballot Retrieval → Concurrent Vote Casting",
+      "attack_scenario": "An attacker queries `/api/candidates` to read all cast voter ballots in plaintext (`A02`). Finding active user accounts who have not yet voted, the attacker sends concurrent, parallel HTTP requests to `/api/vote/cast` exploiting the race condition (`A04`) to submit multiple unauthorized votes under those users' identities, achieving data manipulation without logging triggers (`A09`).",
+      "impact": "data_modification",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A02",
+          "description": "Exposing plaintext database ballots compromises voter selection details.",
+          "location": "src/index.js",
+          "method": "GET /api/candidates",
+          "severity": "medium",
+          "cwe": "CWE-312"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A04",
+          "description": "Casting votes has an asynchronous timing window enabling race-based double-voting.",
+          "location": "src/index.js",
+          "method": "POST /api/vote/cast",
+          "severity": "medium",
+          "cwe": "CWE-362"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/index.js",
+      "description": "Proper security auditing logs printed during candidate registration in POST /api/admin/candidates."
+    },
+    {
+      "location": "src/index.js",
+      "description": "Proper Bcrypt hashing for password storage and validation."
+    }
+  ]
+}

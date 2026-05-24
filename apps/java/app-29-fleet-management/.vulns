@@ -1,0 +1,76 @@
+{
+  "app_id": "app-29",
+  "app_name": "Vehicle Fleet Management",
+  "language": "java",
+  "framework": "spring-boot",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "src/main/java/com/fleet/mgmt/service/DriverService.java",
+      "method": "lookupDriverByLicense",
+      "line_range": "19-25",
+      "description": "LDAP query constructed via string concatenation with user-provided parameters allows LDAP injection",
+      "severity": "medium",
+      "cwe": "CWE-90"
+    },
+    {
+      "owasp_id": "A06",
+      "category": "Vulnerable and Outdated Components",
+      "location": "pom.xml",
+      "method": "dependencies",
+      "line_range": "33-46",
+      "description": "Log4j dependency is pinned to vulnerable version 2.14.1 (CVE-2021-44228) allowing remote code execution",
+      "severity": "critical",
+      "cwe": "CWE-502"
+    },
+    {
+      "owasp_id": "A10",
+      "category": "Server-Side Request Forgery",
+      "location": "src/main/java/com/fleet/mgmt/controller/IntegrationController.java",
+      "method": "fetchExternalVehicleData",
+      "line_range": "16-21",
+      "description": "SSRF in external vehicle endpoint allows fetching arbitrary server-side resources without validation",
+      "severity": "medium",
+      "cwe": "CWE-918"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Log4Shell \u2192 SSRF \u2192 Lateral Movement",
+      "attack_scenario": "Attacker triggers Log4Shell injection via search parameter which gets logged via Log4j 2.14.1, gains initial execution environment access, and exploits the unvalidated SSRF endpoint to query cloud metadata (169.254.169.254) and retrieve IAM credentials.",
+      "impact": "lateral_movement",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A06",
+          "description": "Application uses Log4j 2.14.1 and logs query inputs, making it vulnerable to JNDI injection.",
+          "location": "src/main/java/com/fleet/mgmt/controller/VehicleController.java",
+          "method": "searchVehicles",
+          "severity": "medium",
+          "cwe": "CWE-502"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A10",
+          "description": "Integration endpoint does not validate URLs before fetching them, permitting SSRF to internal/cloud metadata networks.",
+          "location": "src/main/java/com/fleet/mgmt/controller/IntegrationController.java",
+          "method": "fetchExternalVehicleData",
+          "severity": "medium",
+          "cwe": "CWE-918"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/main/java/com/fleet/mgmt/controller/MaintenanceController.java",
+      "description": "getRecords endpoint is secured with PreAuthorize ensuring only FLEET_MANAGER can access maintenance logs"
+    },
+    {
+      "location": "src/main/java/com/fleet/mgmt/repository/VehicleRepository.java",
+      "description": "All repository queries use parameterised Spring Data JPA methods which are safe from injection"
+    }
+  ]
+}

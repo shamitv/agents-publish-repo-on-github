@@ -1,0 +1,76 @@
+{
+  "app_id": "app-18",
+  "app_name": "Peer-to-Peer Lending Platform",
+  "language": "javascript",
+  "framework": "express",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "src/index.js",
+      "method": "GET /api/contracts/:id",
+      "line_range": "131-147",
+      "description": "Viewing loan contract agreements by ID lacks checking user ownership, allowing any authenticated borrower to view details of any other borrower's loan agreement.",
+      "severity": "medium",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A02",
+      "category": "Cryptographic Failures",
+      "location": "src/index.js",
+      "method": "initDb",
+      "line_range": "38-51",
+      "description": "User account passwords are saved in plaintext format in the database, risking exposure in data dumps.",
+      "severity": "medium",
+      "cwe": "CWE-312"
+    },
+    {
+      "owasp_id": "A04",
+      "category": "Insecure Design",
+      "location": "src/index.js",
+      "method": "POST /api/loans/apply",
+      "line_range": "150-176",
+      "description": "The loan application endpoint fails to validate interest rates, allowing negative or zero interest loan generation to bypass standard interest accrual rules.",
+      "severity": "medium",
+      "cwe": "CWE-20"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Plaintext Credential Leak → IDOR Loan Data Harvesting",
+      "attack_scenario": "An attacker reads plaintext credentials from a debug configuration or database leak at `/api/debug/users` to get admin passwords (`lenderSecure2026!`). Authenticating with the admin credentials, the attacker invokes the loan details endpoint `/api/contracts/1` and extracts private borrower financial contract details via IDOR.",
+      "impact": "db_exfiltration",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A02",
+          "description": "Plaintext credentials leak from user profile queries.",
+          "location": "src/index.js",
+          "method": "initDb",
+          "severity": "medium",
+          "cwe": "CWE-312"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A01",
+          "description": "Contracts endpoint permits IDOR fetching of arbitrary records.",
+          "location": "src/index.js",
+          "method": "GET /api/contracts/:id",
+          "severity": "medium",
+          "cwe": "CWE-639"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/index.js",
+      "description": "Strict role authorization checks on dashboard access (GET /api/admin/dashboard) validating if role === ADMIN."
+    },
+    {
+      "location": "src/index.js",
+      "description": "Proper parameterized query logic in POST /api/user/settings to update customer parameters."
+    }
+  ]
+}

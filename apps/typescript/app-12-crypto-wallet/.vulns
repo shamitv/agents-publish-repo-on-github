@@ -35,6 +35,43 @@
       "cwe": "CWE-308"
     }
   ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Wallet IDOR \u2192 Private Key Exposure \u2192 Unauthorized Asset Transfer",
+      "attack_scenario": "Attacker calls GET /api/wallet?userId=X to retrieve any user's wallet record including the plaintext private key, then uses POST /api/wallet/external-transfer with the victim's fromAddress (no ownership check) to drain their balance.",
+      "impact": "data_modification",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A01",
+          "description": "GET /api/wallet accepts optional userId query param without verifying it matches the authenticated user, exposing any wallet's full record including address",
+          "location": "src/wallet/wallet.controller.ts",
+          "method": "getWallet",
+          "severity": "medium",
+          "cwe": "CWE-639"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A02",
+          "description": "Wallet record returned by getWallet() includes the privateKey field stored in plaintext, giving the caller full cryptographic control over the victim's wallet",
+          "location": "src/wallet/wallet.service.ts",
+          "method": "getWallet",
+          "severity": "high",
+          "cwe": "CWE-312"
+        },
+        {
+          "step": 3,
+          "owasp_id": "A01",
+          "description": "POST /api/wallet/external-transfer accepts fromAddress in the request body without verifying the authenticated user owns that address, allowing arbitrary fund transfers",
+          "location": "src/wallet/wallet.controller.ts",
+          "method": "externalTransfer",
+          "severity": "high",
+          "cwe": "CWE-862"
+        }
+      ]
+    }
+  ],
   "decoys": [
     {
       "location": "src/auth/auth.guard.ts",

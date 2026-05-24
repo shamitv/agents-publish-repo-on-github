@@ -64,4 +64,25 @@ public class InventoryController {
             return ResponseEntity.notFound().build();
         }
     }
+
+    // CHAIN LINK 3 (chain-01): Inventory adjustment endpoint requires only authentication,
+    // not the SUPERVISOR or ADMIN role. Any warehouse worker account discovered via the
+    // LDAP injection in step 1 can modify quantities for any item.
+    @PostMapping("/{id}/adjust")
+    public ResponseEntity<?> adjustQuantity(
+            @PathVariable Long id,
+            @RequestParam int delta) {
+        try {
+            // Missing @PreAuthorize role check — any authenticated user can adjust stock
+            InventoryItem updated = inventoryService.getById(id)
+                    .map(item -> {
+                        item.setQuantity(item.getQuantity() + delta);
+                        return inventoryService.create(item);
+                    })
+                    .orElseThrow(() -> new RuntimeException("Item not found"));
+            return ResponseEntity.ok(updated);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 }

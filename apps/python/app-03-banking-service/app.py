@@ -278,3 +278,12 @@ def dispatch_transfer(request: Request, data: TransferRequest):
         "success": True,
         "new_balance": sender_bal["balance"] - data.amount
     }
+
+# CHAIN LINK 1 (chain-01): Unauthenticated admin utility endpoint left publicly exposed.
+# Returns all users with their account numbers and routing numbers. Individually this
+# seems like a misconfigured internal tool, but it supplies the account data needed
+# to target specific victims in step 3 of the fund-drain chain.
+@app.get("/api/admin/users")
+def admin_list_users():
+    users = list(db.users.find({}, {"_id": 0, "password": 0}))
+    return {"users": users}

@@ -1,12 +1,22 @@
-# Implementation Plan for $app
+# Implementation Plan - Content Management System (App 19)
 
-- Set up project scaffolding for the appropriate language/framework.
-- Implement core business functionality (e.g., CRUD endpoints, UI pages).
-- Intentionally inject 2‑4 OWASP Top 10 issues (e.g., CORS misconfiguration, insecure deserialization, missing auth checks, etc.).
-- Write unit tests for normal flow.
-- Document each vulnerability in `vulnerabilities.json` with file path, line number, CWE, and severity.
-- Provide a Dockerfile for containerized execution.
+This application has been implemented as a JavaScript Express microservice with an in-memory SQLite database.
 
----
+## Planted Vulnerabilities
+1. **A03: Injection (Stored XSS)**:
+   - Location: `src/index.js` → `GET /api/posts/:id/comments`
+   - Vulnerable code: User comment strings are returned raw to the client without escaping, permitting script execution.
+2. **A05: Security Misconfiguration**:
+   - Location: `src/index.js` → `GET /api/system/diagnostics`
+   - Vulnerable code: Displays database settings and a hardcoded administrative recovery token (`CMS-ADMIN-EDITOR-KEY-xyz9988`) if the `debug=true` query is set.
+3. **A08: Software and Data Integrity Failures (Insecure Deserialization)**:
+   - Location: `src/index.js` → `POST /api/posts`
+   - Vulnerable code: Uses `eval()` to parse the post layout configurations string.
 
-*Generated automatically; customize as needed.*
+## Chained Attack
+- **Chain-01**: Diagnostics Configuration Disclosure (A05) → Admin session hijacking via Stored XSS (A03)
+- The attacker queries `/api/system/diagnostics?debug=true` to obtain the editor token, uses it to bypass authentication to submit a comment with XSS payload, stealing the admin's session cookie upon admin visit.
+
+## Decoys
+- Safe JSON parsing (`JSON.parse`) in `POST /api/posts/safe`.
+- HTML tag escaping on page titles in `GET /api/posts/:id`.

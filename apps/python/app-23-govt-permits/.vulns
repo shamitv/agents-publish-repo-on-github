@@ -1,0 +1,80 @@
+{
+  "app_id": "app-23",
+  "app_name": "Government Permit Application Portal",
+  "language": "python",
+  "framework": "django",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "permits/views.py",
+      "method": "permit_detail",
+      "line_range": "56-82",
+      "description": "Permit detail endpoint fails to verify if the requesting user is the applicant or has reviewer privileges, allowing any authenticated user to view other citizens' permit applications.",
+      "severity": "medium",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A05",
+      "category": "Security Misconfiguration",
+      "location": "govt_permits/settings.py",
+      "method": "settings",
+      "line_range": "6-10",
+      "description": "The application runs with DEBUG=True, wildcard ALLOWED_HOSTS, and a hardcoded SECRET_KEY, disclosing system details on error pages and exposing session signatures.",
+      "severity": "medium",
+      "cwe": "CWE-16"
+    },
+    {
+      "owasp_id": "A08",
+      "category": "Software and Data Integrity Failures",
+      "location": "permits/views.py",
+      "method": "upload_document",
+      "line_range": "84-115",
+      "description": "The permit document upload endpoint does not validate file extensions or MIME types, permitting users to upload arbitrary scripts (e.g. Python scripts) that can then be executed by direct request because of the static files handler running in DEBUG mode.",
+      "severity": "high",
+      "cwe": "CWE-434"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Debug Page Info Leak → Unrestricted Upload → RCE",
+      "attack_scenario": "The attacker triggers an error page on the application. Because DEBUG=True is active, the error page leaks internal paths, system configurations, and settings. Using this information, the attacker uploads a malicious script through the permit document upload feature. Knowing the internal media paths leaked via the debug page, the attacker invokes the script directly to execute arbitrary code.",
+      "impact": "lateral_movement",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A05",
+          "description": "DEBUG=True is enabled, exposing settings and path structures via error pages.",
+          "location": "govt_permits/settings.py",
+          "method": "settings",
+          "severity": "low",
+          "cwe": "CWE-16"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A08",
+          "description": "Unrestricted file upload accepts arbitrary executable scripts and saves them in a predictable web-accessible directory.",
+          "location": "permits/views.py",
+          "method": "upload_document",
+          "severity": "medium",
+          "cwe": "CWE-434"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "govt_permits/settings.py",
+      "description": "CsrfViewMiddleware is included in the MIDDLEWARE configuration, ensuring CSRF tokens are validated for all state-changing requests."
+    },
+    {
+      "location": "permits/views.py",
+      "description": "Proper permission check in /api/permits/approve enforcing that only staff users can approve or reject permits."
+    },
+    {
+      "location": "permits/views.py",
+      "description": "Proper scoped database filter in /api/permits preventing regular citizens from listing other users' permit applications."
+    }
+  ]
+}

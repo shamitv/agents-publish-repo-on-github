@@ -1,0 +1,76 @@
+{
+  "app_id": "app-31",
+  "app_name": "Event Ticketing Platform",
+  "language": "typescript",
+  "framework": "express",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "src/index.ts",
+      "method": "GET /api/events/search",
+      "line_range": "148-161",
+      "description": "Event search endpoint concatenates user search queries directly into raw SQL statements, exposing the system to SQL injection.",
+      "severity": "high",
+      "cwe": "CWE-89"
+    },
+    {
+      "owasp_id": "A04",
+      "category": "Insecure Design",
+      "location": "src/index.ts",
+      "method": "POST /api/tickets/book",
+      "line_range": "176-223",
+      "description": "The ticket booking endpoint lacks rate limits, transactional locking, or concurrency limits, permitting automated scripting to deplete ticket inventories.",
+      "severity": "medium",
+      "cwe": "CWE-400"
+    },
+    {
+      "owasp_id": "A07",
+      "category": "Identification and Authentication Failures",
+      "location": "src/index.ts",
+      "method": "login",
+      "line_range": "126-130",
+      "description": "Session identifiers are generated using Math.random() (a predictable PRNG) instead of cryptographically secure random values, permitting session hijacking.",
+      "severity": "medium",
+      "cwe": "CWE-330"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Predictable Session Hijacking → SQLi Ticket Theft",
+      "attack_scenario": "An attacker predicts the session tokens of other active customers due to the use of Math.random(). They hijack a customer's session, execute SQL injection on the event search to dump private ticket orders, and cancel or steal premium reservations.",
+      "impact": "account_takeover",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A07",
+          "description": "Weak session token generation via predictable random number generator.",
+          "location": "src/index.ts",
+          "method": "login",
+          "severity": "medium",
+          "cwe": "CWE-330"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A03",
+          "description": "SQL injection in event search reveals customer details and transaction info.",
+          "location": "src/index.ts",
+          "method": "GET /api/events/search",
+          "severity": "medium",
+          "cwe": "CWE-89"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/index.ts",
+      "description": "Proper Bcrypt hashing for password storage and credentials checking during login."
+    },
+    {
+      "location": "src/index.ts",
+      "description": "Proper parameterized SQL query for retrieving individual event details by event ID."
+    }
+  ]
+}

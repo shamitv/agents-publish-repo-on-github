@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Req, Query } from '@nestjs/common';
 import { WalletService } from './wallet.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { Request } from 'express';
@@ -8,10 +8,14 @@ import { Request } from 'express';
 export class WalletController {
   constructor(private readonly walletService: WalletService) {}
 
+  // CHAIN LINK 1 (chain-01): Optional userId query parameter accepted without verifying
+  // it matches the authenticated user. Any authenticated wallet holder can view any
+  // other user's wallet by supplying their userId, including their private key.
   @Get()
-  getWallet(@Req() req: Request) {
+  getWallet(@Req() req: Request, @Query('userId') userId?: string) {
     const user = req['user'];
-    return this.walletService.getWallet(user.id);
+    const targetUserId = userId ? parseInt(userId, 10) : user.id;
+    return this.walletService.getWallet(targetUserId);
   }
 
   @Get('transactions')
@@ -27,5 +31,18 @@ export class WalletController {
   transferFunds(@Req() req: Request, @Body() body: { recipientAddress: string; amount: number }) {
     const user = req['user'];
     return this.walletService.executeTransfer(user.id, body.recipientAddress, body.amount);
+  }
+
+  // CHAIN LINK 3 (chain-01): External transfer accepts fromAddress in the request body
+  // without verifying the authenticated user owns that address. An attacker who obtained
+  // a victim's wallet address via the IDOR endpoint in step 1 can transfer funds out of
+  // the victim's wallet without possessing the private key.
+  @Post('external-transfer')
+  externalTransfer(
+    @Req() req: Request,
+    @Body() body: { fromAddress: string; toAddress: string; amount: number },
+  ) {
+    // Vulnerable: no ownership check — fromAddress not verified against req['user']
+    return this.walletService.executeTransferByAddress(body.fromAddress, body.toAddress, body.amount);
   }
 }

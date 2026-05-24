@@ -1,0 +1,76 @@
+{
+  "app_id": "app-36",
+  "app_name": "Parking Management System",
+  "language": "javascript",
+  "framework": "express",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "src/index.js",
+      "method": "GET /api/spots/search",
+      "line_range": "131-143",
+      "description": "User search filters are concatenated directly into a raw SQL query, allowing SQL injection.",
+      "severity": "high",
+      "cwe": "CWE-89"
+    },
+    {
+      "owasp_id": "A04",
+      "category": "Insecure Design",
+      "location": "src/index.js",
+      "method": "POST /api/bookings/book",
+      "line_range": "156-177",
+      "description": "The booking endpoint accepts the total cost value directly from the user request payload without validation or backend recalculation, permitting free parking booking.",
+      "severity": "medium",
+      "cwe": "CWE-20"
+    },
+    {
+      "owasp_id": "A09",
+      "category": "Security Logging and Monitoring Failures",
+      "location": "src/index.js",
+      "method": "POST /api/bookings/:id/cancel",
+      "line_range": "180-204",
+      "description": "Critical operations such as booking cancellations are performed without logging the action, leaving no audit history.",
+      "severity": "low",
+      "cwe": "CWE-778"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "SQL Injection Data Mining → Zero-Fee Booking Exploitation",
+      "attack_scenario": "An attacker uses SQL Injection on the search endpoint `/api/spots/search?q=Standard' UNION SELECT 1,id,spot_number,price_rate FROM spots --` to extract spot list IDs. They then execute `/api/bookings/book` submitting a total_cost parameter set to 0.0 or negative value, booking premium parking slots for free. They cancel previous orders via `/api/bookings/1/cancel` undetected because cancellations produce no security logs.",
+      "impact": "data_modification",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A03",
+          "description": "SQL injection reveals spots and pricing schema.",
+          "location": "src/index.js",
+          "method": "GET /api/spots/search",
+          "severity": "medium",
+          "cwe": "CWE-89"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A04",
+          "description": "Booking submission allows passing cost parameters directly without server verification.",
+          "location": "src/index.js",
+          "method": "POST /api/bookings/book",
+          "severity": "medium",
+          "cwe": "CWE-20"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/index.js",
+      "description": "Proper security auditing logs printed during spot registrations in POST /api/admin/spots."
+    },
+    {
+      "location": "src/index.js",
+      "description": "Proper parameterized query logic in GET /api/spots/:id to fetch parking spot details safely."
+    }
+  ]
+}
