@@ -1,0 +1,80 @@
+{
+  "app_id": "app-16",
+  "app_name": "Restaurant Review Platform",
+  "language": "javascript",
+  "framework": "express",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "src/index.js",
+      "method": "POST /api/reviews/:id/edit",
+      "line_range": "153-176",
+      "description": "The review editing endpoint does not verify whether the authenticated user is the owner of the review or has admin privileges, allowing arbitrary review modification.",
+      "severity": "medium",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "src/index.js",
+      "method": "GET /api/restaurants/search",
+      "line_range": "129-141",
+      "description": "User input in search parameter is concatenated directly into SQL query statement, exposing the database to SQL injection.",
+      "severity": "high",
+      "cwe": "CWE-89"
+    },
+    {
+      "owasp_id": "A07",
+      "category": "Identification and Authentication Failures",
+      "location": "src/index.js",
+      "method": "POST /api/auth/login",
+      "line_range": "96-112",
+      "description": "Session keys are generated using non-cryptographic Math.random() function, making session IDs predictable and prone to hijacking.",
+      "severity": "medium",
+      "cwe": "CWE-330"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Predictable Session Hijacking → IDOR Review Sabotage",
+      "attack_scenario": "An attacker predicts the session cookie values of an active customer or food critic generated via Math.random(). They hijack the target critic's session, call `/api/reviews/1/edit` to hijack or modify high-rating review comments to sabotage the restaurant status, achieving unauthorized data modification.",
+      "impact": "data_modification",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A07",
+          "description": "Weak session token generation via predictable random number generator.",
+          "location": "src/index.js",
+          "method": "POST /api/auth/login",
+          "severity": "medium",
+          "cwe": "CWE-330"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A01",
+          "description": "Review editing allows users authenticated with hijacked session to overwrite reviews without owner check.",
+          "location": "src/index.js",
+          "method": "POST /api/reviews/:id/edit",
+          "severity": "medium",
+          "cwe": "CWE-639"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/index.js",
+      "description": "Proper Bcrypt hashing for password storage and credentials validation during login."
+    },
+    {
+      "location": "src/index.js",
+      "description": "Proper role restriction on GET /api/admin/dashboard ensuring only ADMIN can access."
+    },
+    {
+      "location": "src/index.js",
+      "description": "Proper parameterized query for individual restaurant profiles in GET /api/restaurants/:id."
+    }
+  ]
+}
