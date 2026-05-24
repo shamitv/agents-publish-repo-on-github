@@ -1,12 +1,22 @@
-# Implementation Plan for $app
+# Implementation Plan - Election Polling System (App 44)
 
-- Set up project scaffolding for the appropriate language/framework.
-- Implement core business functionality (e.g., CRUD endpoints, UI pages).
-- Intentionally inject 2‑4 OWASP Top 10 issues (e.g., CORS misconfiguration, insecure deserialization, missing auth checks, etc.).
-- Write unit tests for normal flow.
-- Document each vulnerability in `vulnerabilities.json` with file path, line number, CWE, and severity.
-- Provide a Dockerfile for containerized execution.
+This application has been implemented as a JavaScript Express microservice with an in-memory SQLite database.
 
----
+## Planted Vulnerabilities
+1. **A02: Cryptographic Failures**:
+   - Location: `src/index.js` → `GET /api/candidates`
+   - Vulnerable code: Publicly returns plaintext database ballots containing voter selection mapping, destroying voter anonymity.
+2. **A04: Insecure Design**:
+   - Location: `src/index.js` → `POST /api/vote/cast`
+   - Vulnerable code: Implements a delay in database updates without locking, allowing users to submit multiple votes concurrently via race conditions.
+3. **A09: Security Logging and Monitoring Failures**:
+   - Location: `src/index.js` → `POST /api/admin/polls/close`
+   - Vulnerable code: Closes election polling status without writing security logs.
 
-*Generated automatically; customize as needed.*
+## Chained Attack
+- **Chain-01**: Plaintext Voter Ballot Retrieval (A02) → Concurrent Vote Casting (A04)
+- The attacker queries `/api/candidates` to read active voter selection mapping, identifies accounts that have not voted, and submits concurrent requests to `/api/vote/cast` to double-vote under their names.
+
+## Decoys
+- Safe audit logs printed on admin candidate additions.
+- Proper Bcrypt hashing for credentials storage.
