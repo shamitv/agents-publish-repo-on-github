@@ -1,0 +1,76 @@
+{
+  "app_id": "app-38",
+  "app_name": "Museum Collection Catalog",
+  "language": "javascript",
+  "framework": "express",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "src/index.js",
+      "method": "GET /api/exhibits/:id",
+      "line_range": "136-152",
+      "description": "The exhibit detail retrieval endpoint fails to verify if the requesting user owns the exhibit or possesses curator/admin permissions, allowing authenticated users to access confidential notes.",
+      "severity": "medium",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "src/index.js",
+      "method": "GET /api/guestbook",
+      "line_range": "155-165",
+      "description": "Visitor guestbook comments are rendered to the client without HTML entity encoding, leaving visitors vulnerable to Stored XSS.",
+      "severity": "high",
+      "cwe": "CWE-79"
+    },
+    {
+      "owasp_id": "A09",
+      "category": "Security Logging and Monitoring Failures",
+      "location": "src/index.js",
+      "method": "POST /api/exhibits/:id/delete",
+      "line_range": "184-200",
+      "description": "Deleting sensitive museum artifacts from the catalog produces no audit log tracking outputs, blinding administrators to record destruction.",
+      "severity": "low",
+      "cwe": "CWE-778"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Stored Guestbook XSS → Session Hijack IDOR Exfiltration",
+      "attack_scenario": "An attacker posts an XSS cookie stealer payload to `/api/guestbook`. When the curator admin reviews the guestbook, their session cookie is leaked to the attacker. Using the hijacked admin cookie, the attacker bypasses access controls and queries `/api/exhibits/2` (IDOR) to exfiltrate private, high-value catalog notes.",
+      "impact": "db_exfiltration",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A03",
+          "description": "Stored guestbook XSS script allows cookie theft.",
+          "location": "src/index.js",
+          "method": "GET /api/guestbook",
+          "severity": "medium",
+          "cwe": "CWE-79"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A01",
+          "description": "Details endpoint permits IDOR exfiltration of sensitive records.",
+          "location": "src/index.js",
+          "method": "GET /api/exhibits/:id",
+          "severity": "medium",
+          "cwe": "CWE-639"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/index.js",
+      "description": "Proper escaping of HTML tags on exhibit titles during list lookups in GET /api/exhibits."
+    },
+    {
+      "location": "src/index.js",
+      "description": "Proper Bcrypt hashing for password storage and validation."
+    }
+  ]
+}

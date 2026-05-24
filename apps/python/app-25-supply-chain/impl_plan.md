@@ -1,12 +1,22 @@
-# Implementation Plan for $app
+# Implementation Plan - Supply Chain Inventory Tracker (App 25)
 
-- Set up project scaffolding for the appropriate language/framework.
-- Implement core business functionality (e.g., CRUD endpoints, UI pages).
-- Intentionally inject 2‑4 OWASP Top 10 issues (e.g., CORS misconfiguration, insecure deserialization, missing auth checks, etc.).
-- Write unit tests for normal flow.
-- Document each vulnerability in `vulnerabilities.json` with file path, line number, CWE, and severity.
-- Provide a Dockerfile for containerized execution.
+This application has been implemented as a Flask-based microservice with an in-memory SQLite database.
 
----
+## Planted Vulnerabilities
+1. **A06: Vulnerable and Outdated Components**:
+   - Location: `requirements.txt` / `app.py`
+   - Vulnerable code: Pins `PyYAML==5.3.1` and calls `yaml.load()` on dynamic remote inputs.
+2. **A07: Identification and Authentication Failures**:
+   - Location: `app.py` → `login()`
+   - Vulnerable code: Plaintext password storage and comparison, session cookie lacks the `secure` flag.
+3. **A10: Server-Side Request Forgery**:
+   - Location: `app.py` → `check_supplier_api()`
+   - Vulnerable code: Arbitrary client-controlled URL fetched without validation.
 
-*Generated automatically; customize as needed.*
+## Chained Attack
+- **Chain-01**: SSRF (A10) → YAML Deserialization (A06)
+- Attacker targets internal network via SSRF and triggers remote code execution via unsafe deserialization of the fetched payload.
+
+## Decoys
+- Safe YAML config loading using `yaml.safe_load()`.
+- Parameterized warehouse search query preventing SQL injection.

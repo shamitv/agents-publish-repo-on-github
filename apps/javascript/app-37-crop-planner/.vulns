@@ -1,0 +1,76 @@
+{
+  "app_id": "app-37",
+  "app_name": "Agricultural Crop Planner",
+  "language": "javascript",
+  "framework": "express",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A05",
+      "category": "Security Misconfiguration",
+      "location": "src/index.js",
+      "method": "GET /api/system/config",
+      "line_range": "208-228",
+      "description": "An open diagnostics route leaks system node settings and an administrative weather integration API token key when active debug query options are provided.",
+      "severity": "medium",
+      "cwe": "CWE-209"
+    },
+    {
+      "owasp_id": "A06",
+      "category": "Vulnerable and Outdated Components",
+      "location": "src/index.js",
+      "method": "POST /api/crop-plan/import-layout",
+      "line_range": "157-190",
+      "description": "An layout zip importer extracts files using relative archive paths without checking target folder bounds, allowing Zip Slip path traversal file overwrite.",
+      "severity": "high",
+      "cwe": "CWE-22"
+    },
+    {
+      "owasp_id": "A10",
+      "category": "Server-Side Request Forgery (SSRF)",
+      "location": "src/index.js",
+      "method": "GET /api/weather/proxy",
+      "line_range": "193-205",
+      "description": "The weather forecast query proxy makes HTTP calls using axios on user-supplied URL inputs with no address block restriction, enabling SSRF.",
+      "severity": "high",
+      "cwe": "CWE-918"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Diagnostics Configuration Exposure → SSRF Crop Analytics Pivoting",
+      "attack_scenario": "An attacker queries `/api/system/config?debug=true` to obtain the weather service token key `CROP-DEV-WEATHER-API-TOKEN-2026`. Utilizing the weather lookup proxy `/api/weather/proxy`, they submit `weatherUrl: 'http://localhost:8037/api/internal/telemetry?token=CROP-DEV-WEATHER-API-TOKEN-2026'`, leveraging the SSRF vulnerability to bypass authentication and retrieve all farm crop records from the internal analytics database.",
+      "impact": "lateral_movement",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A05",
+          "description": "System diagnostics endpoint leaks weather integration API secret token key.",
+          "location": "src/index.js",
+          "method": "GET /api/system/config",
+          "severity": "medium",
+          "cwe": "CWE-209"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A10",
+          "description": "Weather query proxy makes external requests with no IP filtering rules.",
+          "location": "src/index.js",
+          "method": "GET /api/weather/proxy",
+          "severity": "medium",
+          "cwe": "CWE-918"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/index.js",
+      "description": "Proper user scoping constraints in GET /api/crops limiting output database entries to active customer only."
+    },
+    {
+      "location": "src/index.js",
+      "description": "Proper parameterized query logic in GET /api/crops/:id to fetch crop profile details safely."
+    }
+  ]
+}

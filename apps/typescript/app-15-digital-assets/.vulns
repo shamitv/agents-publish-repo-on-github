@@ -1,0 +1,76 @@
+{
+  "app_id": "app-15",
+  "app_name": "Digital Asset Management",
+  "language": "typescript",
+  "framework": "express",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "src/index.ts",
+      "method": "GET /api/assets/:id",
+      "line_range": "135-156",
+      "description": "Asset detail endpoint returns private files and download URLs by ID without checking if the requesting user owns the asset.",
+      "severity": "high",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A08",
+      "category": "Software and Data Integrity Failures",
+      "location": "src/index.ts",
+      "method": "POST /api/assets/upload",
+      "line_range": "158-182",
+      "description": "Upload endpoint uses Multer disk storage and accepts any file extension with no validation, writing files directly into the web-accessible directory.",
+      "severity": "high",
+      "cwe": "CWE-434"
+    },
+    {
+      "owasp_id": "A10",
+      "category": "Server-Side Request Forgery",
+      "location": "src/index.ts",
+      "method": "POST /api/assets/import",
+      "line_range": "184-228",
+      "description": "Import endpoint fetches file content from user-specified URLs using the global fetch API without restricting requests to loopback or private IP ranges.",
+      "severity": "medium",
+      "cwe": "CWE-918"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "SSRF File Fetch → Predictable Path RCE",
+      "attack_scenario": "An attacker uses the SSRF vulnerability on the import endpoint to fetch a script from an internal service or external host. The file is saved directly into the public web directory (`/uploads/`) with its original filename due to unvalidated upload logic, allowing the attacker to execute it via direct HTTP request.",
+      "impact": "lateral_movement",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A10",
+          "description": "SSRF in asset import fetches arbitrary network URLs.",
+          "location": "src/index.ts",
+          "method": "POST /api/assets/import",
+          "severity": "medium",
+          "cwe": "CWE-918"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A08",
+          "description": "Unrestricted file writing places fetched script inside web public uploads directory, enabling RCE.",
+          "location": "src/index.ts",
+          "method": "POST /api/assets/import",
+          "severity": "medium",
+          "cwe": "CWE-434"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/index.ts",
+      "description": "Input validation guardrail on tags endpoint check, ensuring tag content is strictly alphanumeric via regex."
+    },
+    {
+      "location": "src/index.ts",
+      "description": "Secure Bearer Authorization token checking requirement on the administrative statistics stats endpoint."
+    }
+  ]
+}

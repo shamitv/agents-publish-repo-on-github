@@ -1,0 +1,76 @@
+{
+  "app_id": "app-48",
+  "app_name": "Freelancer Marketplace",
+  "language": "python",
+  "framework": "fastapi",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "app.py",
+      "method": "get_proposal",
+      "line_range": "143-155",
+      "description": "The proposal detail endpoint returns competitor bids to any authenticated user without validating if the user is the hiring client or the submitting freelancer.",
+      "severity": "medium",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A04",
+      "category": "Insecure Design",
+      "location": "app.py",
+      "method": "release_payment",
+      "line_range": "170-189",
+      "description": "The payment release feature allows clients or unauthorized users to release escrow funds before delivery verification is performed and fails to check client-job association.",
+      "severity": "medium",
+      "cwe": "CWE-285"
+    },
+    {
+      "owasp_id": "A07",
+      "category": "Identification and Authentication Failures",
+      "location": "app.py",
+      "method": "login",
+      "line_range": "113-130",
+      "description": "Session tokens are generated using a predictable PRNG (random.randint) rather than a cryptographically secure random generator, allowing session prediction and hijacking.",
+      "severity": "medium",
+      "cwe": "CWE-330"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Weak Token → IDOR Bid Espionage → Payment Fraud",
+      "attack_scenario": "An attacker logs in, takes note of the generated session token structure, and predicts another user's session token offline due to the predictable PRNG. The attacker hijacks the victim's session, uses the IDOR vulnerability on the proposal endpoint to read competitor bid values and pricing details, and then triggers the payment release endpoint to steal project funds.",
+      "impact": "account_takeover",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A07",
+          "description": "Weak session token generation via predictable random number generator.",
+          "location": "app.py",
+          "method": "login",
+          "severity": "medium",
+          "cwe": "CWE-330"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A01",
+          "description": "IDOR on proposal details endpoint leaks sensitive competitor bid info.",
+          "location": "app.py",
+          "method": "get_proposal",
+          "severity": "medium",
+          "cwe": "CWE-639"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "app.py",
+      "description": "Input validation checking that bid_amount is within a realistic range using Pydantic field validators."
+    },
+    {
+      "location": "app.py",
+      "description": "Proper role-based authorization check on the admin user list endpoint (/api/admin/users) restricting it to users with ADMIN role."
+    }
+  ]
+}

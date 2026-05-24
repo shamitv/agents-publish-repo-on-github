@@ -1,0 +1,76 @@
+{
+  "app_id": "app-41",
+  "app_name": "Library Book Reservation System",
+  "language": "javascript",
+  "framework": "express",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "src/index.js",
+      "method": "GET /api/reservations/:id",
+      "line_range": "146-162",
+      "description": "Viewing book reservation logs by ID lacks verification of user ownership, allowing any authenticated borrower to retrieve details of another borrower's history.",
+      "severity": "medium",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "src/index.js",
+      "method": "GET /api/books/search",
+      "line_range": "165-177",
+      "description": "User search parameter is directly concatenated into SQL query statement, exposing the database to SQL injection.",
+      "severity": "high",
+      "cwe": "CWE-89"
+    },
+    {
+      "owasp_id": "A07",
+      "category": "Identification and Authentication Failures",
+      "location": "src/index.js",
+      "method": "POST /api/auth/login",
+      "line_range": "100-123",
+      "description": "User account passwords are encrypted using unsalted MD5 hashing and saved in the database, allowing brute-force or rainbow table cracking.",
+      "severity": "medium",
+      "cwe": "CWE-328"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Book Search SQLi → Unsalted MD5 librarian account cracking",
+      "attack_scenario": "An attacker uses SQL Injection on the search endpoint `/api/books/search?q=1984' UNION SELECT 1,username,password_hash,role FROM users --` to dump the users table. They retrieve the unsalted MD5 hash `db59fe16fcdcc4e70e3047d9539f37c3` for the admin_librarian user. By performing offline MD5 decryption/lookup, they crack the admin password ('librarianSecure2026!') and take over the admin session, using it to exfiltrate private reader reservation details via IDOR.",
+      "impact": "account_takeover",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A03",
+          "description": "Union-based SQL injection on book search exposes internal database tables.",
+          "location": "src/index.js",
+          "method": "GET /api/books/search",
+          "severity": "medium",
+          "cwe": "CWE-89"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A07",
+          "description": "Admin passwords stored as unsalted MD5 hashes are cracked offline, enabling account takeover.",
+          "location": "src/index.js",
+          "method": "POST /api/auth/login",
+          "severity": "medium",
+          "cwe": "CWE-328"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/index.js",
+      "description": "Proper parameterized query logic in GET /api/books/:id to retrieve single books safely."
+    },
+    {
+      "location": "src/index.js",
+      "description": "Proper user scoping constraints in GET /api/reservations limiting output database entries to active customer only."
+    }
+  ]
+}

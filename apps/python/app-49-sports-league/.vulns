@@ -1,0 +1,85 @@
+{
+  "app_id": "app-49",
+  "app_name": "Sports League Management",
+  "language": "python",
+  "framework": "flask",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "app.py",
+      "method": "get_player",
+      "line_range": "173-187",
+      "description": "The player profile details endpoint does not verify user roles or ownership, exposing sensitive salary and contract data to any authenticated user.",
+      "severity": "medium",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "app.py",
+      "method": "search_players",
+      "line_range": "153-171",
+      "description": "The player search endpoint directly concatenates user input into raw SQL query statements, permitting SQL injection.",
+      "severity": "high",
+      "cwe": "CWE-89"
+    },
+    {
+      "owasp_id": "A05",
+      "category": "Security Misconfiguration",
+      "location": "app.py",
+      "method": "export_standings",
+      "line_range": "121-136",
+      "description": "The standings export endpoint exposes internal database schema structure and raw executed SQL query commands in response headers.",
+      "severity": "low",
+      "cwe": "CWE-200"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "SQLi Player Dump → IDOR Contract Access → Score Manipulation",
+      "attack_scenario": "An attacker uses SQL injection on the search endpoint to discover internal player IDs and team managers. They then exploit the IDOR vulnerability on the player profile endpoint to extract contract data. Finally, exploiting the missing authorization on the game score endpoint, they update game results to manipulate overall league standings.",
+      "impact": "data_modification",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A03",
+          "description": "SQL injection in player search leaks database table schema details and record IDs.",
+          "location": "app.py",
+          "method": "search_players",
+          "severity": "medium",
+          "cwe": "CWE-89"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A01",
+          "description": "IDOR on player detail leaks sensitive contract/salary information.",
+          "location": "app.py",
+          "method": "get_player",
+          "severity": "low",
+          "cwe": "CWE-639"
+        },
+        {
+          "step": 3,
+          "owasp_id": "A01",
+          "description": "Missing function-level access control on the game score update endpoint allows any authenticated user to change scores.",
+          "location": "app.py",
+          "method": "update_score",
+          "severity": "medium",
+          "cwe": "CWE-285"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "app.py",
+      "description": "Proper role-based authorization check on team creation endpoint (/api/teams) restricting access to users with COMMISSIONER role."
+    },
+    {
+      "location": "app.py",
+      "description": "Proper parameterized SQL queries for retrieving standings by team name."
+    }
+  ]
+}

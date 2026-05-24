@@ -1,0 +1,80 @@
+{
+  "app_id": "app-05",
+  "app_name": "Online Learning Management System",
+  "language": "python",
+  "framework": "flask",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "app.py",
+      "method": "get_submission",
+      "line_range": "197-224",
+      "description": "Quiz submission retrieval endpoint returns any submission by ID without verifying the requesting user is the submission owner, allowing any authenticated student to view other students' answers and scores.",
+      "severity": "high",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A05",
+      "category": "Security Misconfiguration",
+      "location": "app.py",
+      "method": "debug_config",
+      "line_range": "249-263",
+      "description": "Unauthenticated debug endpoint at /api/debug/config exposes the Flask secret_key, database path, full environment variables, and server working directory to any caller.",
+      "severity": "medium",
+      "cwe": "CWE-215"
+    },
+    {
+      "owasp_id": "A08",
+      "category": "Software and Data Integrity Failures",
+      "location": "app.py",
+      "method": "import_course",
+      "line_range": "267-299",
+      "description": "Course import endpoint deserializes untrusted base64-encoded pickle data from user input using pickle.loads(), allowing arbitrary remote code execution.",
+      "severity": "critical",
+      "cwe": "CWE-502"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Config Leak → Session Forgery → Pickle RCE → Data Exfiltration",
+      "attack_scenario": "Attacker calls the unauthenticated /api/debug/config endpoint to read the Flask secret_key. Using this key, they forge a session cookie with admin/instructor role. With the forged admin session, they upload a malicious pickle payload via /api/courses/import to execute arbitrary code on the server and dump the entire database.",
+      "impact": "db_exfiltration",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A05",
+          "description": "GET /api/debug/config returns the Flask secret_key and full server environment without authentication, enabling session cookie forgery.",
+          "location": "app.py",
+          "method": "debug_config",
+          "severity": "low",
+          "cwe": "CWE-215"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A08",
+          "description": "POST /api/courses/import deserializes user-supplied pickle data with pickle.loads(), allowing arbitrary code execution once an admin session is forged.",
+          "location": "app.py",
+          "method": "import_course",
+          "severity": "medium",
+          "cwe": "CWE-502"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "app.py",
+      "description": "Safe parameterized SQL query for user login authentication — secure SQL decoy"
+    },
+    {
+      "location": "app.py",
+      "description": "Proper INSTRUCTOR/ADMIN role check on course creation endpoint — secure access control decoy"
+    },
+    {
+      "location": "app.py",
+      "description": "Enrollment listing correctly scoped to current user's session — secure data-scoping decoy"
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "app_id": "app-33",
+  "app_name": "Recruitment ATS Platform",
+  "language": "typescript",
+  "framework": "express",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "src/index.ts",
+      "method": "GET /api/applications/:id",
+      "line_range": "180-192",
+      "description": "Retrieving a job application by ID lacks ownership or role checks, allowing any authenticated user to view other candidates' application details.",
+      "severity": "medium",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A02",
+      "category": "Cryptographic Failures",
+      "location": "src/index.ts",
+      "method": "POST /api/auth/api-key",
+      "line_range": "172-177",
+      "description": "Developer API tokens are generated using the insecure MD5 hashing algorithm on the user's sequential integer ID, making the keys highly predictable.",
+      "severity": "medium",
+      "cwe": "CWE-328"
+    },
+    {
+      "owasp_id": "A06",
+      "category": "Vulnerable and Outdated Components",
+      "location": "src/index.ts",
+      "method": "POST /api/applications/upload-portfolio",
+      "line_range": "195-238",
+      "description": "The zip file upload handler extracts contents directly using relative file entry names without checking for directory traversal, exposing the system to Zip Slip path traversal file overwrite.",
+      "severity": "high",
+      "cwe": "CWE-22"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Predictable API Key Derivation → Zip Slip Arbitrary File Write",
+      "attack_scenario": "An attacker targets a recruiter account (user ID 3) and computes their MD5-based API key: md5('3') = 'eccbc87e4b5ce2fe28308fd9f2a7baf3'. Authenticating with this admin key, they call the `/api/applications/upload-portfolio` endpoint and upload a ZIP archive containing a file entry named `../../package.json` to overwrite the application root files.",
+      "impact": "data_modification",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A02",
+          "description": "User API tokens are derived predictably from the user ID via MD5.",
+          "location": "src/index.ts",
+          "method": "POST /api/auth/api-key",
+          "severity": "medium",
+          "cwe": "CWE-328"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A06",
+          "description": "Admin endpoint extracts ZIP archives without validating target paths, enabling file overwrite.",
+          "location": "src/index.ts",
+          "method": "POST /api/applications/upload-portfolio",
+          "severity": "medium",
+          "cwe": "CWE-22"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/index.ts",
+      "description": "Proper Bcrypt hashing for password storage and credentials verification during login."
+    },
+    {
+      "location": "src/index.ts",
+      "description": "Proper application access control limits in GET /api/recruiter/dashboard checking for RECRUITER role."
+    },
+    {
+      "location": "src/index.ts",
+      "description": "Proper ownership filtering in GET /api/applications/my ensuring candidates only read their own applications."
+    }
+  ]
+}

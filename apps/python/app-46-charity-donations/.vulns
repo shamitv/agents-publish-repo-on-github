@@ -1,0 +1,85 @@
+{
+  "app_id": "app-46",
+  "app_name": "Charity Donation Platform",
+  "language": "python",
+  "framework": "flask",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A02",
+      "category": "Cryptographic Failures",
+      "location": "app.py",
+      "method": "STRIPE_KEY",
+      "line_range": "9-11",
+      "description": "Stripe payment gateway API key is hardcoded directly in the application source code.",
+      "severity": "high",
+      "cwe": "CWE-798"
+    },
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "app.py",
+      "method": "search_donations",
+      "line_range": "128-150",
+      "description": "User search query is concatenated directly into a raw SQL query inside search_donations(), causing SQL injection.",
+      "severity": "high",
+      "cwe": "CWE-89"
+    },
+    {
+      "owasp_id": "A09",
+      "category": "Security Logging & Monitoring Failures",
+      "location": "app.py",
+      "method": "process_refund",
+      "line_range": "152-187",
+      "description": "High-value financial refund operations are performed silently without producing any audit log records.",
+      "severity": "medium",
+      "cwe": "CWE-778"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "API Key Exposure → SQLi Donor Dump → Silent Refund Fraud",
+      "attack_scenario": "An attacker reads the hardcoded Stripe key from the source code. They then use the SQL injection vulnerability on the search donation endpoint to extract transaction IDs and donor information. Lastly, using the leaked Stripe credentials and transaction details, they trigger a refund to themselves silently due to missing audit logs.",
+      "impact": "db_exfiltration",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A02",
+          "description": "Stripe API key hardcoded in source.",
+          "location": "app.py",
+          "method": "STRIPE_KEY",
+          "severity": "medium",
+          "cwe": "CWE-798"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A03",
+          "description": "SQL injection in search donation query reveals private database records.",
+          "location": "app.py",
+          "method": "search_donations",
+          "severity": "medium",
+          "cwe": "CWE-89"
+        },
+        {
+          "step": 3,
+          "owasp_id": "A09",
+          "description": "Refunding donation generates no audit logs.",
+          "location": "app.py",
+          "method": "process_refund",
+          "severity": "low",
+          "cwe": "CWE-778"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "app.py",
+      "description": "CSRF validation check on /api/donations ensuring requests include a valid X-CSRF-Token matching the user's session."
+    },
+    {
+      "location": "app.py",
+      "description": "Proper parameterized SQL queries for retrieving campaigns by title/description."
+    }
+  ]
+}
