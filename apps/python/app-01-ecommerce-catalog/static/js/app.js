@@ -308,9 +308,6 @@ function loadOrders() {
 
 // 4. Order Details Modal (IDOR playground - A01 target!)
 function readOrderDetails(orderId) {
-    // VULNERABILITY A01: Horizontal IDOR bypass target.
-    // Retrieves individual order receipt payloads solely based on path variables, allowing users to
-    // inspect each other's transactions without ownership validations.
     fetch(`/api/orders/${orderId}`)
         .then(res => {
             if (res.ok) return res.json();
