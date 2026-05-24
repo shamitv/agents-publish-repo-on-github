@@ -60,79 +60,79 @@ After cleaning, review `.vulns` for accuracy — ensure location references stil
 
 ## App Inventory
 
-### Python (Flask) — 14 apps
-| # | App | Priority |
-|---|-----|----------|
-| 1 | app-01-ecommerce-catalog | High |
-| 2 | app-02-patient-portal | High |
-| 3 | app-03-banking-service | High |
-| 4 | app-04-real-estate | High |
-| 5 | app-05-learning-mgmt | High |
-| 21 | app-21-insurance-claims | High |
-| 22 | app-22-food-delivery | High |
-| 23 | app-23-govt-permits | High |
-| 24 | app-24-vet-clinic | High |
-| 25 | app-25-supply-chain | High |
-| 46 | app-46-charity-donations | High |
-| 47 | app-47-smart-home | High |
-| 48 | app-48-freelancer-market | High |
-| 49 | app-49-sports-league | High |
+### Python (Flask) — 14 apps ✅
+| # | App | Status | Priority |
+|---|-----|--------|----------|
+| 1 | app-01-ecommerce-catalog | ✅ Done | High |
+| 2 | app-02-patient-portal | ✅ Done | High |
+| 3 | app-03-banking-service | ✅ Done | High |
+| 4 | app-04-real-estate | ✅ Done | High |
+| 5 | app-05-learning-mgmt | ✅ Done | High |
+| 21 | app-21-insurance-claims | ✅ Done | High |
+| 22 | app-22-food-delivery | ✅ Done | High |
+| 23 | app-23-govt-permits | ✅ Done | High |
+| 24 | app-24-vet-clinic | ✅ Done | High |
+| 25 | app-25-supply-chain | ✅ Done | High |
+| 46 | app-46-charity-donations | ✅ Done | High |
+| 47 | app-47-smart-home | ✅ Done | High |
+| 48 | app-48-freelancer-market | ✅ Done | High |
+| 49 | app-49-sports-league | ✅ Done | High |
 
-### Java (Spring Boot) — 6 apps
-| # | App | Priority |
-|---|-----|----------|
-| 6 | app-06-hr-management | High |
-| 7 | app-07-airline-booking | High |
-| 8 | app-08-warehouse-mgmt | High |
-| 9 | app-09-legal-documents | High |
-| 10 | app-10-telecom-billing | High |
-| 50 | app-50-energy-billing | High |
+### Java (Spring Boot) — 6 apps ✅
+| # | App | Status | Priority |
+|---|-----|--------|----------|
+| 6 | app-06-hr-management | ✅ Done | High |
+| 7 | app-07-airline-booking | ✅ Done | High |
+| 8 | app-08-warehouse-mgmt | ✅ Done | High |
+| 9 | app-09-legal-documents | ✅ Done | High |
+| 10 | app-10-telecom-billing | ✅ Done | High |
+| 50 | app-50-energy-billing | ✅ Done | High |
 
-### Java (additional) — 5 apps
-| # | App | Priority |
-|---|-----|----------|
-| 26 | app-26-pharma-tracking | High |
-| 27 | app-27-hotel-reservation | High |
-| 28 | app-28-mfg-quality | High |
-| 29 | app-29-fleet-management | High |
-| 30 | app-30-auction-platform | High |
+### Java (additional) — 5 apps ✅
+| # | App | Status | Priority |
+|---|-----|--------|----------|
+| 26 | app-26-pharma-tracking | ✅ Done | High |
+| 27 | app-27-hotel-reservation | ✅ Done | High |
+| 28 | app-28-mfg-quality | ✅ Done | High |
+| 29 | app-29-fleet-management | ✅ Done | High |
+| 30 | app-30-auction-platform | ✅ Done | High |
 
-### JavaScript (Express) — 10 apps
-| # | App | Priority |
-|---|-----|----------|
-| 16 | app-16-restaurant-reviews | High |
-| 17 | app-17-iot-dashboard | High |
-| 18 | app-18-p2p-lending | High |
-| 19 | app-19-cms | High |
-| 20 | app-20-fitness-tracker | High |
-| 36 | app-36-parking-mgmt | High |
-| 37 | app-37-crop-planner | High |
-| 38 | app-38-museum-catalog | High |
-| 39 | app-39-wedding-planner | High |
-| 40 | app-40-pet-adoption | High |
+### JavaScript (Express) — 10 apps ✅
+| # | App | Status | Priority |
+|---|-----|--------|----------|
+| 16 | app-16-restaurant-reviews | ✅ Done | High |
+| 17 | app-17-iot-dashboard | ✅ Done | High |
+| 18 | app-18-p2p-lending | ✅ Done | High |
+| 19 | app-19-cms | ✅ Done | High |
+| 20 | app-20-fitness-tracker | ✅ Done | High |
+| 36 | app-36-parking-mgmt | ✅ Done | High |
+| 37 | app-37-crop-planner | ✅ Done | High |
+| 38 | app-38-museum-catalog | ✅ Done | High |
+| 39 | app-39-wedding-planner | ✅ Done | High |
+| 40 | app-40-pet-adoption | ✅ Done | High |
 
-### JavaScript (additional) — 5 apps
-| # | App | Priority |
-|---|-----|----------|
-| 41 | app-41-library-reservation | High |
-| 42 | app-42-construction-tracker | High |
-| 43 | app-43-music-streaming | High |
-| 44 | app-44-election-polling | High |
-| 45 | app-45-travel-expense | High |
+### JavaScript (additional) — 5 apps ✅
+| # | App | Status | Priority |
+|---|-----|--------|----------|
+| 41 | app-41-library-reservation | ✅ Done | High |
+| 42 | app-42-construction-tracker | ✅ Done | High |
+| 43 | app-43-music-streaming | ✅ Done | High |
+| 44 | app-44-election-polling | ✅ Done | High |
+| 45 | app-45-travel-expense | ✅ Done | High |
 
-### TypeScript (NestJS) — 10 apps
-| # | App | Priority |
-|---|-----|----------|
-| 11 | app-11-social-analytics | High |
-| 12 | app-12-crypto-wallet | High |
-| 13 | app-13-project-mgmt | High |
-| 14 | app-14-telemedicine | High |
-| 15 | app-15-digital-assets | High |
-| 31 | app-31-event-ticketing | High |
-| 32 | app-32-support-tickets | High |
-| 33 | app-33-recruitment-ats | High |
-| 34 | app-34-subscription-box | High |
-| 35 | app-35-compliance-tracker | High |
+### TypeScript (NestJS) — 10 apps ✅
+| # | App | Status | Priority |
+|---|-----|--------|----------|
+| 11 | app-11-social-analytics | ✅ Done | High |
+| 12 | app-12-crypto-wallet | ✅ Done | High |
+| 13 | app-13-project-mgmt | ✅ Done | High |
+| 14 | app-14-telemedicine | ✅ Done | High |
+| 15 | app-15-digital-assets | ✅ Done | High |
+| 31 | app-31-event-ticketing | ✅ Done | High |
+| 32 | app-32-support-tickets | ✅ Done | High |
+| 33 | app-33-recruitment-ats | ✅ Done | High |
+| 34 | app-34-subscription-box | ✅ Done | High |
+| 35 | app-35-compliance-tracker | ✅ Done | High |
 
 ---
 
