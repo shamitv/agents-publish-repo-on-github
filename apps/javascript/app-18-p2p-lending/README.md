@@ -12,6 +12,8 @@ FinTech & Lending Services
 - SQLite (in-memory)
 
 ## Features
+
+For chained vulnerability scenarios, see [scenarios.md](scenarios.md).
 - User registration and login (vulnerable to cleartext password checks)
 - Apply for peer-to-peer loans (vulnerable to negative interest rates)
 - View individual loan agreement details (vulnerable to IDOR)
@@ -22,26 +24,6 @@ The vulnerabilities in this application are intentional. Refer to [.vulns](file:
 
 ---
 
-## Chained Vulnerability Scenario
-
-### Chain: "Plaintext Credential Leak → IDOR Loan Data Harvesting"
-
-An attacker obtains administrative credentials via database leakage, logs in, and retrieves arbitrary contract records via the IDOR endpoint.
-
-| Step | Issue | Severity (standalone) | OWASP | Location |
-|------|-------|-----------------------|-------|----------|
-| 1 | Passwords saved in plaintext database | Medium | A02 | `src/index.js` → `initDb` |
-| 2 | Loan details endpoint is vulnerable to IDOR | Medium | A01 | `src/index.js` → `GET /api/contracts/:id` |
-
-**Attack narrative**:
-1. The attacker queries `/api/debug/users` to dump all user records.
-2. In the returned list, they extract the administrator's plaintext password: `lenderSecure2026!`.
-3. The attacker logs in using the admin account.
-4. Using the admin session, the attacker queries `/api/contracts/:id` sequentially to harvest all user agreements, achieving bulk data exfiltration.
-
-**Combined Impact**: `db_exfiltration` — Attacker gains administration credentials to harvest private client records.
-
----
 
 ## API Endpoints
 

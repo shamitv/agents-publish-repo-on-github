@@ -15,6 +15,8 @@ Agriculture & Crop Management
 - Axios
 
 ## Features
+
+For chained vulnerability scenarios, see [scenarios.md](scenarios.md).
 - User registration and login
 - Track agricultural crop cycles (Decoy: secure user scoping)
 - Individual crop profile views (Decoy: parameterized SQL)
@@ -27,25 +29,6 @@ The vulnerabilities in this application are intentional. Refer to [.vulns](file:
 
 ---
 
-## Chained Vulnerability Scenario
-
-### Chain: "Diagnostics Configuration Exposure → SSRF Crop Analytics Pivoting"
-
-An attacker queries the diagnostics API to leak the weather integration token, then makes an SSRF call targeting the internal crop telemetry analytics node to download the crops database.
-
-| Step | Issue | Severity (standalone) | OWASP | Location |
-|------|-------|-----------------------|-------|----------|
-| 1 | Diagnostics config leaks weather secret token key | Medium | A05 | `src/index.js` → `GET /api/system/config` |
-| 2 | Weather proxy is vulnerable to SSRF | High | A10 | `src/index.js` → `GET /api/weather/proxy` |
-
-**Attack narrative**:
-1. The attacker queries `/api/system/config?debug=true` to obtain the API key: `CROP-DEV-WEATHER-API-TOKEN-2026`.
-2. The attacker calls `/api/weather/proxy?weatherUrl=http://localhost:8037/api/internal/telemetry?token=CROP-DEV-WEATHER-API-TOKEN-2026`.
-3. The server makes the HTTP request, bypassing internal database controls using the leaked token, and returns all crop database entries, achieving lateral movement.
-
-**Combined Impact**: `lateral_movement` — Attacker bypasses firewall filters to retrieve internal crops logs.
-
----
 
 ## API Endpoints
 

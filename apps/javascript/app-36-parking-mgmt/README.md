@@ -12,6 +12,8 @@ Logistics & Parking Services
 - SQLite (in-memory)
 
 ## Features
+
+For chained vulnerability scenarios, see [scenarios.md](scenarios.md).
 - User registration and login
 - Register new spots (Decoy: secure admin logs)
 - Search available parking spots (vulnerable to SQLi)
@@ -24,27 +26,6 @@ The vulnerabilities in this application are intentional. Refer to [.vulns](file:
 
 ---
 
-## Chained Vulnerability Scenario
-
-### Chain: "SQL Injection Data Mining → Zero-Fee Booking Exploitation"
-
-An attacker uses SQL Injection on the search endpoint to extract the parking spots database schema, books premium spaces specifying a price rate of zero, and cancels orders without producing audit logs.
-
-| Step | Issue | Severity (standalone) | OWASP | Location |
-|------|-------|-----------------------|-------|----------|
-| 1 | SQL injection on spot search | High | A03 | `src/index.js` → `GET /api/spots/search` |
-| 2 | Cost rates trusted directly from client parameters | Medium | A04 | `src/index.js` → `POST /api/bookings/book` |
-
-**Attack narrative**:
-1. The attacker searches spots via `/api/spots/search?q=Standard' UNION SELECT 1,id,spot_number,price_rate FROM spots --`.
-2. The server processes the query and returns the list of premium spot IDs.
-3. The attacker requests a booking to `/api/bookings/book` submitting a payload with `total_cost: 0.0`.
-4. The server records the transaction as successful, granting free access.
-5. The attacker cancels past reservations at `/api/bookings/1/cancel` without leaving an audit log trail.
-
-**Combined Impact**: `data_modification` — Attacker bypasses payment gates to book reservation assets.
-
----
 
 ## API Endpoints
 

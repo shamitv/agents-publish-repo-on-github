@@ -3,17 +3,13 @@ const sqlite3 = require('sqlite3');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
-
 const app = express();
 const port = 8038;
-
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors({ origin: true, credentials: true }));
-
 // Initialize SQLite database
 const db = new sqlite3.Database(':memory:');
-
 function initDb() {
   db.serialize(() => {
     db.run(`
@@ -24,7 +20,6 @@ function initDb() {
         role TEXT NOT NULL
       )
     `);
-
     db.run(`
       CREATE TABLE exhibits (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,7 +30,6 @@ function initDb() {
         FOREIGN KEY(user_id) REFERENCES users(id)
       )
     `);
-
     db.run(`
       CREATE TABLE guestbook (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,7 +37,6 @@ function initDb() {
         entry_text TEXT NOT NULL
       )
     `);
-
     // Seed users
     const salt = bcrypt.genSaltSync(10);
     const users = [
@@ -51,14 +44,12 @@ function initDb() {
       { username: 'bob_visitor', pass: 'visitor456', role: 'CUSTOMER' },
       { username: 'curator_admin', pass: 'curator2026Secure!', role: 'ADMIN' }
     ];
-
     const stmt = db.prepare('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)');
     users.forEach(u => {
       const hash = bcrypt.hashSync(u.pass, salt);
       stmt.run(u.username, hash, u.role);
     });
     stmt.finalize();
-
     // Seed exhibits
     db.run(`
       INSERT INTO exhibits (name, origin, confidential_notes, user_id)
@@ -68,7 +59,6 @@ function initDb() {
       INSERT INTO exhibits (name, origin, confidential_notes, user_id)
       VALUES ('Golden Pharaonic Crown', 'Egypt', 'Vault storage. Insured for $5,000,000. Security clearance Level-3.', 2)
     `);
-
     // Seed guestbook
     db.run(`
       INSERT INTO guestbook (visitor_name, entry_text)
@@ -76,12 +66,9 @@ function initDb() {
     `);
   });
 }
-
 initDb();
-
 // Session store
 const sessions = {};
-
 function getSessionUser(req) {
   const sessionId = req.cookies.session_id;
   if (!sessionId || !sessions[sessionId]) {
@@ -89,7 +76,6 @@ function getSessionUser(req) {
   }
   return sessions[sessionId];
 }
-
 function requireAuth(req, res, next) {
   const user = getSessionUser(req);
   if (!user) {
@@ -98,17 +84,14 @@ function requireAuth(req, res, next) {
   req.user = user;
   next();
 }
-
 // Authentication endpoints
 app.post('/api/auth/register', (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password are required.' });
   }
-
   const salt = bcrypt.genSaltSync(10);
   const hash = bcrypt.hashSync(password, salt);
-
   db.run('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)', [username, hash, 'CUSTOMER'], function(err) {
     if (err) {
       return res.status(400).json({ error: 'Username already exists.' });
@@ -116,27 +99,22 @@ app.post('/api/auth/register', (req, res) => {
     res.status(201).json({ message: 'User registered successfully.', userId: this.lastID });
   });
 });
-
 app.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body;
   db.get('SELECT * FROM users WHERE username = ?', [username], (err, user) => {
     if (err || !user) {
       return res.status(401).json({ error: 'Invalid credentials.' });
     }
-
     const matches = bcrypt.compareSync(password, user.password_hash);
     if (!matches) {
       return res.status(401).json({ error: 'Invalid credentials.' });
     }
-
     const sessionId = Math.random().toString(36).substring(2) + Date.now().toString(36);
     sessions[sessionId] = { id: user.id, username: user.username, role: user.role };
-
     res.cookie('session_id', sessionId, { httpOnly: true });
     res.json({ message: 'Login successful.', role: user.role });
   });
 });
-
 app.post('/api/auth/logout', (req, res) => {
   const sessionId = req.cookies.session_id;
   if (sessionId) {
@@ -145,12 +123,10 @@ app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('session_id');
   res.json({ message: 'Logged out successfully.' });
 });
-
 // Decoy: Safe escaped text mapping in list exhibit descriptions
 app.get('/api/exhibits', (req, res) => {
   db.all('SELECT id, name, origin FROM exhibits', (err, rows) => {
     if (err) return res.status(500).json({ error: 'Failed to retrieve exhibits.' });
-    
     // Decoy: Escape simple HTML chars in names
     const escaped = rows.map(r => ({
       id: r.id,
@@ -160,13 +136,8 @@ app.get('/api/exhibits', (req, res) => {
     res.json(escaped);
   });
 });
-
-// VULNERABILITY A01: Broken Access Control (IDOR) on exhibits
-// CHAIN LINK 2 (chain-01): Bypasses curator authorization check to view confidential notes
 app.get('/api/exhibits/:id', requireAuth, (req, res) => {
   const exhibitId = req.params.id;
-
-  // VULNERABILITY A01: Missing ownership validation (permits any authenticated user to view private records)
   db.get('SELECT * FROM exhibits WHERE id = ?', [exhibitId], (err, row) => {
     if (err) {
       return res.status(500).json({ error: 'Database query failed.' });
@@ -177,26 +148,19 @@ app.get('/api/exhibits/:id', requireAuth, (req, res) => {
     res.json(row);
   });
 });
-
-// VULNERABILITY A03: Stored XSS in guestbook comments
 app.get('/api/guestbook', (req, res) => {
   db.all('SELECT * FROM guestbook', (err, rows) => {
     if (err) {
       return res.status(500).json({ error: 'Failed to fetch guestbook.' });
     }
-    
-    // VULNERABILITY A03: Stored XSS - renders text without sanitizing HTML tags
     res.json(rows);
   });
 });
-
 app.post('/api/guestbook', (req, res) => {
   const { visitor_name, entry_text } = req.body;
-
   if (!visitor_name || !entry_text) {
     return res.status(400).json({ error: 'Name and comment are required.' });
   }
-
   db.run(
     'INSERT INTO guestbook (visitor_name, entry_text) VALUES (?, ?)',
     [visitor_name, entry_text],
@@ -208,16 +172,11 @@ app.post('/api/guestbook', (req, res) => {
     }
   );
 });
-
-// VULNERABILITY A09: Security Logging and Monitoring Failures
 app.post('/api/exhibits/:id/delete', requireAuth, (req, res) => {
   const exhibitId = req.params.id;
-
   if (req.user.role !== 'ADMIN') {
     return res.status(403).json({ error: 'Forbidden: Curator access only.' });
   }
-
-  // VULNERABILITY A09: No logs are produced when deleting catalog items
   db.run('DELETE FROM exhibits WHERE id = ?', [exhibitId], (err) => {
     if (err) {
       return res.status(500).json({ error: 'Failed to delete exhibit.' });
@@ -225,7 +184,6 @@ app.post('/api/exhibits/:id/delete', requireAuth, (req, res) => {
     res.json({ message: 'Exhibit deleted successfully.' });
   });
 });
-
 app.listen(port, () => {
   console.log(`Museum Collection Catalog listening at http://localhost:${port}`);
 });

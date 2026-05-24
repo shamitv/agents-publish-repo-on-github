@@ -13,6 +13,8 @@ Corporate Operations / Finance & Expense Management.
 - **Authentication**: Cookie-based sessions
 
 ## Features
+
+For chained vulnerability scenarios, see [scenarios.md](scenarios.md).
 - User registration and login
 - Logged-in user custom expense listing
 - New expense report submission (Travel, Meals, Lodging categories)
@@ -24,28 +26,6 @@ This application is intentionally configured with security flaws for evaluation 
 
 ---
 
-## Chained Vulnerability Scenario
-
-### Chain: "Expense Search SQLi → Unsalted MD5 Credentials Extraction → Corporate Expenses Exfiltration"
-
-An authenticated low-privilege employee executes SQL injection via the expense search filter to read administrator credentials, decrypts the admin MD5 password offline to compromise the account, and uses IDOR to exfiltrate private corporate expense reports.
-
-| Step | Issue | Severity (standalone) | OWASP | Location |
-|------|-------|-----------------------|-------|----------|
-| 1 | SQL Injection in expense searches | Medium | A03 | `src/index.js` → `GET /api/expenses/search` |
-| 2 | Unsalted MD5 password verification | Medium | A07 | `src/index.js` → `POST /api/auth/login` |
-| 3 | Broken Access Control (IDOR) on individual expense details | Medium | A01 | `src/index.js` → `GET /api/expenses/:id` |
-
-**Attack narrative**:
-1. The attacker registers a normal user account (e.g. via `POST /api/auth/register`) or logs in as `alice_traveler`.
-2. The attacker uses the SQL injection on the search endpoint `GET /api/expenses/search?q=xyz' UNION SELECT 1,username,password_hash,role,5.0,'USD' FROM users --` to dump the users table.
-3. The attacker finds the MD5 hash `97b9f87efd939e99eb015560b43ffbb4` corresponding to `admin_accountant`.
-4. Using an offline MD5 cracking dictionary or lookup service, they crack the hash to retrieve `accountantSecure2026!`.
-5. The attacker authenticates as `admin_accountant` and then uses the IDOR endpoint `GET /api/expenses/:id` to retrieve details of all travel and lodging bookings, exfiltrating corporate data.
-
-**Combined Impact**: Database exfiltration of sensitive travel booking details and financial expenses across the organization.
-
----
 
 ## API Endpoints
 
