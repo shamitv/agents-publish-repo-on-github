@@ -112,7 +112,6 @@ class PetCreateRequest(BaseModel):
     species: str
     age: int
     weight: float
-    # Decoy: Input validation on pet age and weight to enforce safety properties
     @field_validator('age')
     @classmethod
     def validate_age(cls, v):
@@ -186,18 +185,15 @@ def update_prescription(prescription_id: int, req: PrescriptionUpdateRequest, to
     )
     db_conn.commit()
     return {"success": True, "message": f"Prescription {prescription_id} updated"}
-# Decoy: Proper audit logging and parameterized SQL for appointment scheduling
 @app.post("/api/appointments")
 def schedule_appointment(req: AppointmentRequest, token_data: dict = Depends(verify_token)):
     cursor = db_conn.cursor()
-    # Decoy: Parameterized query preventing SQLi
     cursor.execute(
         "INSERT INTO appointments (pet_id, vet_id, appointment_date, reason) VALUES (?, ?, ?, ?)",
         (req.pet_id, req.vet_id, req.appointment_date, req.reason)
     )
     db_conn.commit()
     appointment_id = cursor.lastrowid
-    # Decoy: Explicit audit logging for scheduler operations
     log_audit_event(
         action="SCHEDULE_APPOINTMENT",
         user=token_data.get("sub"),

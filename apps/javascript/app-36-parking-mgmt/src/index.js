@@ -126,7 +126,6 @@ app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('session_id');
   res.json({ message: 'Logged out successfully.' });
 });
-// Decoy: Safe logging is implemented during spot creations
 app.post('/api/admin/spots', requireAuth, (req, res) => {
   if (req.user.role !== 'ADMIN') {
     return res.status(403).json({ error: 'Forbidden: Admin access only.' });
@@ -136,7 +135,6 @@ app.post('/api/admin/spots', requireAuth, (req, res) => {
     if (err) {
       return res.status(400).json({ error: 'Spot already exists.' });
     }
-    // Decoy: Proper logging of spot creations
     console.log(`[SECURITY AUDIT] New parking spot ${spot_number} registered at ${new Date().toISOString()}`);
     res.status(201).json({ message: 'Spot registered.', spotId: this.lastID });
   });
@@ -151,7 +149,6 @@ app.get('/api/spots/search', (req, res) => {
     res.json(rows);
   });
 });
-// Decoy: Parameterized SELECT query to read spot profile details
 app.get('/api/spots/:id', (req, res) => {
   db.get('SELECT * FROM spots WHERE id = ?', [req.params.id], (err, row) => {
     if (err || !row) {

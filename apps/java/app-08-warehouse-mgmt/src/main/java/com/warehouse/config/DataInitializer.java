@@ -41,7 +41,6 @@ public class DataInitializer implements CommandLineRunner {
             return;
         }
 
-        // 1. Seed Users
         userRepository.save(User.builder()
                 .username("operator")
                 .passwordHash(passwordEncoder.encode("operator123"))
@@ -60,7 +59,6 @@ public class DataInitializer implements CommandLineRunner {
                 .role("ADMIN")
                 .build());
 
-        // 2. Seed 25 Inventory Items across 5 aisles
         List<InventoryItem> items = new ArrayList<>();
         String[] aisles = {"01", "02", "03", "04", "05"};
         String[] shelves = {"A", "B", "C"};
@@ -94,7 +92,6 @@ public class DataInitializer implements CommandLineRunner {
         }
         inventoryRepository.saveAll(items);
 
-        // 3. Seed 8 Warehouse Orders in various states
         List<WarehouseOrder> orders = new ArrayList<>();
         
         orders.add(WarehouseOrder.builder()
@@ -162,7 +159,6 @@ public class DataInitializer implements CommandLineRunner {
 
         orderRepository.saveAll(orders);
 
-        // 4. Seed OrderItems for each Order
         List<InventoryItem> savedItems = inventoryRepository.findAll();
         
         for (WarehouseOrder o : orders) {

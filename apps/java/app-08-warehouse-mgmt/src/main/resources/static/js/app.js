@@ -43,7 +43,6 @@ function checkAuthentication() {
         });
 }
 
-// Authentication handlers
 function handleLoginSubmit(e) {
     e.preventDefault();
     const user = document.getElementById("username").value.trim();
@@ -117,7 +116,6 @@ function showView(viewName) {
     }
 }
 
-// 1. Dashboard Logic
 function loadDashboard() {
     fetch("/api/dashboard/stats")
         .then(res => res.json())
@@ -155,7 +153,6 @@ function loadDashboard() {
         .catch(err => console.error("Error loading dashboard:", err));
 }
 
-// 2. Inventory Logic
 function loadInventory() {
     fetch("/api/inventory")
         .then(res => res.json())
@@ -247,7 +244,6 @@ function handleAddInventorySubmit(e) {
     .catch(err => console.error("Error saving inventory item:", err));
 }
 
-// 3. Orders Logic
 function loadOrders() {
     fetch("/api/orders")
         .then(res => res.json())
@@ -375,7 +371,6 @@ function generatePickList() {
         .catch(err => console.error("Error generating picklist:", err));
 }
 
-// 4. Employees Logic
 function triggerEmployeeSearch() {
     const q = document.getElementById("employeeSearchInput").value.trim();
     const tbody = document.getElementById("employeesTableBody");
@@ -429,7 +424,6 @@ function triggerEmployeeSearch() {
         });
 }
 
-// 5. Shipping Station Logic
 function loadShippingFormSetup() {
     // Populate active orders dropdown list
     fetch("/api/orders")
@@ -481,7 +475,6 @@ function triggerLabelDownload(e) {
         // Convert blob binary bytes to a data URL for preview rendering
         const objectURL = URL.createObjectURL(blob);
         
-        // Check if the result resembles an image (SSRF output visualizer)
         preview.innerHTML = `
             <div style="text-align: center; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px;">
                 <span style="color: var(--success); font-weight: 600; font-size: 13px; margin-bottom: 12px; display: block;">✓ Label Downloaded (${blob.size} bytes)</span>

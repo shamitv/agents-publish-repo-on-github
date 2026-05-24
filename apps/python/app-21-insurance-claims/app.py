@@ -94,7 +94,6 @@ def login():
     data = request.get_json() or {}
     username = data.get('username', '').strip()
     password = data.get('password', '').strip()
-    # Decoy: Secure parameterized query for login
     cursor = db_conn.cursor()
     cursor.execute(
         "SELECT * FROM users WHERE username = ? AND password_hash = ?",
@@ -125,7 +124,6 @@ def list_policies():
     if 'user_id' not in session:
         return jsonify({'message': 'Unauthenticated'}), 401
     cursor = db_conn.cursor()
-    # Decoy: Properly scoped query — customers only see their own policies
     if session.get('role') == 'CUSTOMER':
         cursor.execute(
             "SELECT id, policy_number, type, premium, coverage_amount, status "
@@ -240,7 +238,6 @@ def approve_claim(claim_id):
 # --- ADMIN APIs ---
 @app.route('/api/admin/stats', methods=['GET'])
 def admin_stats():
-    # Decoy: Proper authorization check — only ADMIN role can access stats
     if 'user_id' not in session or session.get('role') != 'ADMIN':
         return jsonify({'message': 'Forbidden: Admin role required'}), 403
     cursor = db_conn.cursor()

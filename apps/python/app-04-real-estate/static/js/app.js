@@ -9,7 +9,6 @@ document.addEventListener("DOMContentLoaded", () => {
     checkAuthentication();
 });
 
-// Verify active identity session
 function checkAuthentication() {
     fetch("/api/auth/me")
         .then(res => {
@@ -33,7 +32,6 @@ function checkAuthentication() {
         });
 }
 
-// Authentication handlers
 function handleLoginSubmit(e) {
     e.preventDefault();
     const user = document.getElementById("username").value.trim();
@@ -70,7 +68,6 @@ function handleLogout() {
         .catch(err => console.error("Logout failed:", err));
 }
 
-// Router switcher
 function showView(viewName) {
     currentView = viewName;
 
@@ -96,7 +93,6 @@ function showView(viewName) {
     }
 }
 
-// 1. Property Board
 function loadProperties() {
     fetch("/api/properties")
         .then(res => res.json())
@@ -144,7 +140,6 @@ function loadProperties() {
         .catch(err => console.error("Failed to load listings:", err));
 }
 
-// 2. SSRF Media Downloader (A10 Sandbox visualizer!)
 function triggerSsrfImport() {
     const url = document.getElementById("ssrfUrlInput").value.trim();
     const feed = document.getElementById("ssrfConsoleFeed");
@@ -180,7 +175,6 @@ ${data.error}
     });
 }
 
-// 3. Subprocess command runner (A03 Sandbox visualizer!)
 function triggerSubprocessAnalyze() {
     const filename = document.getElementById("osCommandInput").value.trim();
     const feed = document.getElementById("osConsoleFeed");
@@ -213,7 +207,6 @@ ${data.output || '(empty output stream)'}
     });
 }
 
-// 4. Listing Agent Messages View
 function loadMessages() {
     fetch("/api/messages")
         .then(res => {

@@ -24,7 +24,6 @@ public class CaseController {
         if (userDetails == null) {
             return ResponseEntity.status(401).build();
         }
-        // Decoy: secure case authorization. Attorneys see all cases, clients only see their own.
         boolean isAttorney = userDetails.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ATTORNEY") || a.getAuthority().equals("ROLE_ADMIN"));
         if (isAttorney) {

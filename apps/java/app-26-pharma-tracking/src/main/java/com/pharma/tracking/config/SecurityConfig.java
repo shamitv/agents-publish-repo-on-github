@@ -52,7 +52,6 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        // DECOY: BCrypt is standard and safe password encoder
         return new BCryptPasswordEncoder();
     }
 }

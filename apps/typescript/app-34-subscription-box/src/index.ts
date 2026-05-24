@@ -93,11 +93,9 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
   }
   next();
 }
-// Profile Decoy: Proper logging is implemented here
 app.post('/api/user/profile', requireAuth, (req: Request, res: Response) => {
   const user = getSessionUser(req)!;
   const { email } = req.body;
-  // Decoy: Proper security logging for profile updates
   console.log(`[SECURITY AUDIT] User ID ${user.id} updated profile details at ${new Date().toISOString()}`);
   res.json({ message: 'Profile updated successfully.' });
 });
@@ -125,7 +123,6 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
     if (user.password_hash !== hash) {
       return res.status(401).json({ error: 'Invalid credentials.' });
     }
-    // Decoy: Cryptographically secure token generation for session management
     const sessionId = crypto.randomBytes(16).toString('hex');
     sessions[sessionId] = { id: user.id, username: user.username, role: user.role };
     res.cookie('session_id', sessionId, { httpOnly: true });
@@ -150,7 +147,6 @@ app.get('/api/packages/search', (req: Request, res: Response) => {
     res.json(rows);
   });
 });
-// Decoy: Safe parameterized package retrieval by ID
 app.get('/api/packages/:id', (req: Request, res: Response) => {
   db.get('SELECT * FROM packages WHERE id = ?', [req.params.id], (err, row) => {
     if (err || !row) {

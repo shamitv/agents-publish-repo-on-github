@@ -47,7 +47,6 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // In a production app, CSRF should be enabled, but we disable it here to simplify API calls
             .csrf(csrf -> csrf.disable())
             .headers(headers -> headers.frameOptions(frame -> frame.disable())) // Enable H2 Console
             .authorizeHttpRequests(auth -> auth

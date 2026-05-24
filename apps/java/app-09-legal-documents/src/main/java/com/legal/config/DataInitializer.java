@@ -34,7 +34,6 @@ public class DataInitializer implements CommandLineRunner {
             return;
         }
 
-        // 1. Seed Users (passwords securely BCrypt-hashed)
         userRepository.save(User.builder()
                 .username("attorney")
                 .passwordHash(passwordEncoder.encode("attorney123"))
@@ -59,7 +58,6 @@ public class DataInitializer implements CommandLineRunner {
                 .role("ADMIN")
                 .build());
 
-        // 2. Seed 4 Legal Cases
         LegalCase case1 = caseRepository.save(LegalCase.builder()
                 .title("Acme vs Globex Corp Patent Infringement")
                 .description("Litigation concerning violation of proprietary automated inventory tracking algorithms and server schematics.")
@@ -92,7 +90,6 @@ public class DataInitializer implements CommandLineRunner {
                 .createdAt(LocalDateTime.now().minusDays(12))
                 .build());
 
-        // 3. Seed 10 Sensitive Legal Documents (Plaintext columns storage - A02 Target)
         documentRepository.save(Document.builder()
                 .caseId(case1.getId())
                 .title("Patent Violation Brief Sheet")

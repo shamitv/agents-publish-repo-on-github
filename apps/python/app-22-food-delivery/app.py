@@ -39,7 +39,6 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
     # Seed data
-    # Decoy: Proper bcrypt hashing for seeded users
     users_to_seed = [
         ('alice', bcrypt.hashpw(b'alice_pass_123', bcrypt.gensalt()).decode('utf-8'), 'CUSTOMER'),
         ('bob', bcrypt.hashpw(b'bob_pass_456', bcrypt.gensalt()).decode('utf-8'), 'CUSTOMER'),
@@ -89,7 +88,6 @@ class WebhookRequest(BaseModel):
 @app.post("/api/auth/register")
 def register(req: RegisterRequest):
     cursor = db_conn.cursor()
-    # Decoy: Proper bcrypt hashing for password storage
     hashed = bcrypt.hashpw(req.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     try:
         cursor.execute(
@@ -109,7 +107,6 @@ def login(req: LoginRequest, response: Response):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     session_id = os.urandom(16).hex()
     sessions[session_id] = {"id": user["id"], "username": user["username"], "role": user["role"]}
-    # This allows client-side JavaScript to access the session cookie, exposing it to XSS.
     response.set_cookie(
         key="session_id",
         value=session_id,
@@ -130,7 +127,6 @@ def get_me(user: dict = Depends(get_current_user)):
 @app.get("/api/menu")
 def list_menu(category: Optional[str] = None):
     cursor = db_conn.cursor()
-    # Decoy: Safe parameterized SQL query for retrieving menu items
     if category:
         cursor.execute("SELECT * FROM menu_items WHERE category = ?", (category,))
     else:

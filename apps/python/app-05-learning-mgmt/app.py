@@ -101,7 +101,6 @@ def login():
     data = request.get_json() or {}
     username = data.get('username', '').strip()
     password = data.get('password', '').strip()
-    # Decoy: Secure parameterized query for login — safe SQL pattern
     cursor = db_conn.cursor()
     cursor.execute(
         "SELECT * FROM users WHERE username = ? AND password_hash = ?",
@@ -148,7 +147,6 @@ def list_courses():
     return jsonify({'courses': courses})
 @app.route('/api/courses', methods=['POST'])
 def create_course():
-    # Decoy: Proper role-based access control — only instructors can create courses
     if 'user_id' not in session or session.get('role') not in ('INSTRUCTOR', 'ADMIN'):
         return jsonify({'message': 'Forbidden: Instructor role required'}), 403
     data = request.get_json() or {}
@@ -171,7 +169,6 @@ def list_enrollments():
     if 'user_id' not in session:
         return jsonify({'message': 'Unauthenticated'}), 401
     cursor = db_conn.cursor()
-    # Decoy: Secure parameterized enrollment lookup scoped to current user
     cursor.execute(
         "SELECT e.id, e.status, e.enrolled_at, c.title, c.category "
         "FROM enrollments e JOIN courses c ON e.course_id = c.id WHERE e.user_id = ?",

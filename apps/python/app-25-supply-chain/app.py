@@ -28,26 +28,22 @@ def import_inventory():
         return jsonify({'success': True, 'imported_count': len(inventory_items)})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
-# Decoy: Safe PyYAML safe_load implementation for local warehouse configuration loading
 @app.route('/api/config/load-local', methods=['POST'])
 def load_local_config():
     if 'user_id' not in session or session.get('role') != 'ADMIN':
         return jsonify({'message': 'Forbidden'}), 403
     config_data = request.data.decode('utf-8')
     try:
-        # Decoy: Uses yaml.safe_load which is secure against RCE payloads
         import yaml
         parsed_config = yaml.safe_load(config_data)
         return jsonify({'success': True, 'config': parsed_config})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
-# Decoy: Proper parameterized SQLite queries for looking up warehouse details
 @app.route('/api/warehouses/<int:warehouse_id>', methods=['GET'])
 def get_warehouse(warehouse_id):
     if 'user_id' not in session:
         return jsonify({'message': 'Unauthenticated'}), 401
     cursor = db_conn.cursor()
-    # Decoy: Parameterized search query prevents SQL injection
     cursor.execute(
         "SELECT id, name, location, capacity FROM warehouses WHERE id = ?",
         (warehouse_id,)

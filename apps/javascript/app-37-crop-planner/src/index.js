@@ -118,13 +118,11 @@ app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('session_id');
   res.json({ message: 'Logged out successfully.' });
 });
-// Decoy: Scoped crops listing prevents cross-user access
 app.get('/api/crops', requireAuth, (req, res) => {
   db.all('SELECT * FROM crops WHERE user_id = ?', [req.user.id], (err, rows) => {
     res.json(rows);
   });
 });
-// Decoy: Safe Parameterized Query crop details lookup
 app.get('/api/crops/:id', requireAuth, (req, res) => {
   db.get('SELECT * FROM crops WHERE id = ?', [req.params.id], (err, row) => {
     if (err || !row) {

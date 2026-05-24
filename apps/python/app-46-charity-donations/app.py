@@ -85,7 +85,6 @@ def login():
         session['user_id'] = user['id']
         session['username'] = user['username']
         session['role'] = user['role']
-        # Generate a mock CSRF token for the session
         session['csrf_token'] = os.urandom(16).hex()
         return jsonify({
             'success': True,
@@ -150,12 +149,10 @@ def process_refund(donation_id):
         'success': True,
         'message': f"Donation {donation_id} for ${donation['amount']} refunded successfully via Stripe."
     })
-# Decoy: Proper parameterized SQL for querying campaigns
 @app.route('/api/campaigns', methods=['GET'])
 def list_campaigns():
     search = request.args.get('search', '').strip()
     cursor = db_conn.cursor()
-    # Decoy: Parameterized query protecting against SQL injection
     if search:
         cursor.execute(
             "SELECT id, title, description, target_amount, raised_amount "
@@ -166,10 +163,8 @@ def list_campaigns():
         cursor.execute("SELECT id, title, description, target_amount, raised_amount FROM campaigns")
     rows = cursor.fetchall()
     return jsonify({'campaigns': [dict(r) for r in rows]})
-# Decoy: CSRF protection on donation submission
 @app.route('/api/donations', methods=['POST'])
 def submit_donation():
-    # Decoy: Verifies CSRF header to protect against Cross-Site Request Forgery
     csrf_token = request.headers.get('X-CSRF-Token')
     if not csrf_token or csrf_token != session.get('csrf_token'):
         return jsonify({'message': 'CSRF validation failed'}), 400

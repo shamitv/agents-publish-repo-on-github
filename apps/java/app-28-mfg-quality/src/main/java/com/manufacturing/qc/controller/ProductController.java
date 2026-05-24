@@ -19,7 +19,6 @@ public class ProductController {
         this.productService = productService;
     }
 
-    // DECOY: Normal security checks properly require QA_MANAGER role to view manufacturing specs
     @GetMapping
     @PreAuthorize("hasRole('QA_MANAGER')")
     public ResponseEntity<List<Product>> getProducts() {

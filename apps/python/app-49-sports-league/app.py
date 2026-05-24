@@ -8,12 +8,10 @@
         'success': True,
         'message': f"Game {game_id} score updated to {score_home}-{score_away}"
     })
-# Decoy: Proper authorization role check on team creations
 @app.route('/api/teams', methods=['POST'])
 def create_team():
     if 'user_id' not in session:
         return jsonify({'message': 'Unauthenticated'}), 401
-    # Decoy: Enforces COMMISSIONER role check
     if session.get('role') != 'COMMISSIONER':
         return jsonify({'message': 'Forbidden: Only commissioners can create teams'}), 403
     data = request.get_json() or {}

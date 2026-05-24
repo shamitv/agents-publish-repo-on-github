@@ -127,13 +127,11 @@ app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('session_id');
   res.json({ message: 'Logged out successfully.' });
 });
-// Decoy: Scoped events view restricts users to their own wedding planners
 app.get('/api/events', requireAuth, (req, res) => {
   db.all('SELECT * FROM events WHERE user_id = ?', [req.user.id], (err, rows) => {
     res.json(rows);
   });
 });
-// Decoy: Parameterized SELECT query for looking up event details safely
 app.get('/api/events/:id', requireAuth, (req, res) => {
   db.get('SELECT * FROM events WHERE id = ?', [req.params.id], (err, row) => {
     if (err || !row) {

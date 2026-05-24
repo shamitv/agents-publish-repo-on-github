@@ -10,7 +10,6 @@ app = FastAPI(title="Smart Home Device Manager")
 # Initialize in-memory SQLite database
 db_conn = sqlite3.connect(':memory:', check_same_thread=False)
 db_conn.row_factory = sqlite3.Row
-# Mock rate limiting store for decoy
 rate_limit_store = {}
 def init_db():
     cursor = db_conn.cursor()
@@ -87,7 +86,6 @@ def logout(request: Request):
     if session_id in sessions:
         del sessions[session_id]
     return {"success": True}
-# along with their private device API tokens, exposing them to unauthorized device access.
 @app.get("/api/debug/devices")
 def debug_devices():
     cursor = db_conn.cursor()
@@ -130,14 +128,12 @@ def update_firmware(device_id: int, req: FirmwareUpdateRequest, user: dict = Dep
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-# Decoy: Proper device API token validation checking device authority before accepting commands
 @app.post("/api/devices/{device_id}/command")
 def send_device_command(device_id: int, req: CommandRequest, request: Request, user: dict = Depends(get_current_user)):
     auth_header = request.headers.get("X-Device-Token")
     if not auth_header:
         raise HTTPException(status_code=401, detail="Missing X-Device-Token header")
     cursor = db_conn.cursor()
-    # Decoy: Validates the token matches the registered token of the target device
     cursor.execute("SELECT * FROM devices WHERE id = ? AND api_token = ?", (device_id, auth_header))
     device = cursor.fetchone()
     if not device:
@@ -146,13 +142,11 @@ def send_device_command(device_id: int, req: CommandRequest, request: Request, u
         "success": True,
         "message": f"Command '{req.command}' successfully dispatched to device {device['device_name']}"
     }
-# Decoy: Rate-limited status polling to prevent denial of service
 @app.get("/api/devices/{device_id}/status")
 def get_device_status(device_id: int, user: dict = Depends(get_current_user)):
     import time
     username = user['username']
     now = time.time()
-    # Decoy: Rate limiting check (cooldown timer of 1 second per user)
     if username in rate_limit_store:
         last_request_time = rate_limit_store[username]
         if now - last_request_time < 1.0:

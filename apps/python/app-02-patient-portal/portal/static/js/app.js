@@ -6,7 +6,6 @@ let currentView = 'dashboard';
 document.addEventListener("DOMContentLoaded", () => {
     checkAuthentication();
 });
-// Verify active identity session
 function checkAuthentication() {
     fetch("/api/auth/me")
         .then(res => {
@@ -19,7 +18,6 @@ function checkAuthentication() {
             document.getElementById("currentUserRoleLabel").innerText = `ROLE: ${user.role}`;
             document.getElementById("authPortal").style.display = 'none';
             document.getElementById("appLayout").style.display = 'flex';
-            // Set IDOR visualizer default input to current user's patient_id
             document.getElementById("idorPatientIdInput").value = user.patient_id;
             showView(currentView);
         })
@@ -29,14 +27,12 @@ function checkAuthentication() {
             document.getElementById("authPortal").style.display = 'flex';
         });
 }
-// Authentication handlers
 function handleLoginSubmit(e) {
     e.preventDefault();
     const user = document.getElementById("username").value.trim();
     const pass = document.getElementById("password").value.trim();
     const errBlock = document.getElementById("loginError");
     errBlock.style.display = 'none';
-    // Django standard CSRF bypass is handled via @csrf_exempt in view
     fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -63,7 +59,6 @@ function handleLogout() {
         })
         .catch(err => console.error("Logout failed:", err));
 }
-// Router switcher
 function showView(viewName) {
     currentView = viewName;
     // Toggle active link highlights
@@ -88,9 +83,7 @@ function showView(viewName) {
         loadAppointments();
     }
 }
-// 1. Diagnostics Records Vault (A01 horizontal IDOR sandbox!)
 function loadRecords(patientId) {
-    // allowing other patients' diagnostics/prescriptions to be downloaded without ownership checks.
     fetch(`/api/patients/${patientId}/records`)
         .then(res => {
             if (res.ok) return res.json();
@@ -136,7 +129,6 @@ function triggerIdorRecordFetch() {
         loadRecords(id);
     }
 }
-// 2. Appointment Scheduler View
 function loadAppointments() {
     fetch("/api/appointments")
         .then(res => res.json())

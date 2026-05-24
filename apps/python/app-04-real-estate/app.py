@@ -8,7 +8,6 @@ def import_external_image():
         return jsonify({'message': 'Remote URL input target required'}), 400
     try:
         # SSRF: Fetches remote asset bytes using standard request library without IP restrictions,
-        # hostname validation, or DNS sandboxing. Permits probing localhost/private subnet nodes.
         res = requests.get(target_url, timeout=4)
         # Save a mock layout thumbnail name or confirm connection status
         return jsonify({

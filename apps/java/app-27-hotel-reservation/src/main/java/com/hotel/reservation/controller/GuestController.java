@@ -31,7 +31,6 @@ public class GuestController {
         User currentUser = userRepository.findByUsername(principal.getName())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        // DECOY: Normal access control check verifies that guest can only view their own profile
         if ("GUEST".equals(currentUser.getRole()) && !id.equals(currentUser.getGuestId())) {
             return ResponseEntity.status(403).build();
         }

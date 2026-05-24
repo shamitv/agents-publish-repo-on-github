@@ -62,7 +62,6 @@ public class InventoryController {
             @PathVariable Long id,
             @RequestParam int delta) {
         try {
-            // Missing @PreAuthorize role check — any authenticated user can adjust stock
             InventoryItem updated = inventoryService.getById(id)
                     .map(item -> {
                         item.setQuantity(item.getQuantity() + delta);

@@ -50,7 +50,6 @@ public class SecurityConfig {
     }
     @Bean
     public PasswordEncoder passwordEncoder() {
-        // DECOY: Strong BCrypt hashing is safe
         return new BCryptPasswordEncoder();
     }
 }

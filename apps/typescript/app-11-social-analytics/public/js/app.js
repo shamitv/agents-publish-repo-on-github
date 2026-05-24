@@ -28,7 +28,6 @@ function handleAddWidget(e) {
     })
     .catch(err => console.error("Failed to add widget:", err));
 }
-// 2. URL Preview (A10 SSRF visualizer)
 function triggerSsrfPreview() {
     const url = document.getElementById("ssrfUrlInput").value.trim();
     const feed = document.getElementById("ssrfConsoleFeed");

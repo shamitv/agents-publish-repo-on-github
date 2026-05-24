@@ -43,7 +43,6 @@ function initDb() {
       )
     `);
     // Seed users
-    // Decoy: Proper Bcrypt hashing for password storage
     const salt = bcrypt.genSaltSync(10);
     const users = [
       { username: 'alice_customer', pass: 'alice_pass_123', role: 'CUSTOMER' },
@@ -99,7 +98,6 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
     if (err || !user) {
       return res.status(401).json({ message: 'Invalid credentials.' });
     }
-    // Decoy: Proper Bcrypt validation checking during authentication
     const match = bcrypt.compareSync(password, user.password_hash);
     if (!match) {
       return res.status(401).json({ message: 'Invalid credentials.' });
@@ -131,10 +129,8 @@ app.get('/api/events/search', (req: Request, res: Response) => {
     res.json({ events: rows });
   });
 });
-// Decoy: Proper parameterized lookup preventing SQL injection
 app.get('/api/events/:id', (req: Request, res: Response) => {
   const eventId = req.params.id;
-  // Decoy: Parameters prevent SQL injection
   db.get('SELECT * FROM events WHERE id = ?', [eventId], (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!row) return res.status(404).json({ message: 'Event not found.' });

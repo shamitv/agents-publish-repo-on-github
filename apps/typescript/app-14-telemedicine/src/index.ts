@@ -35,7 +35,6 @@ function initDb() {
       )
     `);
     // Seed users
-    // Decoy: Safe BCrypt password hashing for user accounts
     const salt = bcrypt.genSaltSync(10);
     const users = [
       { username: 'john_patient', pass: 'john_pass_123', role: 'PATIENT' },
@@ -93,7 +92,6 @@ app.post('/api/auth/register', (req: Request, res: Response) => {
   if (!username || !password) {
     return res.status(400).json({ message: 'Username and password required.' });
   }
-  // Decoy: Safe BCrypt hashing during user registration
   const salt = bcrypt.genSaltSync(10);
   const hash = bcrypt.hashSync(password, salt);
   db.run(
@@ -122,7 +120,6 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
     }
     const payload: UserPayload = { userId: user.id, username: user.username, role: user.role };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '2h' });
-    // Setting httpOnly: false allows JavaScript to access this cookie, exposing it to XSS.
     res.cookie('token', token, {
       httpOnly: false,
       secure: false,
@@ -139,7 +136,6 @@ app.get('/api/auth/me', authenticateToken, (req: Request, res: Response) => {
   res.json({ user: req.user });
 });
 // --- Appointment Endpoints ---
-// Decoy: Scoped list view correctly filtering records by ownership
 app.get('/api/appointments', authenticateToken, (req: Request, res: Response) => {
   const user = req.user!;
   if (user.role === 'PATIENT') {

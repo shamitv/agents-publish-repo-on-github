@@ -114,7 +114,6 @@ app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('session_id');
   res.json({ message: 'Logged out successfully.' });
 });
-// Decoy: Scoped list view limits non-admin users to their own expenses
 app.get('/api/expenses', requireAuth, (req, res) => {
   let sql = 'SELECT * FROM expenses WHERE userId = ?';
   let params = [req.user.id];
@@ -149,7 +148,6 @@ app.get('/api/expenses/search', requireAuth, (req, res) => {
     res.json(rows);
   });
 });
-// Decoy: Safe Parameterized Expense Submission
 app.post('/api/expenses', requireAuth, (req, res) => {
   const { description, amount, category } = req.body;
   if (!description || !amount || !category) {

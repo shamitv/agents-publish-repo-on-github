@@ -125,7 +125,6 @@ app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('session_id');
   res.json({ message: 'Logged out successfully.' });
 });
-// Decoy: Scoped playlist listing prevents other users from seeing private names
 app.get('/api/playlists', requireAuth, (req, res) => {
   db.all('SELECT * FROM playlists WHERE user_id = ?', [req.user.id], (err, rows) => {
     res.json(rows);
@@ -143,7 +142,6 @@ app.get('/api/playlists/:id', requireAuth, (req, res) => {
     res.json(row);
   });
 });
-// Decoy: Safe Parameterized Query when adding tracks
 app.post('/api/tracks', requireAuth, (req, res) => {
   const { playlist_id, title, artist } = req.body;
   const user = req.user;
@@ -154,7 +152,6 @@ app.post('/api/tracks', requireAuth, (req, res) => {
     if (err || !row || row.user_id !== user.id) {
       return res.status(403).json({ error: 'Forbidden: Cannot edit this playlist.' });
     }
-    // Decoy: Proper parameterized INSERT query
     db.run(
       'INSERT INTO tracks (playlist_id, title, artist) VALUES (?, ?, ?)',
       [playlist_id, title, artist],

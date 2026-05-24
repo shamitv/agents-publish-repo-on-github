@@ -40,7 +40,6 @@ function initDb() {
       )
     `);
     // Seed users
-    // Decoy: Proper Bcrypt hashing for password storage
     const salt = bcrypt.genSaltSync(10);
     const users = [
       { username: 'alice_reviewer', pass: 'alice123', role: 'CUSTOMER' },
@@ -126,7 +125,6 @@ app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('session_id');
   res.json({ message: 'Logged out successfully.' });
 });
-// Decoy: Admin dashboard strictly verifies roles
 app.get('/api/admin/dashboard', requireAuth, (req, res) => {
   if (req.user.role !== 'ADMIN') {
     return res.status(403).json({ error: 'Forbidden: Admin access only.' });
@@ -143,7 +141,6 @@ app.get('/api/restaurants/search', (req, res) => {
     res.json(rows);
   });
 });
-// Decoy: Safe Parameterized Restaurant Lookup by ID
 app.get('/api/restaurants/:id', (req, res) => {
   db.get('SELECT * FROM restaurants WHERE id = ?', [req.params.id], (err, row) => {
     if (err || !row) {

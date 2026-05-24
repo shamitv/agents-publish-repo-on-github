@@ -10,7 +10,6 @@ def seed_database():
         # Check if database is already seeded
         if PatientProfile.objects.count() > 0:
             return
-        # Seed profiles (MD5 password hash decoy targets)
         p1 = PatientProfile(username='alice', full_name='Alice Vance', date_of_birth='1992-05-15', blood_type='AB-', role='PATIENT')
         p1.set_password_md5('alice123')
         p1.save()
@@ -23,7 +22,6 @@ def seed_database():
         p4 = PatientProfile(username='admin', full_name='Administrator', date_of_birth='1980-01-01', blood_type='O-', role='ADMIN')
         p4.set_password_md5('admin123')
         p4.save()
-        # Seed Prescriptions (Sensitive details stored in plaintext SQLite fields - A01 horizontal targets)
         Prescription.objects.create(
             patient=p1,
             medication_name='Methylphenidate Core',
@@ -185,7 +183,6 @@ def list_appointments(request):
         profile = PatientProfile.objects.get(id=patient_id)
     except PatientProfile.DoesNotExist:
         return JsonResponse({'message': 'Unauthenticated'}, status=401)
-    # Decoy: role-based secure appointment filtration
     if role in ['STAFF', 'ADMIN']:
         appointments = Appointment.objects.all()
     else:
@@ -227,7 +224,6 @@ def create_appointment(request):
         scheduled_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
     except Exception as ex:
         return JsonResponse({'message': 'Invalid date format (expect YYYY-MM-DD)'}, status=400)
-    # Decoy: safe appointment insertion checks
     appt = Appointment.objects.create(
         patient=profile,
         clinic_department=clinic,

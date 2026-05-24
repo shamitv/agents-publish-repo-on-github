@@ -24,7 +24,6 @@ public class PayrollController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // Decoy Safe Endpoint: correctly restricted to HR_ADMIN
     @GetMapping("/report")
     @PreAuthorize("hasRole('HR_ADMIN')")
     public ResponseEntity<byte[]> getPayrollReport() {

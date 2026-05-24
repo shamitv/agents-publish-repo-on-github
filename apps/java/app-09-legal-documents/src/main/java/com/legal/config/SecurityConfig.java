@@ -50,7 +50,6 @@ public class SecurityConfig {
                 })
                 .permitAll()
             )
-            // Session fixation protection properly configured decoy
             .sessionManagement(session -> session
                 .sessionFixation(fixation -> fixation.migrateSession())
             )

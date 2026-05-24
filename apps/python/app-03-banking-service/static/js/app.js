@@ -9,7 +9,6 @@ document.addEventListener("DOMContentLoaded", () => {
     checkAuthentication();
 });
 
-// Verify active identity session
 function checkAuthentication() {
     fetch("/api/auth/me")
         .then(res => {
@@ -34,7 +33,6 @@ function checkAuthentication() {
         });
 }
 
-// Authentication handlers
 function handleLoginSubmit(e) {
     e.preventDefault();
     const user = document.getElementById("username").value.trim();
@@ -71,7 +69,6 @@ function handleLogout() {
         .catch(err => console.error("Logout failed:", err));
 }
 
-// Router switcher
 function showView(viewName) {
     currentView = viewName;
 
@@ -112,7 +109,6 @@ function loadBalance() {
         .catch(err => console.error("Balance fetch error:", err));
 }
 
-// 1. Transaction Ledger View (A03 NoSQL Injection visualizer!)
 function loadLedger(customFilterStr = '') {
     const consoleFeed = document.getElementById("nosqlConsoleFeed");
     let url = "/api/transactions";
@@ -173,7 +169,6 @@ function triggerNoSqlFilterSearch() {
     loadLedger(filterText);
 }
 
-// 2. Wire Dispatch (Standard transfer dispatch)
 function handleTransferSubmit(e) {
     e.preventDefault();
 
@@ -204,7 +199,6 @@ function handleTransferSubmit(e) {
     });
 }
 
-// 3. Automated Rate Limit Stress Tool (A04 Visualizer!)
 function triggerAutomatedStressWMS() {
     const stressOutput = document.getElementById("rateLimitStressOutput");
     stressOutput.innerHTML = `<span style="color: var(--primary);">INITIALIZING BATCH FLOOD STRESS TESTS...\nLaunching 10 concurrent requests to account number 10008273 ($5.00 each)</span>`;

@@ -20,8 +20,6 @@ export class WalletController {
     const wallet = this.walletService.getWallet(user.id);
     return this.walletService.getTransactions(wallet.address);
   }
-  // OWASP A04: Insecure Design. No transaction confirmation step.
-  // The transfer executes immediately without intent verification (e.g. CSRF token, confirmation prompt).
   @Post('transfer')
   transferFunds(@Req() req: Request, @Body() body: { recipientAddress: string; amount: number }) {
     const user = req['user'];

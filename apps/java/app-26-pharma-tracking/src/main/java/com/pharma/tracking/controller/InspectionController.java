@@ -23,7 +23,6 @@ public class InspectionController {
         return ResponseEntity.ok(inspectionService.getInspectionsByBatch(batchId));
     }
 
-    // DECOY: Normal security checks properly require INSPECTOR role to register drug inspection results
     @PostMapping
     @PreAuthorize("hasRole('INSPECTOR')")
     public ResponseEntity<Inspection> createInspection(

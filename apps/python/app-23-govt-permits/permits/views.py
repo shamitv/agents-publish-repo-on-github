@@ -31,7 +31,6 @@ def api_logout(request):
 def permit_list(request):
     if not request.user.is_authenticated:
         return JsonResponse({'message': 'Unauthenticated'}, status=401)
-    # Decoy: Proper scoped queries — regular citizens can only see their own permits,
     # while reviewers (staff) can see all permits.
     if request.user.is_staff:
         permits = Permit.objects.all()
@@ -46,7 +45,6 @@ def permit_list(request):
         'submitted_at': p.submitted_at
     } for p in permits]
     return JsonResponse({'permits': data})
-# Any authenticated user can view any permit application by ID.
 # No check is performed to verify if the requesting user is the applicant or staff/reviewer.
 def permit_detail(request, permit_id):
     if not request.user.is_authenticated:
@@ -95,7 +93,6 @@ def upload_document(request, permit_id):
     return JsonResponse({'message': 'Bad request or missing file'}, status=400)
 @csrf_exempt
 def approve_permit(request, permit_id):
-    # Decoy: Proper authorization check on administrative actions (reviewer only)
     if not request.user.is_authenticated:
         return JsonResponse({'message': 'Unauthenticated'}, status=401)
     if not request.user.is_staff:

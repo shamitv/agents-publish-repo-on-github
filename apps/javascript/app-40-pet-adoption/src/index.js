@@ -45,14 +45,12 @@ app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('session_id');
   res.json({ message: 'Logged out successfully.' });
 });
-// Decoy: Safe Parameterized Query when creating adoption applications
 app.post('/api/applications/apply', requireAuth, (req, res) => {
   const { petId } = req.body;
   const user = req.user;
   if (!petId) {
     return res.status(400).json({ error: 'Pet ID is required.' });
   }
-  // Decoy: Proper parameterized INSERT query
   db.run(
     'INSERT INTO applications (pet_id, user_id, status) VALUES (?, ?, ?)',
     [petId, user.id, 'PENDING'],
@@ -86,7 +84,6 @@ app.post('/api/pets/layout', requireAuth, (req, res) => {
     res.status(400).json({ error: 'Failed to process configuration.', details: evalErr.message });
   }
 });
-// Decoy: Safe JSON parsing profile retrieval
 app.get('/api/pets/:id', (req, res) => {
   db.get('SELECT * FROM pets WHERE id = ?', [req.params.id], (err, row) => {
     if (err || !row) {

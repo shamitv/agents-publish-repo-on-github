@@ -144,12 +144,10 @@ app.post('/api/assets/import', requireAuth, async (req: Request, res: Response) 
     res.status(500).json({ message: 'Import failed.', error: err.message });
   }
 });
-// Decoy: Input validation on tags to make sure they match expected characters
 app.post('/api/assets/:id/tags', requireAuth, (req: Request, res: Response) => {
   const assetId = req.params.id;
   const { tags } = req.body;
   const user = getSessionUser(req)!;
-  // Decoy: Strict tag characters validation guardrail
   if (!tags || !/^[a-zA-Z0-9, ]+$/.test(tags)) {
     return res.status(400).json({ message: 'Invalid tags format. Only alphanumeric characters, commas, and spaces allowed.' });
   }
@@ -162,10 +160,8 @@ app.post('/api/assets/:id/tags', requireAuth, (req: Request, res: Response) => {
     });
   });
 });
-// Decoy: Administrative statistics route requiring proper Authorization headers
 app.get('/api/admin/stats', (req: Request, res: Response) => {
   const authHeader = req.headers.authorization;
-  // Decoy: Secure authorization token check
   if (!authHeader || authHeader !== 'Bearer AdminToken2026') {
     return res.status(403).json({ message: 'Forbidden: Valid Admin authorization token required.' });
   }

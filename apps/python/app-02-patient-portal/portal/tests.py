@@ -17,7 +17,6 @@ class PortalAppTests(TestCase):
         self.patient.save()
 
     def test_md5_password_encryption_decoy(self):
-        # Verify custom MD5 hashing works as target A02
         self.assertTrue(self.patient.check_password_md5('pass123'))
         self.assertFalse(self.patient.check_password_md5('wrongpass'))
         self.assertEqual(len(self.patient.password_hash), 32)

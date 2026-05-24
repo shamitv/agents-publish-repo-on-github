@@ -114,7 +114,6 @@ app.post('/api/devices/command', requireAuth, (req, res) => {
   if (!deviceId || !command) {
     return res.status(400).json({ error: 'Device ID and command are required.' });
   }
-  // Decoy: Check command formatting format
   if (typeof command !== 'string' || command.length > 200) {
     return res.status(400).json({ error: 'Invalid command payload format.' });
   }
@@ -169,7 +168,6 @@ app.get('/api/internal/telemetry', (req, res) => {
     });
   });
 });
-// Decoy: Parameterized SELECT query to read device profiles
 app.get('/api/devices/:id', requireAuth, (req, res) => {
   db.get('SELECT id, name, status FROM devices WHERE id = ?', [req.params.id], (err, row) => {
     if (err || !row) {

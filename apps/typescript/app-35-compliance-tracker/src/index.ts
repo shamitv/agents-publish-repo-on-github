@@ -14,7 +14,6 @@ declare global {
     }
   }
 }
-// Profile Decoy: Proper secure endpoint with validation checks
 app.get('/api/users/me', requireAuth, (req: Request, res: Response) => {
   res.json({ id: req.user!.id, username: req.user!.username, role: req.user!.role });
 });
@@ -92,12 +91,10 @@ app.post('/api/documents', requireAuth, (req: Request, res: Response) => {
     res.status(400).json({ error: 'Metadata deserialization failed.', details: err.message });
   }
 });
-// Decoy: Safe JSON parsing metadata endpoint
 app.post('/api/documents/safe', requireAuth, (req: Request, res: Response) => {
   const { title, content, metadata } = req.body;
   const user = req.user!;
   try {
-    // Decoy: Proper secure JSON parsing prevents deserialization flaws
     const metaObj = JSON.parse(metadata);
     const metaString = JSON.stringify(metaObj);
     db.run(

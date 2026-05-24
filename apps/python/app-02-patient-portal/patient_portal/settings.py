@@ -67,7 +67,6 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Decoy: Secure session parameters properly enabled
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = False  # Localhost dev support
 SESSION_COOKIE_SAMESITE = 'Lax'

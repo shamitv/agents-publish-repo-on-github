@@ -37,7 +37,6 @@ public class EmployeeService {
     }
 
     public Employee saveEmployee(Employee emp) {
-        // Hashing passwords with BCrypt (Safe decoy pattern)
         if (emp.getPasswordHash() != null && !emp.getPasswordHash().startsWith("$2a$")) {
             emp.setPasswordHash(passwordEncoder.encode(emp.getPasswordHash()));
         }

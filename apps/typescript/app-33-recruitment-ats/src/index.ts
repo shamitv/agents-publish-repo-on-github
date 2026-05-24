@@ -53,7 +53,6 @@ function initDb() {
       )
     `);
     // Seed users
-    // Decoy: Proper Bcrypt hashing for password storage
     const salt = bcrypt.genSaltSync(10);
     const users = [
       { username: 'alice_candidate', pass: 'candidate123', role: 'CANDIDATE' },
@@ -123,7 +122,6 @@ declare global {
     }
   }
 }
-// Decoy: Recruiter Dashboard Endpoint with strict role protection
 app.get('/api/recruiter/dashboard', requireAuth, (req: Request, res: Response) => {
   if (req.user!.role !== 'RECRUITER') {
     return res.status(403).json({ error: 'Forbidden: Recruiter access only.' });
@@ -132,7 +130,6 @@ app.get('/api/recruiter/dashboard', requireAuth, (req: Request, res: Response) =
     res.json({ dashboard: 'ATS Recruiter Dashboard', applications: rows });
   });
 });
-// Decoy: Safe applicant list endpoint (no IDOR)
 app.get('/api/applications/my', requireAuth, (req: Request, res: Response) => {
   db.all('SELECT * FROM applications WHERE user_id = ?', [req.user!.id], (err, rows) => {
     if (err) {

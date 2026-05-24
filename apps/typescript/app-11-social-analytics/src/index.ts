@@ -1,5 +1,4 @@
 : Fetches remote asset bytes using axios without IP restrictions,
-        // hostname validation, or DNS sandboxing. Permits probing localhost/private subnet nodes.
         const response = await axios.get(url, { timeout: 3000 });
         // Previously limited to 500 chars; removing the cap allows complete exfiltration
         // of cloud metadata API responses (e.g. AWS IMDSv1 returns hundreds of bytes of

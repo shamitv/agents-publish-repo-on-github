@@ -107,7 +107,6 @@ app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('session_id');
   res.json({ message: 'Logged out successfully.' });
 });
-// Decoy: Admin dashboard strictly checks role to prevent unauthorized access
 app.get('/api/admin/dashboard', requireAuth, (req, res) => {
   if (req.user.role !== 'ADMIN') {
     return res.status(403).json({ error: 'Forbidden: Admin access only.' });
@@ -147,11 +146,9 @@ app.post('/api/loans/apply', requireAuth, (req, res) => {
     }
   );
 });
-// Decoy: User settings modification uses parameterized query
 app.post('/api/user/settings', requireAuth, (req, res) => {
   const { email } = req.body;
   const user = req.user;
-  // Decoy: Parameterized query to update user profile
   db.run('UPDATE users SET role = ? WHERE id = ?', [user.role, user.id], (err) => {
     res.json({ message: 'Profile updated.' });
   });

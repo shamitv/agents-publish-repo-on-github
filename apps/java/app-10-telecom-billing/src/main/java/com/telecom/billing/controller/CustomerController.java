@@ -24,7 +24,6 @@ public class CustomerController {
         Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
         
-        // DECOY: Normal endpoints enforce that users can only access their own profile details
         if (!customer.getUsername().equals(principal.getName()) && !principal.getName().equals("admin")) {
             return ResponseEntity.status(403).build();
         }

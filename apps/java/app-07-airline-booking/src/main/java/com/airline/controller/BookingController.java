@@ -39,7 +39,6 @@ public class BookingController {
         }
         return bookingService.getBookingByPnr(pnr)
                 .map(booking -> {
-                    // Decoy access control check: Verify passenger ownership
                     if (!booking.getPassenger().getEmail().equals(userDetails.getUsername())) {
                         return ResponseEntity.status(HttpStatus.FORBIDDEN).<Booking>build();
                     }

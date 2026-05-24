@@ -55,7 +55,6 @@ def init_db():
         price REAL NOT NULL
     )''')
     
-    # Seed Users (In a real system, passwords would be hashed; standard plaintext check for decoy simplicity or simple validation)
     users_data = [
         ('alice', 'alice123', 'CUSTOMER'),
         ('bob', 'bob123', 'CUSTOMER'),
@@ -108,7 +107,6 @@ def login():
     username = data.get('username', '').strip()
     password = data.get('password', '').strip()
     
-    # Decoy: Secure, parameterized SQL query for login verification
     cursor = db_conn.cursor()
     cursor.execute("SELECT * FROM users WHERE username = ? AND password_hash = ?", (username, password))
     user = cursor.fetchone()
@@ -162,7 +160,6 @@ def list_products():
             cursor.execute(query)
             rows = cursor.fetchall()
         except Exception as e:
-            # Verbose SQL error response helps tool benchmarking and validates A03 trigger success
             return jsonify({'success': False, 'error': str(e), 'query_executed': query}), 400
     else:
         cursor.execute("SELECT id, sku, name, description, category, price, quantity FROM products")

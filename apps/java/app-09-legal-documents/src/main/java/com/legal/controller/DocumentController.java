@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Optional;
 @RestController
 public class DocumentController {
-    // Vulnerable component target: direct Log4j 2.14.1 Logger instantiation (A06)
     private static final Logger logger = LogManager.getLogger(DocumentController.class);
     @Autowired
     private DocumentService documentService;
@@ -32,7 +31,6 @@ public class DocumentController {
         if (caseOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        // Decoy check: verify case access when browsing a list
         boolean isAttorney = userDetails.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ATTORNEY") || a.getAuthority().equals("ROLE_ADMIN"));
         if (!isAttorney && !caseOpt.get().getClientOwner().equals(userDetails.getUsername())) {
@@ -97,7 +95,6 @@ public class DocumentController {
                 .caseId(dto.getCaseId())
                 .title(dto.getTitle())
                 .filename(dto.getFilename())
-                // Plaintext contents stored directly (A02 target)
                 .fileContentPlaintext(dto.getFileContentPlaintext())
                 .uploadedBy(userDetails.getUsername())
                 .build();

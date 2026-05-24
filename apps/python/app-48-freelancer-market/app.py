@@ -35,7 +35,6 @@ class ProposalRequest(BaseModel):
     job_id: int
     bid_amount: float
     proposal_text: str
-    # Decoy: Input validation on proposal bid_amount to prevent excessive values
     @field_validator('bid_amount')
     @classmethod
     def validate_bid(cls, v):
@@ -103,10 +102,8 @@ def release_payment(job_id: int, user: dict = Depends(get_current_user)):
     cursor.execute("UPDATE payments SET status = 'RELEASED' WHERE job_id = ?", (job_id,))
     db_conn.commit()
     return {"success": True, "message": "Funds released successfully"}
-# Decoy: Proper authorization check on admin user listing
 @app.get("/api/admin/users")
 def admin_list_users(user: dict = Depends(get_current_user)):
-    # Decoy: Proper check for ADMIN role
     if user.get("role") != "ADMIN":
         raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
     cursor = db_conn.cursor()

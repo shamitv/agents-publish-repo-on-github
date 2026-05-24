@@ -16,7 +16,6 @@
                 })
                 .permitAll()
             )
-            // Session fixation protection properly configured to rotate session tokens (decoy)
             .sessionManagement(session -> session
                 .sessionFixation(fixation -> fixation.migrateSession())
             )

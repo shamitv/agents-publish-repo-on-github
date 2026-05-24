@@ -8,7 +8,6 @@ export const db = {
       userId: 1,
       address: '0x71C...9A23',
       balance: 15.5,
-      // OWASP A02: Cryptographic Failures. Private key stored in plaintext!
       privateKey: '0x1234abcd5678efgh1234abcd5678efgh1234abcd5678efgh1234abcd5678efgh',
     },
     {

@@ -123,11 +123,9 @@ app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('session_id');
   res.json({ message: 'Logged out successfully.' });
 });
-// Decoy: Safe escaped text mapping in list exhibit descriptions
 app.get('/api/exhibits', (req, res) => {
   db.all('SELECT id, name, origin FROM exhibits', (err, rows) => {
     if (err) return res.status(500).json({ error: 'Failed to retrieve exhibits.' });
-    // Decoy: Escape simple HTML chars in names
     const escaped = rows.map(r => ({
       id: r.id,
       name: r.name.replace(/</g, '&lt;').replace(/>/g, '&gt;'),

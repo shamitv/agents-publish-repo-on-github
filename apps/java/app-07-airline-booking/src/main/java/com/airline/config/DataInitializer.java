@@ -41,7 +41,6 @@ public class DataInitializer implements CommandLineRunner {
             return;
         }
 
-        // 1. Seed Passengers
         Passenger staff = Passenger.builder()
                 .email("staff@airline.com")
                 .passwordHash(passwordEncoder.encode("staff123"))
@@ -76,7 +75,6 @@ public class DataInitializer implements CommandLineRunner {
         passengerRepository.save(john);
         passengerRepository.save(jane);
 
-        // 2. Seed Flights
         List<Flight> flights = new ArrayList<>();
         
         flights.add(Flight.builder()
@@ -141,7 +139,6 @@ public class DataInitializer implements CommandLineRunner {
 
         flightRepository.saveAll(flights);
 
-        // 3. Seed Seats for each Flight (6 rows x 5 seats = 30 seats per flight)
         // Row 1: First Class (1A-1E)
         // Row 2-3: Business Class (2A-3E)
         // Row 4-6: Economy Class (4A-6E)
@@ -166,7 +163,6 @@ public class DataInitializer implements CommandLineRunner {
             seatRepository.saveAll(seats);
         }
 
-        // 4. Seed 2 Bookings for John and Jane on AA101 and AA202
         Flight aa101 = flightRepository.findAll().stream()
                 .filter(f -> f.getFlightNumber().equals("AA101"))
                 .findFirst().orElseThrow();

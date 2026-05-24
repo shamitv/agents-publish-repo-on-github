@@ -118,7 +118,6 @@ app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('session_id');
   res.json({ message: 'Logged out successfully.' });
 });
-// Decoy: Safe logging is implemented during candidate registrations
 app.post('/api/admin/candidates', requireAuth, (req, res) => {
   if (req.user.role !== 'ADMIN') {
     return res.status(403).json({ error: 'Forbidden: Admin access only.' });
@@ -128,7 +127,6 @@ app.post('/api/admin/candidates', requireAuth, (req, res) => {
     if (err) {
       return res.status(500).json({ error: 'Failed to add candidate.' });
     }
-    // Decoy: Proper logging of candidate additions
     console.log(`[SECURITY AUDIT] Candidate ${name} registered under ${party} at ${new Date().toISOString()}`);
     res.status(201).json({ message: 'Candidate added.', candidateId: this.lastID });
   });

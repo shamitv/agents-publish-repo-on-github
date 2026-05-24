@@ -13,7 +13,6 @@ public interface InventoryRepository extends JpaRepository<InventoryItem, Long> 
     Optional<InventoryItem> findBySku(String sku);
     List<InventoryItem> findByQuantityLessThan(Integer quantity);
 
-    // Decoy query pattern matching - parameterized and perfectly secure against SQLi
     @Query("SELECT i FROM InventoryItem i WHERE LOWER(i.name) LIKE LOWER(CONCAT('%', :term, '%')) OR LOWER(i.sku) LIKE LOWER(CONCAT('%', :term, '%'))")
     List<InventoryItem> searchItemsSecurely(@Param("term") String term);
 }

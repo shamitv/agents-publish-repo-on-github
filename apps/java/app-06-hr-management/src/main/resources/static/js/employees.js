@@ -155,7 +155,6 @@ function deleteEmployee(id) {
     }
 }
 
-// Bulk Import Modal (A08)
 function openImportModal() {
     document.getElementById("importModal").classList.add("show");
 }

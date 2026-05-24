@@ -7,7 +7,6 @@ let selectedCaseId = null;
 document.addEventListener("DOMContentLoaded", () => {
     checkAuthentication();
 });
-// Verify active session profile
 function checkAuthentication() {
     fetch("/api/users/me")
         .then(res => {
@@ -34,7 +33,6 @@ function checkAuthentication() {
             document.getElementById("authPortal").style.display = 'flex';
         });
 }
-// Authentication handlers
 function handleLoginSubmit(e) {
     e.preventDefault();
     const user = document.getElementById("username").value.trim();
@@ -72,7 +70,6 @@ function handleLogout() {
         })
         .catch(err => console.error("Logout failed:", err));
 }
-// Router switcher
 function showView(viewName) {
     currentView = viewName;
     // Toggle active link highlights
@@ -94,7 +91,6 @@ function showView(viewName) {
         loadCases();
     }
 }
-// 1. Dashboard View
 function loadDashboard() {
     fetch("/api/cases")
         .then(res => res.json())
@@ -137,7 +133,6 @@ function jumpToCase(id) {
     showView('cases');
     selectCase(id);
 }
-// 2. Cases View
 function loadCases() {
     fetch("/api/cases")
         .then(res => res.json())
@@ -215,7 +210,6 @@ function selectCase(id) {
             alert("Error: " + err.message);
         });
 }
-// 3. Document Reader (Plaintext display - A02 & Missing Auth check A01)
 function readDocument(docId) {
     // Fetches individual document details strictly by document ID without any validation checking if
     // the currently logged in user matches the document's parent case owner.
@@ -228,7 +222,6 @@ function readDocument(docId) {
             document.getElementById("docReaderTitle").innerText = doc.title;
             document.getElementById("docReaderFilename").innerText = doc.filename;
             document.getElementById("docReaderAuthor").innerText = doc.uploadedBy;
-            // Render unencrypted text directly onto paper reader (A02 target)
             document.getElementById("docPlaintextContent").innerText = doc.fileContentPlaintext;
             // Toggle view to document reader
             document.querySelectorAll(".spa-view").forEach(view => {
@@ -303,7 +296,6 @@ function handleAddDocSubmit(e) {
     })
     .catch(err => console.error("Error filing document:", err));
 }
-// 4. Log4j Custom Payload Event Dispatcher (Visualizer for A06 Log4Shell component)
 function dispatchAuditEvent(e) {
     e.preventDefault();
     const headerName = document.getElementById("auditHeader").value;

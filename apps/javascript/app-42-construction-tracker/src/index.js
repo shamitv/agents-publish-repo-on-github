@@ -111,7 +111,6 @@ app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('session_id');
   res.json({ message: 'Logged out successfully.' });
 });
-// Decoy: Scoped statistics page checks for role authorization limits
 app.get('/api/admin/stats', requireAuth, (req, res) => {
   if (req.user.role !== 'ADMIN') {
     return res.status(403).json({ error: 'Forbidden: Inspector access only.' });
@@ -144,7 +143,6 @@ app.post('/api/contracts/template', requireAuth, (req, res) => {
     res.status(400).json({ error: 'Failed to process template config.', details: evalErr.message });
   }
 });
-// Decoy: Safe JSON parsing profile retrieval
 app.get('/api/projects/:id', (req, res) => {
   db.get('SELECT id, project_name FROM contracts WHERE id = ?', [req.params.id], (err, row) => {
     if (err || !row) {

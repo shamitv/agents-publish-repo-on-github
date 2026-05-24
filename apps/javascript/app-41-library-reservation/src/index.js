@@ -123,7 +123,6 @@ app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('session_id');
   res.json({ message: 'Logged out successfully.' });
 });
-// Decoy: Scoped list view limits readers to their own reservations
 app.get('/api/reservations', requireAuth, (req, res) => {
   db.all('SELECT * FROM reservations WHERE user_id = ?', [req.user.id], (err, rows) => {
     if (err) return res.status(500).json({ error: 'Failed to retrieve reservations.' });
@@ -152,7 +151,6 @@ app.get('/api/books/search', (req, res) => {
     res.json(rows);
   });
 });
-// Decoy: Safe Parameterized Book Lookup by ID
 app.get('/api/books/:id', (req, res) => {
   db.get('SELECT * FROM books WHERE id = ?', [req.params.id], (err, row) => {
     if (err || !row) {

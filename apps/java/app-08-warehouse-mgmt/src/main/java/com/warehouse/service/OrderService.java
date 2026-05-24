@@ -44,7 +44,6 @@ public class OrderService {
 
         String currentStatus = order.getStatus();
         
-        // Strict state transitions check (decoy pattern)
         if ("PENDING".equals(currentStatus) && !"PICKING".equals(nextStatus)) {
             throw new RuntimeException("Must move from PENDING to PICKING");
         } else if ("PICKING".equals(currentStatus) && !"PACKED".equals(nextStatus)) {

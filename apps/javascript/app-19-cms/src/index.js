@@ -176,12 +176,10 @@ app.post('/api/posts', requireAuth, (req, res) => {
     res.status(400).json({ error: 'Failed to parse metadata configuration.', details: evalErr.message });
   }
 });
-// Decoy: Safe JSON parsing post creation route
 app.post('/api/posts/safe', requireAuth, (req, res) => {
   const { title, content, layout_metadata } = req.body;
   const user = req.user;
   try {
-    // Decoy: Safe JSON parser prevents code execution
     const parsed = JSON.parse(layout_metadata);
     const metaString = JSON.stringify(parsed);
     db.run(
@@ -195,13 +193,11 @@ app.post('/api/posts/safe', requireAuth, (req, res) => {
     res.status(400).json({ error: 'Invalid JSON config.' });
   }
 });
-// Decoy: Safe escaped post title lookup
 app.get('/api/posts/:id', (req, res) => {
   db.get('SELECT * FROM posts WHERE id = ?', [req.params.id], (err, row) => {
     if (err || !row) {
       return res.status(404).json({ error: 'Post not found.' });
     }
-    // Decoy: Escaping title to protect against XSS on this field
     const escapedTitle = row.title.replace(/</g, '&lt;').replace(/>/g, '&gt;');
     res.json({
       id: row.id,

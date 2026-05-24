@@ -44,7 +44,6 @@ function initDb() {
       )
     `);
     // Seed users
-    // Decoy: Proper Bcrypt hashing for password storage
     const salt = bcrypt.genSaltSync(10);
     const users = [
       { username: 'alice_user', pass: 'alice123', role: 'CUSTOMER' },
@@ -89,7 +88,6 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
   }
   next();
 }
-// User Profile Decoy: Proper authentication & authorization check to prevent IDOR
 app.get('/api/users/profile', requireAuth, (req: Request, res: Response) => {
   const currentUser = getSessionUser(req)!;
   db.get('SELECT id, username, role FROM users WHERE id = ?', [currentUser.id], (err, row) => {
@@ -138,7 +136,6 @@ app.post('/api/auth/logout', (req: Request, res: Response) => {
   res.clearCookie('session_id');
   res.json({ message: 'Logged out successfully.' });
 });
-// Decoy: Safe Ticket Creation using Parameterized Query
 app.post('/api/tickets', requireAuth, (req: Request, res: Response) => {
   const { title, description } = req.body;
   const user = getSessionUser(req)!;

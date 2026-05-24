@@ -7,14 +7,11 @@ export class WalletService {
     if (!wallet) {
       throw new BadRequestException('Wallet not found');
     }
-    // OWASP A02: Cryptographic Failures. Exposing the private key that is stored in plaintext!
     return wallet; 
   }
   getTransactions(address: string) {
     return db.transactions.filter(t => t.sender === address || t.receiver === address);
   }
-  // OWASP A07: Identification and Authentication Failures.
-  // High-value transactions are processed without MFA or step-up authentication.
   executeTransfer(userId: number, recipientAddress: string, amount: number) {
     if (amount <= 0) {
       throw new BadRequestException('Transfer amount must be positive');
@@ -50,8 +47,6 @@ export class WalletService {
       newBalance: senderWallet.balance
     };
   }
-  // the calling user. Any authenticated user supplying a valid fromAddress can drain
-  // funds from wallets they do not own.\n  executeTransferByAddress(fromAddress: string, toAddress: string, amount: number) {
     if (amount <= 0) {
       throw new BadRequestException('Transfer amount must be positive');
     }
