@@ -1,83 +1,117 @@
-# Audit Report: app-14 — Telemedicine Appointment System
+# Security Report: app-14-telemedicine
 
-**Language:** TypeScript (Express)  
-**Business Domain:** Healthcare / Telemedicine  
-**Date:** 2026-05-24
+## Application Information
 
----
-
-## Standalone Vulnerabilities
-
-### VULN-01: A01 — Broken Access Control (IDOR)
-
-**Severity:** High  
-**Location:** `src/index.ts:208-229` — `GET /api/appointments/:id`  
-**Lines:**
-```typescript
-// VULNERABILITY A01: Broken Access Control (IDOR)
-```
-
-**Difficulty: EASY**
-
-- Appointment details endpoint returns private doctor notes and patient PII
-- No ownership check against the authenticated user
-- Any authenticated user can view any appointment by ID
-
-### VULN-02: A02 — Cryptographic Failures (Weak JWT Secret)
-
-**Severity:** High  
-**Location:** `src/index.ts:11-13` — `JWT_SECRET`  
-**Lines:**
-```typescript
-// VULNERABILITY A02: Weak JWT signing key
-```
-
-**Difficulty: EASY**
-
-- JWT signed with hardcoded weak secret: `'healthcare123'`
-- Offline brute-force or dictionary attack possible
-- Allows token forgery and privilege escalation
-
-### VULN-03: A07 — Identification and Authentication Failures (Missing httpOnly)
-
-**Severity:** Medium  
-**Location:** `src/index.ts:151-157` — `login()`  
-**Lines:**
-```typescript
-// VULNERABILITY A07: Session token cookie missing httpOnly flag
-```
-
-**Difficulty: EASY**
-
-- `httpOnly: false` allows JavaScript access to session cookie
-- Exposes session to XSS-based hijacking attacks
+- **App ID**: app-14
+- **App Name**: Telemedicine Platform
+- **Language**: TypeScript
+- **Framework**: Express
+- **Source**: `apps/typescript/app-14-telemedicine/`
 
 ---
 
-## Chained Attack: chain-01
+## Vulnerability Summary
 
-**Chain Name:** Weak JWT → IDOR Records Exfiltration  
-**Combined Impact:** Database Exfiltration  
-**Overall Chain Difficulty: MEDIUM**
+| ID | OWASP | Category | Severity | Location | CWE |
+|---|---|---|---|---|---|
+| V1 | A01 | Broken Access Control | Medium | `src/index.ts` → `GET /api/medical-records/:id` (lines 168-185) | CWE-639 |
+| V2 | A02 | Cryptographic Failures | High | `src/index.ts` → `GET /api/admin/database/export` (lines 144-153) | CWE-312 |
+| V3 | A07 | Identification and Authentication Failures | Medium | `src/index.ts` → `POST /api/auth/login` (lines 104-137) | CWE-328 |
 
-### Link 1: Weak JWT Secret (A02 — Medium)
+### V1: IDOR on Medical Records
 
-**Difficulty: EASY**
+**OWASP Category**: A01 — Broken Access Control
 
-- Secret `healthcare123` is trivially guessable
-- Attacker can forge a JWT claiming any role (e.g., DOCTOR)
+**Description**: Viewing patient medical records by ID lacks verification of user ownership, allowing any authenticated provider to retrieve details of another patient's records.
 
-### Link 2: IDOR on Appointment Details (A01 — Medium)
+**Endpoint**: `GET /api/medical-records/:id`
 
-**Difficulty: EASY**
+**CWE**: CWE-639 (Authorization Bypass Through User-Controlled Key)
 
-- Forged token bypasses authentication but not authorization — except there is no authorization check
-- Any appointment record is readable by any authenticated user
+**Impact**: Medium — Any authenticated user can view another patient's sensitive medical records by enumerating record IDs.
+
+**Detection**: Look for absence of ownership checks where the `:id` parameter is used without verifying the requesting user's role or relationship to the patient.
 
 ---
 
-## Summary
+### V2: Plaintext Medical Data Export
 
-App-14 is a TypeScript Express telemedicine system with an IDOR vulnerability exposing private medical records, a weak hardcoded JWT secret enabling token forgery, and a missing `httpOnly` flag on session cookies. Chain: Weak JWT → IDOR → bulk patient record exfiltration.
+**OWASP Category**: A02 — Cryptographic Failures
 
-**Overall Difficulty Score:** 2/5 (Easy)
+**Description**: An administrative database export endpoint returns all patient medical records including sensitive PII in plaintext format with no encryption or access scoping.
+
+**Endpoint**: `GET /api/admin/database/export`
+
+**CWE**: CWE-312 (Cleartext Storage of Sensitive Information)
+
+**Impact**: High — Any admin user can download the full patient database dump containing names, addresses, medical conditions, and treatment notes in plaintext.
+
+**Detection**: Look for an admin export endpoint that reads all rows from the database and returns them as-is without redaction, encryption, or aggregation.
+
+---
+
+### V3: Unsalted MD5 Password Hashing
+
+**OWASP Category**: A07 — Identification and Authentication Failures
+
+**Description**: User account passwords are hashed using unsalted MD5 and stored in the database, allowing brute-force or rainbow table cracking.
+
+**Endpoint**: `POST /api/auth/login`
+
+**CWE**: CWE-328 (Use of Weak Hash)
+
+**Impact**: Medium — If the password database is compromised, an attacker can crack passwords offline using precomputed rainbow tables or brute-force techniques.
+
+**Detection**: Search for `md5()` usage in password hashing/verification logic instead of bcrypt, scrypt, or argon2.
+
+---
+
+## Chained Attack Scenario
+
+### Chain: "MD5 Password Cracking → Medical Records IDOR Exfiltration"
+
+**Impact**: `db_exfiltration`
+
+**Overview**: An attacker cracks a provider's MD5-hashed password, logs into their account, and exfiltrates sensitive patient medical records via IDOR.
+
+**Components**:
+
+| Step | Issue | Severity | OWASP | CWE | Location |
+|---|---|---|---|---|---|
+| 1 | Weak unsalted MD5 password hashing enables offline credential cracking | Medium | A07 | CWE-328 | `POST /api/auth/login` |
+| 2 | Medical records endpoint lacks authorization checks for record ownership | Medium | A01 | CWE-639 | `GET /api/medical-records/:id` |
+
+**Attack Narrative**:
+1. The attacker obtains the users table (e.g., through SQL injection on another endpoint or data breach), retrieves the unsalted MD5 hash for `dr_smith`, and cracks the password offline.
+2. Using the cracked credentials, the attacker logs in as `dr_smith` and calls `GET /api/medical-records/2` through IDOR to access another provider's patient medical records.
+3. The attacker exfiltrates sensitive medical records across the platform without authorization.
+
+**Combined Impact**: Database exfiltration — An attacker can steal sensitive patient medical records by cracking weak passwords and exploiting missing access controls.
+
+---
+
+## Decoys (False-Positive Candidates)
+
+| Location | Description |
+|---|---|
+| `src/index.ts` | Proper user scoping constraints in `GET /api/patients` limiting results to assigned patients only |
+| `src/index.ts` | Proper parameterized query logic in `POST /api/appointments` to book appointments safely |
+
+---
+
+## Detection Commands
+
+```bash
+# Find IDOR on medical records
+grep -n "medical-records.*:id\|findOne\|findById" apps/typescript/app-14-telemedicine/src/index.ts
+
+# Find plaintext data export
+grep -n "export\|database\|admin" apps/typescript/app-14-telemedicine/src/index.ts
+
+# Find weak password hashing
+grep -n "md5\|hash\|password" apps/typescript/app-14-telemedicine/src/index.ts
+```
+
+---
+
+*Report generated from `.vulns` manifest for app-14-telemedicine*
