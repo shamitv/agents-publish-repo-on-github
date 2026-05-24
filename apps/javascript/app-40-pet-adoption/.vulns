@@ -1,0 +1,76 @@
+{
+  "app_id": "app-40",
+  "app_name": "Pet Adoption Portal",
+  "language": "javascript",
+  "framework": "express",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "src/index.js",
+      "method": "GET /api/pets/search",
+      "line_range": "151-163",
+      "description": "User search query input is directly concatenated into a raw SQL statement, leading to SQL injection.",
+      "severity": "high",
+      "cwe": "CWE-89"
+    },
+    {
+      "owasp_id": "A05",
+      "category": "Security Misconfiguration",
+      "location": "src/index.js",
+      "method": "GET /api/system/diagnostics",
+      "line_range": "184-198",
+      "description": "An open diagnostics route leaks server settings and a hardcoded administrative recovery API token when query parameters activate debug mode.",
+      "severity": "medium",
+      "cwe": "CWE-209"
+    },
+    {
+      "owasp_id": "A08",
+      "category": "Software and Data Integrity Failures",
+      "location": "src/index.js",
+      "method": "POST /api/pets/layout",
+      "line_range": "166-181",
+      "description": "Layout configurations submitted by users are parsed using the insecure eval() constructor, enabling remote code execution on the server host.",
+      "severity": "high",
+      "cwe": "CWE-502"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Diagnostics Configuration Disclosure → Remote Code Execution via Insecure Deserialization",
+      "attack_scenario": "An attacker invokes `/api/system/diagnostics?debug=true` to obtain the layout configuration token `PET-PORTAL-DEV-LAYOUT-KEY-2026`. Utilizing this token in the header `x-layout-token` to bypass authentication, they POST a layout configuration payload to `/api/pets/layout` containing a system command execution string evaluated via eval().",
+      "impact": "account_takeover",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A05",
+          "description": "System diagnostics endpoint leaks layout customization token key.",
+          "location": "src/index.js",
+          "method": "GET /api/system/diagnostics",
+          "severity": "medium",
+          "cwe": "CWE-209"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A08",
+          "description": "Layout update route executes custom strings using eval() without checks.",
+          "location": "src/index.js",
+          "method": "POST /api/pets/layout",
+          "severity": "medium",
+          "cwe": "CWE-502"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/index.js",
+      "description": "Proper parameterized query logic in POST /api/applications/apply to record application entries safely."
+    },
+    {
+      "location": "src/index.js",
+      "description": "Proper Bcrypt hashing for password storage and validation."
+    }
+  ]
+}
