@@ -3,21 +3,14 @@ import sqlite3
 import pickle
 import base64
 from flask import Flask, request, jsonify, session
-
 app = Flask(__name__)
 app.secret_key = 'lms_secret_key_quantum_learn_2026'
-
-# CHAIN LINK 1 (chain-01): Hardcoded secret key enables session cookie forgery
 # when combined with the debug config endpoint that exposes it.
-
 # Initialize in-memory SQLite database
 db_conn = sqlite3.connect(':memory:', check_same_thread=False)
 db_conn.row_factory = sqlite3.Row
-
-
 def init_db():
     cursor = db_conn.cursor()
-
     cursor.execute('''
     CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,7 +19,6 @@ def init_db():
         role TEXT NOT NULL,
         email TEXT
     )''')
-
     cursor.execute('''
     CREATE TABLE courses (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,7 +28,6 @@ def init_db():
         category TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
-
     cursor.execute('''
     CREATE TABLE enrollments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,7 +36,6 @@ def init_db():
         enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         status TEXT DEFAULT 'ACTIVE'
     )''')
-
     cursor.execute('''
     CREATE TABLE quizzes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,7 +43,6 @@ def init_db():
         title TEXT NOT NULL,
         max_score INTEGER NOT NULL DEFAULT 100
     )''')
-
     cursor.execute('''
     CREATE TABLE submissions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,7 +53,6 @@ def init_db():
         graded_by INTEGER,
         submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
-
     # Seed users
     users_data = [
         ('student_alice', 'alice_pass_123', 'STUDENT', 'alice@university.edu'),
@@ -76,7 +64,6 @@ def init_db():
         'INSERT INTO users (username, password_hash, role, email) VALUES (?, ?, ?, ?)',
         users_data,
     )
-
     # Seed courses
     cursor.execute(
         "INSERT INTO courses (title, description, instructor_id, category) "
@@ -86,12 +73,10 @@ def init_db():
         "INSERT INTO courses (title, description, instructor_id, category) "
         "VALUES ('Advanced Machine Learning', 'Deep learning architectures, transformers, and reinforcement learning.', 3, 'Data Science')"
     )
-
     # Seed enrollments
     cursor.execute("INSERT INTO enrollments (user_id, course_id) VALUES (1, 1)")
     cursor.execute("INSERT INTO enrollments (user_id, course_id) VALUES (2, 1)")
     cursor.execute("INSERT INTO enrollments (user_id, course_id) VALUES (1, 2)")
-
     # Seed quizzes
     cursor.execute(
         "INSERT INTO quizzes (course_id, title, max_score) VALUES (1, 'Midterm Exam: Network Security', 100)"
@@ -99,7 +84,6 @@ def init_db():
     cursor.execute(
         "INSERT INTO quizzes (course_id, title, max_score) VALUES (2, 'Final Exam: Neural Networks', 100)"
     )
-
     # Seed submissions
     cursor.execute(
         "INSERT INTO submissions (quiz_id, student_id, answers, score, graded_by) "
@@ -109,20 +93,14 @@ def init_db():
         "INSERT INTO submissions (quiz_id, student_id, answers, score, graded_by) "
         "VALUES (1, 2, 'A,A,C,D,B,B,C,A,A,B', 72, 3)"
     )
-
     db_conn.commit()
-
-
 init_db()
-
-
 # --- AUTH APIs ---
 @app.route('/api/auth/login', methods=['POST'])
 def login():
     data = request.get_json() or {}
     username = data.get('username', '').strip()
     password = data.get('password', '').strip()
-
     # Decoy: Secure parameterized query for login — safe SQL pattern
     cursor = db_conn.cursor()
     cursor.execute(
@@ -130,7 +108,6 @@ def login():
         (username, password),
     )
     user = cursor.fetchone()
-
     if user:
         session['user_id'] = user['id']
         session['username'] = user['username']
@@ -140,21 +117,15 @@ def login():
             'user': {'username': user['username'], 'role': user['role']},
         })
     return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
-
-
 @app.route('/api/auth/logout', methods=['POST'])
 def logout():
     session.clear()
     return jsonify({'success': True})
-
-
 @app.route('/api/auth/me', methods=['GET'])
 def get_me():
     if 'user_id' in session:
         return jsonify({'username': session['username'], 'role': session['role']})
     return jsonify({'message': 'Unauthenticated'}), 401
-
-
 # --- COURSE APIs ---
 @app.route('/api/courses', methods=['GET'])
 def list_courses():
@@ -175,19 +146,15 @@ def list_courses():
         for r in rows
     ]
     return jsonify({'courses': courses})
-
-
 @app.route('/api/courses', methods=['POST'])
 def create_course():
     # Decoy: Proper role-based access control — only instructors can create courses
     if 'user_id' not in session or session.get('role') not in ('INSTRUCTOR', 'ADMIN'):
         return jsonify({'message': 'Forbidden: Instructor role required'}), 403
-
     data = request.get_json() or {}
     title = data.get('title')
     description = data.get('description', '')
     category = data.get('category', 'General')
-
     cursor = db_conn.cursor()
     try:
         cursor.execute(
@@ -198,14 +165,11 @@ def create_course():
         return jsonify({'success': True, 'id': cursor.lastrowid})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
-
-
 # --- ENROLLMENT APIs ---
 @app.route('/api/enrollments', methods=['GET'])
 def list_enrollments():
     if 'user_id' not in session:
         return jsonify({'message': 'Unauthenticated'}), 401
-
     cursor = db_conn.cursor()
     # Decoy: Secure parameterized enrollment lookup scoped to current user
     cursor.execute(
@@ -225,16 +189,12 @@ def list_enrollments():
         for r in rows
     ]
     return jsonify({'enrollments': enrollments})
-
-
 @app.route('/api/enrollments', methods=['POST'])
 def enroll():
     if 'user_id' not in session:
         return jsonify({'message': 'Unauthenticated'}), 401
-
     data = request.get_json() or {}
     course_id = data.get('course_id')
-
     cursor = db_conn.cursor()
     try:
         cursor.execute(
@@ -245,16 +205,12 @@ def enroll():
         return jsonify({'success': True, 'enrollment_id': cursor.lastrowid})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
-
-
 # --- QUIZ SUBMISSION APIs ---
 @app.route('/api/submissions/<int:submission_id>', methods=['GET'])
 def get_submission(submission_id):
     if 'user_id' not in session:
         return jsonify({'message': 'Unauthenticated'}), 401
-
     cursor = db_conn.cursor()
-    # VULNERABILITY A01: IDOR — Any authenticated user can view any submission
     # by ID without verifying that the submission belongs to them.
     # A student can view other students' answers and scores.
     cursor.execute(
@@ -267,10 +223,8 @@ def get_submission(submission_id):
         (submission_id,),
     )
     row = cursor.fetchone()
-
     if not row:
         return jsonify({'message': 'Submission not found'}), 404
-
     return jsonify({
         'id': row['id'],
         'quiz_title': row['quiz_title'],
@@ -279,17 +233,13 @@ def get_submission(submission_id):
         'score': row['score'],
         'submitted_at': row['submitted_at'],
     })
-
-
 @app.route('/api/submissions', methods=['POST'])
 def submit_quiz():
     if 'user_id' not in session:
         return jsonify({'message': 'Unauthenticated'}), 401
-
     data = request.get_json() or {}
     quiz_id = data.get('quiz_id')
     answers = data.get('answers', '')
-
     cursor = db_conn.cursor()
     try:
         cursor.execute(
@@ -300,15 +250,11 @@ def submit_quiz():
         return jsonify({'success': True, 'submission_id': cursor.lastrowid})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
-
-
 # --- DEBUG / CONFIG APIs ---
 @app.route('/api/debug/config', methods=['GET'])
 def debug_config():
-    # VULNERABILITY A05: Security Misconfiguration — Unauthenticated debug endpoint
     # exposes the Flask secret key, database path, environment variables, and
     # internal configuration. No auth check at all.
-    # CHAIN LINK 1 (chain-01): Exposes Flask secret_key enabling session cookie forgery
     config_data = {
         'app_name': 'LMS Platform',
         'secret_key': app.secret_key,
@@ -319,29 +265,21 @@ def debug_config():
         'server_working_dir': os.getcwd(),
     }
     return jsonify(config_data)
-
-
 # --- COURSE IMPORT (PICKLE DESERIALIZATION) ---
 @app.route('/api/courses/import', methods=['POST'])
 def import_course():
-    # VULNERABILITY A08: Software & Data Integrity Failures — Deserializes untrusted
     # pickle data from user-uploaded base64-encoded payload without any verification.
     # An attacker can craft a malicious pickle object to execute arbitrary code.
-    # CHAIN LINK 2 (chain-01): Pickle deserialization RCE after forging admin session
     if 'user_id' not in session or session.get('role') not in ('INSTRUCTOR', 'ADMIN'):
         return jsonify({'message': 'Forbidden: Instructor or Admin role required'}), 403
-
     data = request.get_json() or {}
     course_data_b64 = data.get('course_data', '')
-
     if not course_data_b64:
         return jsonify({'message': 'Missing course_data payload'}), 400
-
     try:
         raw_bytes = base64.b64decode(course_data_b64)
         # Dangerous: pickle.loads on untrusted input allows arbitrary code execution
         course_obj = pickle.loads(raw_bytes)
-
         cursor = db_conn.cursor()
         cursor.execute(
             "INSERT INTO courses (title, description, instructor_id, category) VALUES (?, ?, ?, ?)",
@@ -356,14 +294,11 @@ def import_course():
         return jsonify({'success': True, 'course_id': cursor.lastrowid})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
-
-
 # --- INSTRUCTOR DASHBOARD ---
 @app.route('/api/instructor/courses', methods=['GET'])
 def instructor_courses():
     if 'user_id' not in session or session.get('role') not in ('INSTRUCTOR', 'ADMIN'):
         return jsonify({'message': 'Forbidden'}), 403
-
     cursor = db_conn.cursor()
     cursor.execute(
         "SELECT c.id, c.title, c.category, "
@@ -382,13 +317,10 @@ def instructor_courses():
         for r in rows
     ]
     return jsonify({'courses': courses})
-
-
 @app.route('/api/instructor/submissions/<int:quiz_id>', methods=['GET'])
 def instructor_submissions(quiz_id):
     if 'user_id' not in session or session.get('role') not in ('INSTRUCTOR', 'ADMIN'):
         return jsonify({'message': 'Forbidden'}), 403
-
     cursor = db_conn.cursor()
     cursor.execute(
         "SELECT s.id, s.answers, s.score, s.submitted_at, u.username "
@@ -407,7 +339,5 @@ def instructor_submissions(quiz_id):
         for r in rows
     ]
     return jsonify({'submissions': submissions})
-
-
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8085, debug=True)

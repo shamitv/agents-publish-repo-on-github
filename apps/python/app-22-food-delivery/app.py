@@ -6,17 +6,11 @@ from fastapi import FastAPI, Request, Response, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import List, Optional
-
 app = FastAPI(title="Food Delivery Order System")
-
-# VULNERABILITY A02: Hardcoded payment gateway API key in the source code.
-# CHAIN LINK 1 (chain-01): Hardcoded payment gateway key is stored in the source code as a module constant.
 PAYMENT_SECRET = "mock_sk_live_51O1W2e3R4t5Y6u7I8o9P0a1S2d3F4g5H6j7K8l9Z0x1C2v3B4n5M"
-
 # Initialize in-memory SQLite database
 db_conn = sqlite3.connect(':memory:', check_same_thread=False)
 db_conn.row_factory = sqlite3.Row
-
 def init_db():
     cursor = db_conn.cursor()
     cursor.execute('''
@@ -26,7 +20,6 @@ def init_db():
         password_hash TEXT NOT NULL,
         role TEXT NOT NULL
     )''')
-
     cursor.execute('''
     CREATE TABLE menu_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,7 +28,6 @@ def init_db():
         price REAL NOT NULL,
         category TEXT NOT NULL
     )''')
-
     cursor.execute('''
     CREATE TABLE orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,7 +38,6 @@ def init_db():
         payment_status TEXT DEFAULT 'UNPAID',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
-
     # Seed data
     # Decoy: Proper bcrypt hashing for seeded users
     users_to_seed = [
@@ -59,7 +50,6 @@ def init_db():
         'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',
         users_to_seed
     )
-
     menu_to_seed = [
         ('Double Cheeseburger', 'Two flame-grilled beef patties, cheddar, pickles, lettuce, and secret sauce.', 9.99, 'Burgers'),
         ('Pepperoni Feast Pizza', 'Rich tomato sauce, mozzarella, and a generous portion of pepperoni.', 14.99, 'Pizza'),
@@ -70,43 +60,32 @@ def init_db():
         'INSERT INTO menu_items (name, description, price, category) VALUES (?, ?, ?, ?)',
         menu_to_seed
     )
-
     db_conn.commit()
-
 init_db()
-
 # Session Store
 sessions = {}
-
 def get_current_user(request: Request):
     session_id = request.cookies.get("session_id")
     if not session_id or session_id not in sessions:
         raise HTTPException(status_code=401, detail="Unauthenticated")
     return sessions[session_id]
-
 # --- Models ---
 class LoginRequest(BaseModel):
     username: str
     password: str
-
 class RegisterRequest(BaseModel):
     username: str
     password: str
-
 class OrderItem(BaseModel):
     menu_item_id: int
     quantity: int
-
 class OrderRequest(BaseModel):
     items: List[OrderItem]
-
 class WebhookRequest(BaseModel):
     order_id: int
     payment_status: str
     auth_token: str
-
 # --- Routes ---
-
 @app.post("/api/auth/register")
 def register(req: RegisterRequest):
     cursor = db_conn.cursor()
@@ -121,7 +100,6 @@ def register(req: RegisterRequest):
         return {"success": True, "message": "User registered successfully"}
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=400, detail="Username already exists")
-
 @app.post("/api/auth/login")
 def login(req: LoginRequest, response: Response):
     cursor = db_conn.cursor()
@@ -129,11 +107,8 @@ def login(req: LoginRequest, response: Response):
     user = cursor.fetchone()
     if not user or not bcrypt.checkpw(req.password.encode('utf-8'), user['password_hash'].encode('utf-8')):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-
     session_id = os.urandom(16).hex()
     sessions[session_id] = {"id": user["id"], "username": user["username"], "role": user["role"]}
-
-    # VULNERABILITY A07: Session cookie set without httpOnly or secure flags.
     # This allows client-side JavaScript to access the session cookie, exposing it to XSS.
     response.set_cookie(
         key="session_id",
@@ -142,7 +117,6 @@ def login(req: LoginRequest, response: Response):
         secure=False
     )
     return {"success": True, "user": {"username": user["username"], "role": user["role"]}}
-
 @app.post("/api/auth/logout")
 def logout(request: Request, response: Response):
     session_id = request.cookies.get("session_id")
@@ -150,11 +124,9 @@ def logout(request: Request, response: Response):
         del sessions[session_id]
     response.delete_cookie("session_id")
     return {"success": True}
-
 @app.get("/api/auth/me")
 def get_me(user: dict = Depends(get_current_user)):
     return {"username": user["username"], "role": user["role"]}
-
 @app.get("/api/menu")
 def list_menu(category: Optional[str] = None):
     cursor = db_conn.cursor()
@@ -165,8 +137,6 @@ def list_menu(category: Optional[str] = None):
         cursor.execute("SELECT * FROM menu_items")
     rows = cursor.fetchall()
     return {"menu": [dict(r) for r in rows]}
-
-# VULNERABILITY A04: Insecure Design - Missing rate limiting, request validation, or
 # idempotency checks on order placement. Clients can send infinite duplicate order
 # requests, causing denial of service, resource exhaustion, or bulk db entries.
 @app.post("/api/orders")
@@ -174,7 +144,6 @@ def place_order(req: OrderRequest, user: dict = Depends(get_current_user)):
     cursor = db_conn.cursor()
     total_amount = 0.0
     items_list = []
-
     for item in req.items:
         cursor.execute("SELECT * FROM menu_items WHERE id = ?", (item.menu_item_id,))
         menu_item = cursor.fetchone()
@@ -187,7 +156,6 @@ def place_order(req: OrderRequest, user: dict = Depends(get_current_user)):
             "price": menu_item["price"],
             "quantity": item.quantity
         })
-
     import json
     cursor.execute(
         "INSERT INTO orders (user_id, items, total_amount, status) VALUES (?, ?, ?, 'PENDING')",
@@ -196,7 +164,6 @@ def place_order(req: OrderRequest, user: dict = Depends(get_current_user)):
     db_conn.commit()
     order_id = cursor.lastrowid
     return {"success": True, "order_id": order_id, "total_amount": total_amount, "status": "PENDING"}
-
 @app.get("/api/orders/{order_id}")
 def get_order(order_id: int, user: dict = Depends(get_current_user)):
     cursor = db_conn.cursor()
@@ -205,37 +172,29 @@ def get_order(order_id: int, user: dict = Depends(get_current_user)):
     order = cursor.fetchone()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-
     # Authorize based on ownership or admin/driver roles
     if user["role"] == "CUSTOMER" and order["user_id"] != user["id"]:
         raise HTTPException(status_code=403, detail="Forbidden")
-
     import json
     order_dict = dict(order)
     order_dict["items"] = json.loads(order_dict["items"])
     return order_dict
-
-# VULNERABILITY A04: Insecure Design (Weak Validation Mechanism).
-# CHAIN LINK 2 (chain-01): Payment webhook endpoint validates authorization requests
 # using the hardcoded key from PAYMENT_SECRET with no HMAC signature checking or request source verification.
 @app.post("/api/payment/webhook")
 def payment_webhook(req: WebhookRequest):
     # Weak verification: Check if the auth token provided matches our hardcoded PAYMENT_SECRET
     if req.auth_token != PAYMENT_SECRET:
         raise HTTPException(status_code=401, detail="Unauthorized webhook source")
-
     cursor = db_conn.cursor()
     cursor.execute("SELECT * FROM orders WHERE id = ?", (req.order_id,))
     order = cursor.fetchone()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-
     cursor.execute(
         "UPDATE orders SET payment_status = ? WHERE id = ?",
         (req.payment_status, req.order_id)
     )
     db_conn.commit()
     return {"success": True, "message": f"Order {req.order_id} payment status updated to {req.payment_status}"}
-
 if __name__ == '__main__':
     uvicorn.run(app, host='0.0.0.0', port=8092)

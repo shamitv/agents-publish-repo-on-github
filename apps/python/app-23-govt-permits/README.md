@@ -12,6 +12,8 @@ Government & Public Services
 - SQLite (in-memory)
 
 ## Features
+
+For chained vulnerability scenarios, see [scenarios.md](scenarios.md).
 - Citizen registration & login
 - File permit applications (e.g., Residential Building Permit, Commercial Zone License)
 - Upload supporting documents (e.g. site plans, blueprints)
@@ -23,27 +25,6 @@ The vulnerabilities in this application are intentional. Refer to [.vulns](file:
 
 ---
 
-## Chained Vulnerability Scenario
-
-### Chain: "Debug Page Info Leak → Unrestricted Upload → RCE"
-
-An attacker uses a Django debug page to perform reconnaissance of internal file system paths, then uploads a malicious script without restriction, and executes it via direct media access.
-
-| Step | Issue | Severity (standalone) | OWASP | Location |
-|------|-------|-----------------------|-------|----------|
-| 1 | Django DEBUG=True exposes settings, paths, and environment on error | Low | A05 | `govt_permits/settings.py` |
-| 2 | Document upload endpoint allows uploading any file extension | Medium | A08 | `permits/views.py` → `upload_document()` |
-
-**Attack narrative**:
-1. The attacker accesses the portal and purposefully triggers an unhandled exception or 404 error page. Because `DEBUG = True` is enabled in `govt_permits/settings.py`, the details on the page reveal internal file system paths and settings.
-2. The attacker authenticates as a normal citizen and files a permit application.
-3. The attacker calls the upload endpoint at `/api/permits/<permit_id>/upload`, uploading a malicious Python payload named `exploit.py` as a document.
-4. Due to missing filename sanitization or extension validation, the file is saved as-is in the predictable path `media/documents/exploit.py`.
-5. Since the Django static files view is serving media files directly in debug mode, the attacker requests `/media/documents/exploit.py` or imports/triggers it, obtaining execution context or remote control over the app server environment.
-
-**Combined Impact**: `lateral_movement` — The attacker gains execution capability on the local filesystem of the server.
-
----
 
 ## API Endpoints
 
