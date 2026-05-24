@@ -1,0 +1,76 @@
+{
+  "app_id": "app-26",
+  "app_name": "Pharmaceutical Drug Tracking",
+  "language": "java",
+  "framework": "spring-boot",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "src/main/java/com/pharma/tracking/controller/BatchController.java",
+      "method": "getBatchDetails",
+      "line_range": "21-27",
+      "description": "IDOR on batch lookup allows any authenticated user to view details of any batch without checks",
+      "severity": "medium",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A02",
+      "category": "Cryptographic Failures",
+      "location": "src/main/java/com/pharma/tracking/service/CustodyService.java",
+      "method": "generateCustodySignature",
+      "line_range": "18-31",
+      "description": "Weak MD5 hashing algorithm without a secret key is used to sign custody transfers, allowing forged signatures",
+      "severity": "medium",
+      "cwe": "CWE-328"
+    },
+    {
+      "owasp_id": "A08",
+      "category": "Software and Data Integrity Failures",
+      "location": "src/main/java/com/pharma/tracking/service/BatchImportService.java",
+      "method": "importBatch",
+      "line_range": "17-26",
+      "description": "Insecure Java deserialization on batch import endpoint allows execution of arbitrary code via malicious payloads",
+      "severity": "critical",
+      "cwe": "CWE-502"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "IDOR Batch Enumeration \u2192 Forged Custody Signature \u2192 Supply Chain Tampering",
+      "attack_scenario": "Attacker logs in, uses IDOR to search all batch shipment details, and generates a fake MD5 custody signature to divert or inject custom chain-of-custody transfer entries.",
+      "impact": "data_modification",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A01",
+          "description": "IDOR batch endpoint leaks details of batches not belonging to the current user's organization.",
+          "location": "src/main/java/com/pharma/tracking/controller/BatchController.java",
+          "method": "getBatchDetails",
+          "severity": "medium",
+          "cwe": "CWE-639"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A02",
+          "description": "Weak custody signature algorithm allows generating valid transfer signatures off-platform.",
+          "location": "src/main/java/com/pharma/tracking/service/CustodyService.java",
+          "method": "generateCustodySignature",
+          "severity": "medium",
+          "cwe": "CWE-328"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/main/java/com/pharma/tracking/config/SecurityConfig.java",
+      "description": "Strong password encryption (BCrypt) used for storing user credentials"
+    },
+    {
+      "location": "src/main/java/com/pharma/tracking/controller/InspectionController.java",
+      "description": "createInspection endpoint restricts creation of inspection logs to the INSPECTOR role"
+    }
+  ]
+}
