@@ -1,0 +1,85 @@
+{
+  "app_id": "app-28",
+  "app_name": "Manufacturing Quality Control",
+  "language": "java",
+  "framework": "spring-boot",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "src/main/java/com/manufacturing/qc/controller/AuthController.java",
+      "method": "updateProfile",
+      "line_range": "32-43",
+      "description": "Mass assignment vulnerability on user profile update allows workers to escalate privilege to QA_MANAGER",
+      "severity": "high",
+      "cwe": "CWE-915"
+    },
+    {
+      "owasp_id": "A04",
+      "category": "Insecure Design",
+      "location": "src/main/java/com/manufacturing/qc/controller/DefectController.java",
+      "method": "resolveDefect",
+      "line_range": "17-25",
+      "description": "Critical defect resolution workflow lacks formal manager approval check, allowing self-resolution",
+      "severity": "medium",
+      "cwe": "CWE-841"
+    },
+    {
+      "owasp_id": "A09",
+      "category": "Security Logging and Monitoring Failures",
+      "location": "src/main/java/com/manufacturing/qc/service/InspectionService.java",
+      "method": "updateInspectionResult",
+      "line_range": "21-30",
+      "description": "Inspection log modifications lack audit logging, permitting silent changes to QA reports",
+      "severity": "low",
+      "cwe": "CWE-778"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Privilege Escalation \u2192 Silent Defect Closure \u2192 Undetected Quality Fraud",
+      "attack_scenario": "Attacker registers as WORKER, updates profile via mass assignment to gain QA_MANAGER role, marks critical defects as resolved, and changes failed inspection records to passed without any audit trails.",
+      "impact": "data_modification",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A01",
+          "description": "Mass assignment allows escalating privilege from WORKER to QA_MANAGER.",
+          "location": "src/main/java/com/manufacturing/qc/controller/AuthController.java",
+          "method": "updateProfile",
+          "severity": "medium",
+          "cwe": "CWE-915"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A04",
+          "description": "Lack of defect closure approval allows self-resolution of major defects.",
+          "location": "src/main/java/com/manufacturing/qc/controller/DefectController.java",
+          "method": "resolveDefect",
+          "severity": "medium",
+          "cwe": "CWE-841"
+        },
+        {
+          "step": 3,
+          "owasp_id": "A09",
+          "description": "No logging on inspection modifications allows silent data tampering.",
+          "location": "src/main/java/com/manufacturing/qc/service/InspectionService.java",
+          "method": "updateInspectionResult",
+          "severity": "low",
+          "cwe": "CWE-778"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/main/java/com/manufacturing/qc/controller/ProductController.java",
+      "description": "getProducts endpoint is properly secured via PreAuthorize QA_MANAGER check"
+    },
+    {
+      "location": "src/main/java/com/manufacturing/qc/config/SecurityConfig.java",
+      "description": "Strong password encryption (BCrypt) used for storing user credentials"
+    }
+  ]
+}
