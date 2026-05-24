@@ -9,7 +9,7 @@ All **50** application benchmark targets have been fully implemented across four
 - A `.vulns` machine-readable vulnerability manifest
 - Project dependency files (`pom.xml`, `package.json`, `requirements.txt`, etc.)
 
-Security reports have been generated for **28** applications (see [Report Status](#report-status)).
+Security reports have been generated for all **50** applications (see [Report Status](#report-status)).
 
 ---
 
@@ -30,13 +30,13 @@ Security reports have been generated for **28** applications (see [Report Status
 | 11 | app-11 | Social Analytics | TypeScript | NestJS | 3 | 1 | Medium | ✅ |
 | 12 | app-12 | Crypto Wallet | TypeScript | Express | 3 | 1 | Medium | ✅ |
 | 13 | app-13 | Project Management | TypeScript | Express | 3 | 1 | Medium | ✅ |
-| 14 | app-14 | Telemedicine | TypeScript | Express | 3 | 1 | Medium | — |
-| 15 | app-15 | Digital Assets Manager | TypeScript | Express | 3 | 1 | Medium | — |
-| 16 | app-16 | Restaurant Reviews | JavaScript | Express | 3 | 1 | Medium | — |
-| 17 | app-17 | IoT Device Dashboard | JavaScript | Express | 3 | 1 | Medium | — |
-| 18 | app-18 | P2P Lending Platform | JavaScript | Express | 3 | 1 | Easy | — |
-| 19 | app-19 | Content Management System | JavaScript | Express | 3 | 1 | Medium | — |
-| 20 | app-20 | Fitness Tracker | JavaScript | Express | 3 | 1 | Easy | — |
+| 14 | app-14 | Telemedicine | TypeScript | Express | 3 | 1 | Medium | ✅ |
+| 15 | app-15 | Digital Assets Manager | TypeScript | Express | 3 | 1 | Medium | ✅ |
+| 16 | app-16 | Restaurant Reviews | JavaScript | Express | 3 | 1 | Medium | ✅ |
+| 17 | app-17 | IoT Device Dashboard | JavaScript | Express | 3 | 1 | Medium | ✅ |
+| 18 | app-18 | P2P Lending Platform | JavaScript | Express | 3 | 1 | Easy | ✅ |
+| 19 | app-19 | Content Management System | JavaScript | Express | 3 | 1 | Medium | ✅ |
+| 20 | app-20 | Fitness Tracker | JavaScript | Express | 3 | 1 | Easy | ✅ |
 | 21 | app-21 | Insurance Claims | Python | Flask | 3 | 1 | Medium | ✅ |
 | 22 | app-22 | Food Delivery Order System | Python | FastAPI | 3 | 1 | Easy | ✅ |
 | 23 | app-23 | Government Permits Portal | Python | Django | 3 | 1 | Medium | ✅ |
@@ -47,28 +47,28 @@ Security reports have been generated for **28** applications (see [Report Status
 | 28 | app-28 | Manufacturing QC | Java | Spring Boot | 3 | 1 | Medium | ✅ |
 | 29 | app-29 | Fleet Management | Java | Spring Boot | 3 | 1 | Hard | ✅ |
 | 30 | app-30 | Auction Platform | Java | Spring Boot | 3 | 1 | Medium | ✅ |
-| 31 | app-31 | Event Ticketing | TypeScript | Express | 3 | 1 | Medium | — |
-| 32 | app-32 | Support Ticket System | TypeScript | Express | 3 | 1 | Medium | — |
-| 33 | app-33 | Recruitment ATS | TypeScript | Express | 3 | 1 | Medium | — |
-| 34 | app-34 | Subscription Box Service | TypeScript | Express | 3 | 1 | Medium | — |
-| 35 | app-35 | Compliance Document Tracker | TypeScript | Express | 3 | 1 | Medium | — |
-| 36 | app-36 | Parking Management | JavaScript | Express | 3 | 1 | Medium | — |
-| 37 | app-37 | Crop Planner | JavaScript | Express | 3 | 1 | Medium | — |
-| 38 | app-38 | Museum Collection Catalog | JavaScript | Express | 3 | 1 | Medium | — |
-| 39 | app-39 | Wedding Planning Platform | JavaScript | Express | 3 | 1 | Easy | — |
-| 40 | app-40 | Pet Adoption Portal | JavaScript | Express | 3 | 1 | Medium | — |
-| 41 | app-41 | Library Reservation System | JavaScript | Express | 3 | 1 | Medium | — |
-| 42 | app-42 | Construction Tracker | JavaScript | Express | 3 | 1 | Medium | — |
-| 43 | app-43 | Music Streaming Service | JavaScript | Express | 3 | 1 | Medium | — |
-| 44 | app-44 | Election Polling System | JavaScript | Express | 3 | 1 | Easy | — |
-| 45 | app-45 | Travel & Expense System | JavaScript | Express | 3 | 1 | Medium | — |
+| 31 | app-31 | Event Ticketing | TypeScript | Express | 3 | 1 | Medium | ✅ |
+| 32 | app-32 | Support Ticket System | TypeScript | Express | 3 | 1 | Medium | ✅ |
+| 33 | app-33 | Recruitment ATS | TypeScript | Express | 3 | 1 | Medium | ✅ |
+| 34 | app-34 | Subscription Box Service | TypeScript | Express | 3 | 1 | Medium | ✅ |
+| 35 | app-35 | Compliance Document Tracker | TypeScript | Express | 3 | 1 | Medium | ✅ |
+| 36 | app-36 | Parking Management | JavaScript | Express | 3 | 1 | Medium | ✅ |
+| 37 | app-37 | Crop Planner | JavaScript | Express | 3 | 1 | Medium | ✅ |
+| 38 | app-38 | Museum Collection Catalog | JavaScript | Express | 3 | 1 | Medium | ✅ |
+| 39 | app-39 | Wedding Planning Platform | JavaScript | Express | 3 | 1 | Easy | ✅ |
+| 40 | app-40 | Pet Adoption Portal | JavaScript | Express | 3 | 1 | Medium | ✅ |
+| 41 | app-41 | Library Reservation System | JavaScript | Express | 3 | 1 | Medium | ✅ |
+| 42 | app-42 | Construction Tracker | JavaScript | Express | 3 | 1 | Medium | ✅ |
+| 43 | app-43 | Music Streaming Service | JavaScript | Express | 3 | 1 | Medium | ✅ |
+| 44 | app-44 | Election Polling System | JavaScript | Express | 3 | 1 | Easy | ✅ |
+| 45 | app-45 | Travel & Expense System | JavaScript | Express | 3 | 1 | Medium | ✅ |
 | 46 | app-46 | Charity Donation Platform | Python | Flask | 3 | 1 | Medium | ✅ |
 | 47 | app-47 | Smart Home Device Manager | Python | FastAPI | 3 | 1 | Hard | ✅ |
 | 48 | app-48 | Freelancer Marketplace | Python | FastAPI | 3 | 1 | Easy | ✅ |
 | 49 | app-49 | Sports League Management | Python | Flask | 3 | 1 | Medium | ✅ |
 | 50 | app-50 | Energy Utility Billing | Java | Spring Boot | 4 | 1 | Hard | ✅ |
 
-**Total:** 50 apps (28 with reports, 22 pending reports)
+**Total:** 50 apps (50 with reports)
 
 ---
 
@@ -150,6 +150,28 @@ Security benchmark reports exist under `reports/` for the following apps:
 | app-11 Social Analytics | `reports/app-11-social-analytics.md` |
 | app-12 Crypto Wallet | `reports/app-12-crypto-wallet.md` |
 | app-13 Project Management | `reports/app-13-project-mgmt.md` |
+| app-14 Telemedicine | `reports/app-14-telemedicine.md` |
+| app-15 Digital Assets Manager | `reports/app-15-digital-assets.md` |
+| app-16 Restaurant Reviews | `reports/app-16-restaurant-reviews.md` |
+| app-17 IoT Device Dashboard | `reports/app-17-iot-dashboard.md` |
+| app-18 P2P Lending Platform | `reports/app-18-p2p-lending.md` |
+| app-19 Content Management System | `reports/app-19-cms.md` |
+| app-20 Fitness Tracker | `reports/app-20-fitness-tracker.md` |
+| app-31 Event Ticketing | `reports/app-31-event-ticketing.md` |
+| app-32 Support Ticket System | `reports/app-32-support-tickets.md` |
+| app-33 Recruitment ATS | `reports/app-33-recruitment-ats.md` |
+| app-34 Subscription Box Service | `reports/app-34-subscription-box.md` |
+| app-35 Compliance Document Tracker | `reports/app-35-compliance-tracker.md` |
+| app-36 Parking Management | `reports/app-36-parking-mgmt.md` |
+| app-37 Crop Planner | `reports/app-37-crop-planner.md` |
+| app-38 Museum Collection Catalog | `reports/app-38-museum-catalog.md` |
+| app-39 Wedding Planning Platform | `reports/app-39-wedding-planner.md` |
+| app-40 Pet Adoption Portal | `reports/app-40-pet-adoption.md` |
+| app-41 Library Reservation System | `reports/app-41-library-reservation.md` |
+| app-42 Construction Tracker | `reports/app-42-construction-tracker.md` |
+| app-43 Music Streaming Service | `reports/app-43-music-streaming.md` |
+| app-44 Election Polling System | `reports/app-44-election-polling.md` |
+| app-45 Travel & Expense System | `reports/app-45-travel-expense.md` |
 | app-21 Insurance Claims | `reports/app-21-insurance-claims.md` |
 | app-22 Food Delivery | `reports/app-22-food-delivery.md` |
 | app-23 Government Permits | `reports/app-23-govt-permits.md` |
@@ -166,16 +188,15 @@ Security benchmark reports exist under `reports/` for the following apps:
 | app-49 Sports League Management | `reports/app-49-sports-league.md` |
 | app-50 Energy Utility Billing | `reports/app-50-energy-billing.md` |
 
-**22 apps still require benchmark reports.**
+**All 50 reports are complete.**
 
 ---
 
 ## Next Steps
 
-1. **Generate remaining 22 security reports** — Each report should follow the template in `reports/README.md` and test an AI security agent against the planted vulnerabilities and decoys.
-2. **Run agent benchmarks** — Execute security detection agents against each app and record results in the corresponding report.
-3. **Triage findings** — Validate agent detection rates (true positives vs. false positives) and compute precision/recall per OWASP category.
-4. **Target published reports** — Finalize all 50 reports and aggregate cross-app benchmark statistics.
+1. **Run agent benchmarks** — Execute security detection agents against each app and record results in the corresponding report.
+2. **Triage findings** — Validate agent detection rates (true positives vs. false positives) and compute precision/recall per OWASP category.
+3. **Target published reports** — Aggregate cross-app benchmark statistics and publish final results.
 
 ---
 
