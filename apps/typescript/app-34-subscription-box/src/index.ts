@@ -3,24 +3,19 @@ import sqlite3 from 'sqlite3';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import crypto from 'crypto';
-
 const app = express();
 const port = 8034;
-
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors({ origin: true, credentials: true }));
-
 // Initialize SQLite database
 const db = new sqlite3.Database(':memory:');
-
 interface User {
   id: number;
   username: string;
   password_hash: string;
   role: string;
 }
-
 function initDb() {
   db.serialize(() => {
     db.run(`
@@ -31,7 +26,6 @@ function initDb() {
         role TEXT NOT NULL
       )
     `);
-
     db.run(`
       CREATE TABLE packages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,7 +34,6 @@ function initDb() {
         price REAL NOT NULL
       )
     `);
-
     db.run(`
       CREATE TABLE subscriptions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,23 +44,18 @@ function initDb() {
         FOREIGN KEY(package_id) REFERENCES packages(id)
       )
     `);
-
     // Seed users
-    // VULNERABILITY A07: Unsalted MD5 password hashes are stored in the database
     const users = [
       { username: 'alice_subscriber', pass: 'alicepass', role: 'CUSTOMER' },
       { username: 'bob_subscriber', pass: 'bobpass', role: 'CUSTOMER' },
       { username: 'admin_agent', pass: 'adminpass2026', role: 'ADMIN' }
     ];
-
     const stmt = db.prepare('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)');
     users.forEach(u => {
-      // VULNERABILITY A07: Cryptographic failure - storing passwords using unsalted MD5 hash
       const hash = crypto.createHash('md5').update(u.pass).digest('hex');
       stmt.run(u.username, hash, u.role);
     });
     stmt.finalize();
-
     // Seed packages
     db.run(`
       INSERT INTO packages (name, description, price)
@@ -81,7 +69,6 @@ function initDb() {
       INSERT INTO packages (name, description, price)
       VALUES ('Snack Box', 'Healthy organic snacks and dried fruits.', 24.99)
     `);
-
     // Seed subscription
     db.run(`
       INSERT INTO subscriptions (user_id, package_id, status)
@@ -89,12 +76,9 @@ function initDb() {
     `);
   });
 }
-
 initDb();
-
 // Session store
 const sessions: Record<string, { id: number; username: string; role: string }> = {};
-
 function getSessionUser(req: Request) {
   const sessionId = req.cookies.session_id;
   if (!sessionId || !sessions[sessionId]) {
@@ -102,7 +86,6 @@ function getSessionUser(req: Request) {
   }
   return sessions[sessionId];
 }
-
 function requireAuth(req: Request, res: Response, next: NextFunction) {
   const user = getSessionUser(req);
   if (!user) {
@@ -110,28 +93,21 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
   }
   next();
 }
-
 // Profile Decoy: Proper logging is implemented here
 app.post('/api/user/profile', requireAuth, (req: Request, res: Response) => {
   const user = getSessionUser(req)!;
   const { email } = req.body;
-
   // Decoy: Proper security logging for profile updates
   console.log(`[SECURITY AUDIT] User ID ${user.id} updated profile details at ${new Date().toISOString()}`);
-  
   res.json({ message: 'Profile updated successfully.' });
 });
-
 // Authentication routes
 app.post('/api/auth/register', (req: Request, res: Response) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password are required.' });
   }
-
-  // VULNERABILITY A07: Cryptographic failure - storing user credentials with unsalted MD5
   const hash = crypto.createHash('md5').update(password).digest('hex');
-
   db.run('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)', [username, hash, 'CUSTOMER'], function(err) {
     if (err) {
       return res.status(400).json({ error: 'Username already exists.' });
@@ -139,31 +115,23 @@ app.post('/api/auth/register', (req: Request, res: Response) => {
     res.status(201).json({ message: 'User registered successfully.', userId: this.lastID });
   });
 });
-
 app.post('/api/auth/login', (req: Request, res: Response) => {
   const { username, password } = req.body;
-  
-  // VULNERABILITY A07: Verify login via unsalted MD5 check
   const hash = crypto.createHash('md5').update(password || '').digest('hex');
-
   db.get('SELECT * FROM users WHERE username = ?', [username], (err, user: User) => {
     if (err || !user) {
       return res.status(401).json({ error: 'Invalid credentials.' });
     }
-
     if (user.password_hash !== hash) {
       return res.status(401).json({ error: 'Invalid credentials.' });
     }
-
     // Decoy: Cryptographically secure token generation for session management
     const sessionId = crypto.randomBytes(16).toString('hex');
     sessions[sessionId] = { id: user.id, username: user.username, role: user.role };
-
     res.cookie('session_id', sessionId, { httpOnly: true });
     res.json({ message: 'Login successful.', role: user.role });
   });
 });
-
 app.post('/api/auth/logout', (req: Request, res: Response) => {
   const sessionId = req.cookies.session_id;
   if (sessionId) {
@@ -172,14 +140,9 @@ app.post('/api/auth/logout', (req: Request, res: Response) => {
   res.clearCookie('session_id');
   res.json({ message: 'Logged out successfully.' });
 });
-
-// VULNERABILITY A03: SQL Injection in package search endpoint
 app.get('/api/packages/search', (req: Request, res: Response) => {
   const queryParam = req.query.q || '';
-  
-  // VULNERABILITY A03: SQL injection - direct input concatenation
   const sql = `SELECT * FROM packages WHERE name LIKE '%${queryParam}%' OR description LIKE '%${queryParam}%'`;
-  
   db.all(sql, (err, rows) => {
     if (err) {
       return res.status(500).json({ error: 'Package search failed.', details: err.message });
@@ -187,7 +150,6 @@ app.get('/api/packages/search', (req: Request, res: Response) => {
     res.json(rows);
   });
 });
-
 // Decoy: Safe parameterized package retrieval by ID
 app.get('/api/packages/:id', (req: Request, res: Response) => {
   db.get('SELECT * FROM packages WHERE id = ?', [req.params.id], (err, row) => {
@@ -197,28 +159,20 @@ app.get('/api/packages/:id', (req: Request, res: Response) => {
     res.json(row);
   });
 });
-
-// VULNERABILITY A09: Security Logging and Monitoring Failures
-// CHAIN LINK 2 (chain-01): Missing logging for status modifications allows stealthy account elevation/subscription piracy
 app.post('/api/subscriptions/update', requireAuth, (req: Request, res: Response) => {
   const { subscriptionId, status } = req.body;
   const user = getSessionUser(req)!;
-
   if (!subscriptionId || !status) {
     return res.status(400).json({ error: 'Subscription ID and status are required.' });
   }
-
   // Ensure customer edits their own or admin edits any
   db.get('SELECT * FROM subscriptions WHERE id = ?', [subscriptionId], (err, row: any) => {
     if (err || !row) {
       return res.status(404).json({ error: 'Subscription not found.' });
     }
-
     if (row.user_id !== user.id && user.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Forbidden: Cannot modify other users subscriptions.' });
     }
-
-    // VULNERABILITY A09: No logging or security auditing is performed for critical status update operations
     db.run(
       'UPDATE subscriptions SET status = ? WHERE id = ?',
       [status, subscriptionId],
@@ -231,7 +185,6 @@ app.post('/api/subscriptions/update', requireAuth, (req: Request, res: Response)
     );
   });
 });
-
 app.listen(port, () => {
   console.log(`Subscription Box app listening at http://localhost:${port}`);
 });
