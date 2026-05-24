@@ -1,0 +1,85 @@
+{
+  "app_id": "app-10",
+  "app_name": "Telecom Billing Platform",
+  "language": "java",
+  "framework": "spring-boot",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "src/main/java/com/telecom/billing/controller/UsageController.java",
+      "method": "getUsageByDateRange",
+      "line_range": "20-31",
+      "description": "Usage search SQL query constructed using string concatenation with user-supplied date values",
+      "severity": "high",
+      "cwe": "CWE-89"
+    },
+    {
+      "owasp_id": "A04",
+      "category": "Insecure Design",
+      "location": "src/main/java/com/telecom/billing/service/PaymentService.java",
+      "method": "processPayment",
+      "line_range": "21-36",
+      "description": "No rate limiting or idempotency check on the payment processing service",
+      "severity": "medium",
+      "cwe": "CWE-799"
+    },
+    {
+      "owasp_id": "A09",
+      "category": "Security Logging and Monitoring Failures",
+      "location": "src/main/java/com/telecom/billing/controller/AdminController.java",
+      "method": "adjustBalance",
+      "line_range": "21-32",
+      "description": "Admin balance adjustment endpoint lacks audit logging, allowing undetectable database modification",
+      "severity": "low",
+      "cwe": "CWE-778"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "SQL Injection \u2192 Payment Fraud \u2192 No Audit Trail",
+      "attack_scenario": "Attacker exploits SQL injection in usage search to leak invoice details, submits multiple forged or replayed payment confirmations via the non-idempotent payment endpoint, and utilizes unlogged admin balance adjustments to complete fraud.",
+      "impact": "data_modification",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A03",
+          "description": "SQL injection in usage lookup allows exfiltrating details of other customers' invoices.",
+          "location": "src/main/java/com/telecom/billing/controller/UsageController.java",
+          "method": "getUsageByDateRange",
+          "severity": "medium",
+          "cwe": "CWE-89"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A04",
+          "description": "Payment endpoint lacks concurrency / replay / rate-limiting controls, allowing payment fraud.",
+          "location": "src/main/java/com/telecom/billing/service/PaymentService.java",
+          "method": "processPayment",
+          "severity": "medium",
+          "cwe": "CWE-799"
+        },
+        {
+          "step": 3,
+          "owasp_id": "A09",
+          "description": "Admin balance adjustments are not audit logged.",
+          "location": "src/main/java/com/telecom/billing/controller/AdminController.java",
+          "method": "adjustBalance",
+          "severity": "low",
+          "cwe": "CWE-778"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/main/java/com/telecom/billing/config/SecurityConfig.java",
+      "description": "Strong hashing (BCrypt) used for customer passwords"
+    },
+    {
+      "location": "src/main/java/com/telecom/billing/controller/CustomerController.java",
+      "description": "getCustomer validates Principal name matches resource owner before returning profile details"
+    }
+  ]
+}
