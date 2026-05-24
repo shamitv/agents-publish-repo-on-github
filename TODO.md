@@ -51,20 +51,20 @@
 
 ---
 
-## TypeScript (Express / NestJS) — 3/10 implemented
+## TypeScript (Express / NestJS) — 10/10 implemented
 
 | # | App Name | OWASP | Status |
 |---|----------|-------|--------|
 | 11 | Social Media Analytics Dashboard | A03, A05, A10 | ✅ Implemented |
 | 12 | Crypto Wallet Service | A02, A04, A07 | ✅ Implemented |
 | 13 | Project Management Tool | A01, A03, A09 | ✅ Implemented |
-| 14 | Telemedicine Appointment System | A01, A02, A07 | 📦 Placeholder |
-| 15 | Digital Asset Management | A01, A08, A10 | 📦 Placeholder |
-| 31 | Event Ticketing Platform | A03, A04, A07 | 📦 Placeholder |
-| 32 | Customer Support Ticket System | A01, A03, A05 | 📦 Placeholder |
-| 33 | Recruitment ATS | A01, A02, A06 | 📦 Placeholder |
-| 34 | Subscription Box Service | A03, A07, A09 | 📦 Placeholder |
-| 35 | Compliance Document Tracker | A01, A05, A08 | 📦 Placeholder |
+| 14 | Telemedicine Appointment System | A01, A02, A07 | ✅ Implemented |
+| 15 | Digital Asset Management | A01, A08, A10 | ✅ Implemented |
+| 31 | Event Ticketing Platform | A03, A04, A07 | ✅ Implemented |
+| 32 | Customer Support Ticket System | A01, A03, A05 | ✅ Implemented |
+| 33 | Recruitment ATS | A01, A02, A06 | ✅ Implemented |
+| 34 | Subscription Box Service | A03, A07, A09 | ✅ Implemented |
+| 35 | Compliance Document Tracker | A01, A05, A08 | ✅ Implemented |
 
 ---
 
@@ -96,6 +96,6 @@
 |----------|-------|---------------|-----------------|---------------|
 | Java | 11 | 11 | 0 | 0 |
 | Python | 14 | 14 | 0 | 0 |
-| TypeScript | 10 | 3 | 0 | 7 |
+| TypeScript | 10 | 10 | 0 | 0 |
 | JavaScript | 15 | 0 | 0 | 15 |
-| **Total** | **50** | **28** | **0** | **22** |
+| **Total** | **50** | **35** | **0** | **15** |
