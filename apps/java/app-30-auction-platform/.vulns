@@ -1,0 +1,76 @@
+{
+  "app_id": "app-30",
+  "app_name": "Auction Platform",
+  "language": "java",
+  "framework": "spring-boot",
+  "vulnerabilities": [
+    {
+      "owasp_id": "A04",
+      "category": "Insecure Design",
+      "location": "src/main/java/com/auction/platform/service/BidService.java",
+      "method": "placeBid",
+      "line_range": "21-47",
+      "description": "Bidding workflow suffers from race conditions allowing multiple concurrent lower bids to win or execute due to lack of db locks",
+      "severity": "medium",
+      "cwe": "CWE-362"
+    },
+    {
+      "owasp_id": "A07",
+      "category": "Identification and Authentication Failures",
+      "location": "src/main/java/com/auction/platform/model/User.java",
+      "method": "n/a",
+      "line_range": "12-19",
+      "description": "User passwords are saved in plaintext directly in the database without any hashing",
+      "severity": "high",
+      "cwe": "CWE-256"
+    },
+    {
+      "owasp_id": "A08",
+      "category": "Software and Data Integrity Failures",
+      "location": "src/main/java/com/auction/platform/controller/WebhookController.java",
+      "method": "handlePaymentWebhook",
+      "line_range": "21-41",
+      "description": "Webhook listener accepts arbitrary payloads without verifying payment signatures, allowing forged payment notifications",
+      "severity": "medium",
+      "cwe": "CWE-345"
+    }
+  ],
+  "chained_attacks": [
+    {
+      "chain_id": "chain-01",
+      "chain_name": "Plaintext Password Dump \u2192 Forged Webhook \u2192 Transaction Fraud",
+      "attack_scenario": "Attacker exfiltrates plaintext passwords via database access or a separate SQL injection, logs in as a seller to list items, and forges unsigned payment webhooks directly to the server to fake payment completion without transfer of actual money.",
+      "impact": "data_modification",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A07",
+          "description": "Plaintext passwords stored directly in the DB allows easy credential theft.",
+          "location": "src/main/java/com/auction/platform/model/User.java",
+          "method": "n/a",
+          "severity": "low",
+          "cwe": "CWE-256"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A08",
+          "description": "Webhook endpoint accepts payment notifications without signature verification.",
+          "location": "src/main/java/com/auction/platform/controller/WebhookController.java",
+          "method": "handlePaymentWebhook",
+          "severity": "medium",
+          "cwe": "CWE-345"
+        }
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "location": "src/main/java/com/auction/platform/controller/ListingController.java",
+      "description": "getListings endpoint is properly secured restricting list lookups to users with SELLER roles"
+    },
+    {
+      "location": "src/main/java/com/auction/platform/service/WalletService.java",
+      "description": "deductBalance utilizes serializable transactional isolation levels to avoid balance race conditions"
+    }
+  ]
+}
