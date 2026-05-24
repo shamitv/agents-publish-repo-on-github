@@ -9,7 +9,7 @@ All **50** application benchmark targets have been fully implemented across four
 - A `.vulns` machine-readable vulnerability manifest
 - Project dependency files (`pom.xml`, `package.json`, `requirements.txt`, etc.)
 
-Security reports have been generated for **13** applications (see [Report Status](#report-status)).
+Security reports have been generated for **28** applications (see [Report Status](#report-status)).
 
 ---
 
@@ -38,15 +38,15 @@ Security reports have been generated for **13** applications (see [Report Status
 | 19 | app-19 | Content Management System | JavaScript | Express | 3 | 1 | Medium | — |
 | 20 | app-20 | Fitness Tracker | JavaScript | Express | 3 | 1 | Easy | — |
 | 21 | app-21 | Insurance Claims | Python | Flask | 3 | 1 | Medium | ✅ |
-| 22 | app-22 | Food Delivery Order System | Python | FastAPI | 3 | 1 | Easy | — |
-| 23 | app-23 | Government Permits Portal | Python | Django | 3 | 1 | Medium | — |
-| 24 | app-24 | Veterinary Clinic | Python | FastAPI | 3 | 1 | Medium | — |
-| 25 | app-25 | Supply Chain Tracker | Python | Flask | 3 | 1 | Medium | — |
-| 26 | app-26 | Pharmaceutical Tracking | Java | Spring Boot | 3 | 1 | Hard | — |
-| 27 | app-27 | Hotel Reservation System | Java | Spring Boot | 3 | 1 | Medium | — |
-| 28 | app-28 | Manufacturing QC | Java | Spring Boot | 3 | 1 | Medium | — |
-| 29 | app-29 | Fleet Management | Java | Spring Boot | 3 | 1 | Hard | — |
-| 30 | app-30 | Auction Platform | Java | Spring Boot | 3 | 1 | Medium | — |
+| 22 | app-22 | Food Delivery Order System | Python | FastAPI | 3 | 1 | Easy | ✅ |
+| 23 | app-23 | Government Permits Portal | Python | Django | 3 | 1 | Medium | ✅ |
+| 24 | app-24 | Veterinary Clinic | Python | FastAPI | 3 | 1 | Medium | ✅ |
+| 25 | app-25 | Supply Chain Tracker | Python | Flask | 3 | 1 | Medium | ✅ |
+| 26 | app-26 | Pharmaceutical Tracking | Java | Spring Boot | 3 | 1 | Hard | ✅ |
+| 27 | app-27 | Hotel Reservation System | Java | Spring Boot | 3 | 1 | Medium | ✅ |
+| 28 | app-28 | Manufacturing QC | Java | Spring Boot | 3 | 1 | Medium | ✅ |
+| 29 | app-29 | Fleet Management | Java | Spring Boot | 3 | 1 | Hard | ✅ |
+| 30 | app-30 | Auction Platform | Java | Spring Boot | 3 | 1 | Medium | ✅ |
 | 31 | app-31 | Event Ticketing | TypeScript | Express | 3 | 1 | Medium | — |
 | 32 | app-32 | Support Ticket System | TypeScript | Express | 3 | 1 | Medium | — |
 | 33 | app-33 | Recruitment ATS | TypeScript | Express | 3 | 1 | Medium | — |
@@ -62,13 +62,13 @@ Security reports have been generated for **13** applications (see [Report Status
 | 43 | app-43 | Music Streaming Service | JavaScript | Express | 3 | 1 | Medium | — |
 | 44 | app-44 | Election Polling System | JavaScript | Express | 3 | 1 | Easy | — |
 | 45 | app-45 | Travel & Expense System | JavaScript | Express | 3 | 1 | Medium | — |
-| 46 | app-46 | Charity Donation Platform | Python | Flask | 3 | 1 | Medium | — |
-| 47 | app-47 | Smart Home Device Manager | Python | FastAPI | 3 | 1 | Hard | — |
-| 48 | app-48 | Freelancer Marketplace | Python | FastAPI | 3 | 1 | Easy | — |
-| 49 | app-49 | Sports League Management | Python | Flask | 3 | 1 | Medium | — |
-| 50 | app-50 | Energy Utility Billing | Java | Spring Boot | 4 | 1 | Hard | — |
+| 46 | app-46 | Charity Donation Platform | Python | Flask | 3 | 1 | Medium | ✅ |
+| 47 | app-47 | Smart Home Device Manager | Python | FastAPI | 3 | 1 | Hard | ✅ |
+| 48 | app-48 | Freelancer Marketplace | Python | FastAPI | 3 | 1 | Easy | ✅ |
+| 49 | app-49 | Sports League Management | Python | Flask | 3 | 1 | Medium | ✅ |
+| 50 | app-50 | Energy Utility Billing | Java | Spring Boot | 4 | 1 | Hard | ✅ |
 
-**Total:** 50 apps (13 with reports, 37 pending reports)
+**Total:** 50 apps (28 with reports, 22 pending reports)
 
 ---
 
@@ -146,18 +146,33 @@ Security benchmark reports exist under `reports/` for the following apps:
 | app-07 Airline Booking | `reports/app-07-airline-booking.md` |
 | app-08 Warehouse Management | `reports/app-08-warehouse-mgmt.md` |
 | app-09 Legal Document Manager | `reports/app-09-legal-documents.md` |
+| app-10 Telecom Billing | `reports/app-10-telecom-billing.md` |
 | app-11 Social Analytics | `reports/app-11-social-analytics.md` |
 | app-12 Crypto Wallet | `reports/app-12-crypto-wallet.md` |
 | app-13 Project Management | `reports/app-13-project-mgmt.md` |
 | app-21 Insurance Claims | `reports/app-21-insurance-claims.md` |
+| app-22 Food Delivery | `reports/app-22-food-delivery.md` |
+| app-23 Government Permits | `reports/app-23-govt-permits.md` |
+| app-24 Veterinary Clinic | `reports/app-24-vet-clinic.md` |
+| app-25 Supply Chain Tracker | `reports/app-25-supply-chain.md` |
+| app-26 Pharmaceutical Tracking | `reports/app-26-pharma-tracking.md` |
+| app-27 Hotel Reservation System | `reports/app-27-hotel-reservation.md` |
+| app-28 Manufacturing QC | `reports/app-28-mfg-quality.md` |
+| app-29 Fleet Management | `reports/app-29-fleet-management.md` |
+| app-30 Auction Platform | `reports/app-30-auction-platform.md` |
+| app-46 Charity Donation Platform | `reports/app-46-charity-donations.md` |
+| app-47 Smart Home Device Manager | `reports/app-47-smart-home.md` |
+| app-48 Freelancer Marketplace | `reports/app-48-freelancer-market.md` |
+| app-49 Sports League Management | `reports/app-49-sports-league.md` |
+| app-50 Energy Utility Billing | `reports/app-50-energy-billing.md` |
 
-**37 apps still require benchmark reports.**
+**22 apps still require benchmark reports.**
 
 ---
 
 ## Next Steps
 
-1. **Generate remaining 37 security reports** — Each report should follow the template in `reports/README.md` and test an AI security agent against the planted vulnerabilities and decoys.
+1. **Generate remaining 22 security reports** — Each report should follow the template in `reports/README.md` and test an AI security agent against the planted vulnerabilities and decoys.
 2. **Run agent benchmarks** — Execute security detection agents against each app and record results in the corresponding report.
 3. **Triage findings** — Validate agent detection rates (true positives vs. false positives) and compute precision/recall per OWASP category.
 4. **Target published reports** — Finalize all 50 reports and aggregate cross-app benchmark statistics.
