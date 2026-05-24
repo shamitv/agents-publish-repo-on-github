@@ -68,25 +68,25 @@
 
 ---
 
-## JavaScript (Express.js) — 0/15 implemented
+## JavaScript (Express.js) — 15/15 implemented
 
 | # | App Name | OWASP | Status |
 |---|----------|-------|--------|
-| 16 | Restaurant Review Platform | A01, A03, A07 | 📦 Placeholder |
-| 17 | IoT Device Dashboard | A02, A05, A10 | 📦 Placeholder |
-| 18 | Peer-to-Peer Lending Platform | A01, A02, A04 | 📦 Placeholder |
-| 19 | Content Management System | A03, A05, A08 | 📦 Placeholder |
-| 20 | Fitness Tracking API | A01, A06, A07 | 📦 Placeholder |
-| 36 | Parking Management System | A03, A04, A09 | 📦 Placeholder |
-| 37 | Agricultural Crop Planner | A05, A06, A10 | 📦 Placeholder |
-| 38 | Museum Collection Catalog | A01, A03, A09 | 📦 Placeholder |
-| 39 | Wedding Planning Platform | A01, A02, A07 | 📦 Placeholder |
-| 40 | Pet Adoption Portal | A03, A05, A08 | 📦 Placeholder |
-| 41 | Library Book Reservation System | A01, A03, A07 | 📦 Placeholder |
-| 42 | Construction Project Tracker | A01, A08, A09 | 📦 Placeholder |
-| 43 | Music Streaming Playlist Service | A01, A05, A10 | 📦 Placeholder |
-| 44 | Election Polling System | A02, A04, A09 | 📦 Placeholder |
-| 45 | Corporate Travel & Expense | A01, A03, A07 | 📦 Placeholder |
+| 16 | Restaurant Review Platform | A01, A03, A07 | ✅ Implemented |
+| 17 | IoT Device Dashboard | A02, A05, A10 | ✅ Implemented |
+| 18 | Peer-to-Peer Lending Platform | A01, A02, A04 | ✅ Implemented |
+| 19 | Content Management System | A03, A05, A08 | ✅ Implemented |
+| 20 | Fitness Tracking API | A01, A06, A07 | ✅ Implemented |
+| 36 | Parking Management System | A03, A04, A09 | ✅ Implemented |
+| 37 | Agricultural Crop Planner | A05, A06, A10 | ✅ Implemented |
+| 38 | Museum Collection Catalog | A01, A03, A09 | ✅ Implemented |
+| 39 | Wedding Planning Platform | A01, A02, A07 | ✅ Implemented |
+| 40 | Pet Adoption Portal | A03, A05, A08 | ✅ Implemented |
+| 41 | Library Book Reservation System | A01, A03, A07 | ✅ Implemented |
+| 42 | Construction Project Tracker | A01, A08, A09 | ✅ Implemented |
+| 43 | Music Streaming Playlist Service | A01, A05, A10 | ✅ Implemented |
+| 44 | Election Polling System | A02, A04, A09 | ✅ Implemented |
+| 45 | Corporate Travel & Expense | A01, A03, A07 | ✅ Implemented |
 
 ---
 
@@ -97,5 +97,5 @@
 | Java | 11 | 11 | 0 | 0 |
 | Python | 14 | 14 | 0 | 0 |
 | TypeScript | 10 | 10 | 0 | 0 |
-| JavaScript | 15 | 0 | 0 | 15 |
-| **Total** | **50** | **35** | **0** | **15** |
+| JavaScript | 15 | 15 | 0 | 0 |
+| **Total** | **50** | **50** | **0** | **0** |
