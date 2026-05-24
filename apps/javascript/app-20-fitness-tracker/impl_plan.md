@@ -1,12 +1,22 @@
-# Implementation Plan for $app
+# Implementation Plan - Fitness Tracking API (App 20)
 
-- Set up project scaffolding for the appropriate language/framework.
-- Implement core business functionality (e.g., CRUD endpoints, UI pages).
-- Intentionally inject 2‑4 OWASP Top 10 issues (e.g., CORS misconfiguration, insecure deserialization, missing auth checks, etc.).
-- Write unit tests for normal flow.
-- Document each vulnerability in `vulnerabilities.json` with file path, line number, CWE, and severity.
-- Provide a Dockerfile for containerized execution.
+This application has been implemented as a JavaScript Express microservice with an in-memory SQLite database.
 
----
+## Planted Vulnerabilities
+1. **A01: Broken Access Control (IDOR)**:
+   - Location: `src/index.js` → `GET /api/activities/:id`
+   - Vulnerable code: Retrieves fitness activity details matching the ID without verifying ownership.
+2. **A06: Vulnerable and Outdated Components**:
+   - Location: `src/index.js` → `unsafeMerge`
+   - Vulnerable code: Recursive custom merge algorithm fails to block prototype pollution keys (`__proto__`), exposing the system to prototype pollution.
+3. **A07: Identification and Authentication Failures**:
+   - Location: `src/index.js` → `POST /api/auth/login`
+   - Vulnerable code: Session keys are generated using predictable `Math.random()`.
 
-*Generated automatically; customize as needed.*
+## Chained Attack
+- **Chain-01**: Predictable Session Hijacking (A07) → IDOR Fitness Log Theft (A01)
+- The attacker guesses an active user's session token, hijacks the session, and queries other users' private workouts via the IDOR endpoint.
+
+## Decoys
+- Scoped index view `/api/activities` limits users to their own logs.
+- Salted Bcrypt hashing for password credentials checks.
