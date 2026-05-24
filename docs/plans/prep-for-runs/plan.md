@@ -336,9 +336,68 @@ After completing steps A–E for each app, verify:
 
 ## Summary Checklist (All 50 Apps)
 
-| # | App | SCAN | REMOVE | MOVE to scenarios.md | COMMIT+PUSH | UPDATE .vulns |
+### Batch 1: Python (14 apps)
+| # | App | SCAN | REMOVE | MOVE → scenarios.md | COMMIT+PUSH | UPDATE .vulns |
 |---|-----|------|--------|---------------------|-------------|---------------|
-| 1 | app-01 | ☐ | ☐ | ☐ | ☐ | ☐ |
-| 2 | app-02 | ☐ | ☐ | ☐ | ☐ | ☐ |
-| ... | ... | ... | ... | ... | ... | ... |
-| 50 | app-50 | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 1 | app-01-ecommerce-catalog | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 2 | app-02-patient-portal | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 3 | app-03-banking-service | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 4 | app-04-real-estate | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 5 | app-05-learning-mgmt | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 6 | app-21-insurance-claims | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 7 | app-22-food-delivery | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 8 | app-23-govt-permits | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 9 | app-24-vet-clinic | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 10 | app-25-supply-chain | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 11 | app-46-charity-donations | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 12 | app-47-smart-home | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 13 | app-48-freelancer-market | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 14 | app-49-sports-league | ☐ | ☐ | ☐ | ☐ | ☐ |
+
+### Batch 2: Java (11 apps)
+| # | App | SCAN | REMOVE | MOVE → scenarios.md | COMMIT+PUSH | UPDATE .vulns |
+|---|-----|------|--------|---------------------|-------------|---------------|
+| 15 | app-06-hr-management | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 16 | app-07-airline-booking | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 17 | app-08-warehouse-mgmt | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 18 | app-09-legal-documents | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 19 | app-10-telecom-billing | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 20 | app-26-pharma-tracking | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 21 | app-27-hotel-reservation | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 22 | app-28-mfg-quality | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 23 | app-29-fleet-management | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 24 | app-30-auction-platform | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 25 | app-50-energy-billing | ☐ | ☐ | ☐ | ☐ | ☐ |
+
+### Batch 3: JavaScript (15 apps)
+| # | App | SCAN | REMOVE | MOVE → scenarios.md | COMMIT+PUSH | UPDATE .vulns |
+|---|-----|------|--------|---------------------|-------------|---------------|
+| 26 | app-16-restaurant-reviews | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 27 | app-17-iot-dashboard | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 28 | app-18-p2p-lending | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 29 | app-19-cms | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 30 | app-20-fitness-tracker | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 31 | app-36-parking-mgmt | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 32 | app-37-crop-planner | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 33 | app-38-museum-catalog | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 34 | app-39-wedding-planner | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 35 | app-40-pet-adoption | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 36 | app-41-library-reservation | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 37 | app-42-construction-tracker | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 38 | app-43-music-streaming | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 39 | app-44-election-polling | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 40 | app-45-travel-expense | ☐ | ☐ | ☐ | ☐ | ☐ |
+
+### Batch 4: TypeScript (10 apps)
+| # | App | SCAN | REMOVE | MOVE → scenarios.md | COMMIT+PUSH | UPDATE .vulns |
+|---|-----|------|--------|---------------------|-------------|---------------|
+| 41 | app-11-social-analytics | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 42 | app-12-crypto-wallet | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 43 | app-13-project-mgmt | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 44 | app-14-telemedicine | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 45 | app-15-digital-assets | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 46 | app-31-event-ticketing | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 47 | app-32-support-tickets | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 48 | app-33-recruitment-ats | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 49 | app-34-subscription-box | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 50 | app-35-compliance-tracker | ☐ | ☐ | ☐ | ☐ | ☐ |

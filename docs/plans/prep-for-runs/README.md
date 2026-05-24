@@ -1,4 +1,4 @@
-# Prep-for-Runs — Plan
+# Prep-for-Runs — Preparation Plan for Agent Benchmarking
 
 This directory contains the preparation plan for cleaning up app source code before running security agent benchmarks. The goal is to remove vulnerability annotations from source code and README files, moving that metadata exclusively into `.vulns` JSON manifests and `scenarios.md` files.
 
