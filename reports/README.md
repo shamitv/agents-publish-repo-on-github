@@ -48,7 +48,7 @@ This directory contains security audit reports for all intentionally vulnerable 
 | A09 | Security Logging Failures | 13 |
 | A10 | Server-Side Request Forgery | 08, 11 |
 
-\* Scaffold-only apps not included
+\* app-05 (python), app-10 (typescript), app-14–50 are scaffold-only (empty directories)
 
 ---
 
