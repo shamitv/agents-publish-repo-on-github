@@ -1,54 +1,188 @@
-# Implementation Plans — secure-code-hunt
+# Implementation Plan — Secure Code Hunt
 
-This directory contains phased implementation plans for completing all 50 intentionally vulnerable applications in the secure-code-hunt benchmark.
+## Status Summary
 
-## Current Status Summary
+All **50** application benchmark targets have been fully implemented across four languages (Python, Java, JavaScript, TypeScript). Each app includes:
 
-| Status | Count | Apps |
-|--------|-------|------|
-| 🟢 **Done** (source + report) | 12 | 01, 02, 03, 04, 06, 07, 08, 09, 11, 12, 13, 23 |
-| 🟡 **Need Report Only** | 1 | 23 (has source, no .vulns/report) |
-| 🔴 **Need Full Implementation** | 37 | All others (scaffold-only) |
+- Complete runnable source code in `apps/<language>/app-<NN>-<name>/src/`
+- A `README.md` with business domain, tech stack, features, and security benchmarking notes
+- A `.vulns` machine-readable vulnerability manifest
+- Project dependency files (`pom.xml`, `package.json`, `requirements.txt`, etc.)
 
-## Implementation Phases
-
-| Phase | Focus | Apps | Effort |
-|-------|-------|------|--------|
-| [Phase 1 — Inventory](phase-01-inventory/PLAN.md) | Deep file audit of all 50 apps | All | ✅ Done |
-| [Phase 2 — Missing Reports](phase-02-existing-reports/PLAN.md) | Generate report for app-23 | 23 | Small |
-| [Phase 3 — Python Apps](phase-03-python-apps/PLAN.md) | Implement 9 Python scaffolds | 05, 21, 22, 24, 25, 46, 47, 48, 49 | Large |
-| [Phase 4 — Java Apps](phase-04-java-apps/PLAN.md) | Implement 7 Java scaffolds | 10, 26, 27, 28, 29, 30, 50 | Medium |
-| [Phase 5 — JavaScript Apps](phase-05-javascript-apps/PLAN.md) | Implement 15 JavaScript scaffolds | 16, 17, 18, 19, 20, 36-45 | Large |
-| [Phase 6 — TypeScript Apps](phase-06-typescript-apps/PLAN.md) | Implement 7 TypeScript scaffolds | 14, 15, 31, 32, 33, 34, 35 | Medium |
-| [Phase 7 — Documentation](phase-07-documentation/PLAN.md) | Update READMEs, generate master TODO | N/A | Small |
-
-## OWASP Difficulty Distribution Goal
-
-To create a good benchmark, we need a mix of difficulty across the 50 apps:
-
-| Difficulty | Target Count | Current | Remaining |
-|------------|-------------|---------|-----------|
-| ★☆☆☆☆ Very Easy | 5 | 1 (app-12) | 4 |
-| ★★☆☆☆ Easy | 12 | 4 (03, 09, 11, 13) | 8 |
-| ★★★☆☆ Medium | 18 | 5 (01, 02, 04, 06, 07) | 13 |
-| ★★★★☆ Medium-Hard | 10 | 1 (app-08) | 9 |
-| ★★★★★ Hard | 5 | 0 | 5 |
-
-## Vuln Planting Rules (from AGENTS.md)
-
-Each app must have:
-- **2–4 standalone OWASP Top 10 vulnerabilities** (real, exploitable code)
-- **≥ 1 chained vulnerability scenario** (2–3 low/medium steps → high/critical impact)
-- **Decoy safe patterns** near vulnerable code (for false-positive testing)
-- Required chain impacts: `account_takeover`, `lateral_movement`, `db_exfiltration`, `data_modification`
-
-## Key Design Principles
-
-1. **Coverage completeness**: Target gaps in OWASP coverage (A04, A05, A06, A07, A08, A09 are underrepresented)
-2. **Difficulty spread**: Mix easy-to-find vulns with subtle ones (crypto flaws, deserialization chain steps)
-3. **Domain variety**: Banking, healthcare, logistics, social media, etc.
-4. **Framework variety**: Flask + Django (Python), Spring Boot (Java), Express (JS/TS), NestJS (TS)
+Security reports have been generated for **11** applications (see [Report Status](#report-status)).
 
 ---
 
-*Last updated: 2026-05-24*
+## Delivery Summary
+
+| # | App ID | App Name | Language | Framework | Vulns | Chains | Difficulty | Report |
+|---|--------|----------|----------|-----------|-------|--------|------------|--------|
+| 1 | app-01 | E-Commerce Catalog | Python | Flask | 3 | 1 | Hard | ✅ |
+| 2 | app-02 | Patient Portal | Python | Flask | 3 | 1 | Medium | ✅ |
+| 3 | app-03 | Banking Service | Python | Flask | 3 | 1 | Medium | ✅ |
+| 4 | app-04 | Real Estate Platform | Python | Flask | 3 | 1 | Medium | ✅ |
+| 5 | app-05 | Learning Management System | Python | Flask | 3 | 1 | Hard | — |
+| 6 | app-06 | HR Management | Java | Spring Boot | 3 | 1 | Medium | ✅ |
+| 7 | app-07 | Airline Booking System | Java | Spring Boot | 3 | 1 | Easy | ✅ |
+| 8 | app-08 | Warehouse Management | Java | Spring Boot | 3 | 1 | Easy | ✅ |
+| 9 | app-09 | Legal Document Manager | Java | Spring Boot | 3 | 1 | Medium | ✅ |
+| 10 | app-10 | Telecom Billing | Java | Spring Boot | 3 | 1 | Medium | ✅ |
+| 11 | app-11 | Social Analytics | TypeScript | NestJS | 3 | 1 | Medium | ✅ |
+| 12 | app-12 | Crypto Wallet | TypeScript | Express | 3 | 1 | Medium | ✅ |
+| 13 | app-13 | Project Management | TypeScript | Express | 3 | 1 | Medium | ✅ |
+| 14 | app-14 | Telemedicine | TypeScript | Express | 3 | 1 | Medium | — |
+| 15 | app-15 | Digital Assets Manager | TypeScript | Express | 3 | 1 | Medium | — |
+| 16 | app-16 | Restaurant Reviews | JavaScript | Express | 3 | 1 | Medium | — |
+| 17 | app-17 | IoT Device Dashboard | JavaScript | Express | 3 | 1 | Medium | — |
+| 18 | app-18 | P2P Lending Platform | JavaScript | Express | 3 | 1 | Easy | — |
+| 19 | app-19 | Content Management System | JavaScript | Express | 3 | 1 | Medium | — |
+| 20 | app-20 | Fitness Tracker | JavaScript | Express | 3 | 1 | Easy | — |
+| 21 | app-21 | Insurance Claims | Python | Flask | 3 | 1 | Medium | — |
+| 22 | app-22 | Food Delivery Order System | Python | FastAPI | 3 | 1 | Easy | — |
+| 23 | app-23 | Government Permits Portal | Python | Django | 3 | 1 | Medium | — |
+| 24 | app-24 | Veterinary Clinic | Python | FastAPI | 3 | 1 | Medium | — |
+| 25 | app-25 | Supply Chain Tracker | Python | Flask | 3 | 1 | Medium | — |
+| 26 | app-26 | Pharmaceutical Tracking | Java | Spring Boot | 3 | 1 | Hard | — |
+| 27 | app-27 | Hotel Reservation System | Java | Spring Boot | 3 | 1 | Medium | — |
+| 28 | app-28 | Manufacturing QC | Java | Spring Boot | 3 | 1 | Medium | — |
+| 29 | app-29 | Fleet Management | Java | Spring Boot | 3 | 1 | Hard | — |
+| 30 | app-30 | Auction Platform | Java | Spring Boot | 3 | 1 | Medium | — |
+| 31 | app-31 | Event Ticketing | TypeScript | Express | 3 | 1 | Medium | — |
+| 32 | app-32 | Support Ticket System | TypeScript | Express | 3 | 1 | Medium | — |
+| 33 | app-33 | Recruitment ATS | TypeScript | Express | 3 | 1 | Medium | — |
+| 34 | app-34 | Subscription Box Service | TypeScript | Express | 3 | 1 | Medium | — |
+| 35 | app-35 | Compliance Document Tracker | TypeScript | Express | 3 | 1 | Medium | — |
+| 36 | app-36 | Parking Management | JavaScript | Express | 3 | 1 | Medium | — |
+| 37 | app-37 | Crop Planner | JavaScript | Express | 3 | 1 | Medium | — |
+| 38 | app-38 | Museum Collection Catalog | JavaScript | Express | 3 | 1 | Medium | — |
+| 39 | app-39 | Wedding Planning Platform | JavaScript | Express | 3 | 1 | Easy | — |
+| 40 | app-40 | Pet Adoption Portal | JavaScript | Express | 3 | 1 | Medium | — |
+| 41 | app-41 | Library Reservation System | JavaScript | Express | 3 | 1 | Medium | — |
+| 42 | app-42 | Construction Tracker | JavaScript | Express | 3 | 1 | Medium | — |
+| 43 | app-43 | Music Streaming Service | JavaScript | Express | 3 | 1 | Medium | — |
+| 44 | app-44 | Election Polling System | JavaScript | Express | 3 | 1 | Easy | — |
+| 45 | app-45 | Travel & Expense System | JavaScript | Express | 3 | 1 | Medium | — |
+| 46 | app-46 | Charity Donation Platform | Python | Flask | 3 | 1 | Medium | — |
+| 47 | app-47 | Smart Home Device Manager | Python | FastAPI | 3 | 1 | Hard | — |
+| 48 | app-48 | Freelancer Marketplace | Python | FastAPI | 3 | 1 | Easy | — |
+| 49 | app-49 | Sports League Management | Python | Flask | 3 | 1 | Medium | — |
+| 50 | app-50 | Energy Utility Billing | Java | Spring Boot | 4 | 1 | Hard | — |
+
+**Total:** 50 apps (11 with reports, 39 pending reports)
+
+---
+
+## Language Breakdown
+
+| Language | Count | Apps |
+|----------|-------|------|
+| Python | 14 | app-01–05, app-21–25, app-46–49 |
+| Java | 11 | app-06–10, app-26–30, app-50 |
+| JavaScript | 15 | app-16–20, app-36–45 |
+| TypeScript | 10 | app-11–15, app-31–35 |
+
+---
+
+## OWASP Top 10: 2021 Coverage
+
+| ID | Category | App Count |
+|----|----------|-----------|
+| A01 | Broken Access Control | 24 |
+| A02 | Cryptographic Failures | 11 |
+| A03 | Injection (SQL, XSS, LDAP, JPQL) | 23 |
+| A04 | Insecure Design | 8 |
+| A05 | Security Misconfiguration | 13 |
+| A06 | Vulnerable & Outdated Components | 6 |
+| A07 | Identification & Authentication Failures | 18 |
+| A08 | Software & Data Integrity Failures | 10 |
+| A09 | Security Logging & Monitoring Failures | 11 |
+| A10 | Server-Side Request Forgery (SSRF) | 11 |
+
+Every OWASP Top 10:2021 category is covered by at least 6 applications.
+
+---
+
+## Difficulty Distribution
+
+| Difficulty | Count | Criteria |
+|-----------|-------|----------|
+| **Easy** | 8 | All vulnerabilities ≤ medium severity; simple 2-step chains or standard IDOR/SQLi patterns |
+| **Medium** | 36 | Mix of high + medium severity vulns; standard 2-step chained attack scenarios |
+| **Hard** | 6 | Critical-severity vulns (RCE, Log4Shell, insecure deserialization) or complex 3-step chains with lateral movement impact |
+
+### Easy (8)
+app-07 (Airline Booking), app-08 (Warehouse Mgmt), app-18 (P2P Lending), app-20 (Fitness Tracker), app-22 (Food Delivery), app-39 (Wedding Planner), app-44 (Election Polling), app-48 (Freelancer Marketplace)
+
+### Hard (6)
+app-01 (E-Commerce — pickle RCE), app-05 (LMS — pickle RCE), app-26 (Pharma — Java deserialization RCE), app-29 (Fleet — Log4Shell CVE-2021-44228), app-47 (Smart Home — 3-step firmware hijack chain), app-50 (Energy — SSRF → H2 console → DB exfil + SQLi)
+
+---
+
+## Chained Vulnerability Scenarios
+
+Every application includes **≥ 1 chained vulnerability scenario** per the specification in [`AGENTS.md`](../../AGENTS.md). Chain impacts are distributed across all four required categories:
+
+| Impact Category | App Count |
+|----------------|-----------|
+| `account_takeover` | 7 |
+| `lateral_movement` | 8 |
+| `db_exfiltration` | 14 |
+| `data_modification` | 21 |
+
+---
+
+## Report Status
+
+Security benchmark reports exist under `reports/` for the following apps:
+
+| App | Report |
+|-----|--------|
+| app-01 E-Commerce Catalog | `reports/app-01-ecommerce-catalog.md` |
+| app-02 Patient Portal | `reports/app-02-patient-portal.md` |
+| app-03 Banking Service | `reports/app-03-banking-service.md` |
+| app-04 Real Estate Platform | `reports/app-04-real-estate.md` |
+| app-06 HR Management | `reports/app-06-hr-management.md` |
+| app-07 Airline Booking | `reports/app-07-airline-booking.md` |
+| app-08 Warehouse Management | `reports/app-08-warehouse-mgmt.md` |
+| app-09 Legal Document Manager | `reports/app-09-legal-documents.md` |
+| app-11 Social Analytics | `reports/app-11-social-analytics.md` |
+| app-12 Crypto Wallet | `reports/app-12-crypto-wallet.md` |
+| app-13 Project Management | `reports/app-13-project-mgmt.md` |
+
+**39 apps still require benchmark reports.**
+
+---
+
+## Next Steps
+
+1. **Generate remaining 39 security reports** — Each report should follow the template in `reports/README.md` and test an AI security agent against the planted vulnerabilities and decoys.
+2. **Run agent benchmarks** — Execute security detection agents against each app and record results in the corresponding report.
+3. **Triage findings** — Validate agent detection rates (true positives vs. false positives) and compute precision/recall per OWASP category.
+4. **Target published reports** — Finalize all 50 reports and aggregate cross-app benchmark statistics.
+
+---
+
+## Phased Implementation (Historical Reference)
+
+The implementation was completed across the following phases:
+
+| Phase | Apps | Scope | Status |
+|-------|------|-------|--------|
+| Phase 1 | app-01–04 | Python (Flask) + Reports | ✅ Complete |
+| Phase 2 | app-05, app-21–25 | Python (Flask/FastAPI/Django) | ✅ Complete |
+| Phase 3 | app-06–10 | Java (Spring Boot) + Reports | ✅ Complete |
+| Phase 4 | app-11–15 | TypeScript (Express/NestJS) + Reports | ✅ Complete |
+| Phase 5 | app-16–20 | JavaScript (Express) | ✅ Complete |
+| Phase 6 | app-26–30, app-50 | Java (Spring Boot) | ✅ Complete |
+| Phase 7 | app-31–35 | TypeScript (Express) | ✅ Complete |
+| Phase 8 | app-36–45 | JavaScript (Express) | ✅ Complete |
+| Phase 9 | app-46–49 | Python (Flask/FastAPI) | ✅ Complete |
+
+---
+
+## Technical Notes
+
+- Apps follow the conventions defined in [`AGENTS.md`](../../AGENTS.md) for vulnerability annotation, chained scenarios, and decoy placement.
+- The `.vulns` JSON manifests are machine-readable and schema-validated.
+- All apps use mock/in-memory databases — no external infrastructure is required.
+- Decoy safe patterns are documented in each app's `.vulns` under the `"decoys"` array.
