@@ -38,7 +38,7 @@
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "Diagnostics Configuration Exposure → SSRF Playlist Analytics Pivoting",
+      "chain_name": "Diagnostics Configuration Exposure \u2192 SSRF Playlist Analytics Pivoting",
       "attack_scenario": "An attacker queries `/api/system/status?debug=true` to obtain the metrics service token key `INTERNAL-METRICS-API-SECRET-2026`. Utilizing the cover lookup proxy `/api/cover`, they submit `url: 'http://localhost:8043/api/internal/analytics?token=INTERNAL-METRICS-API-SECRET-2026'`, leveraging the SSRF vulnerability to bypass authentication and retrieve all private playlists from the internal analytics database.",
       "impact": "lateral_movement",
       "components": [
@@ -49,7 +49,12 @@
           "location": "src/index.js",
           "method": "GET /api/system/status",
           "severity": "medium",
-          "cwe": "CWE-209"
+          "cwe": "CWE-209",
+          "required_evidence": [
+            "src/index.js",
+            "GET /api/system/status"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 2,
@@ -58,7 +63,110 @@
           "location": "src/index.js",
           "method": "GET /api/cover",
           "severity": "medium",
-          "cwe": "CWE-918"
+          "cwe": "CWE-918",
+          "required_evidence": [
+            "src/index.js",
+            "GET /api/cover"
+          ],
+          "negative_evidence": []
+        }
+      ],
+      "difficulty": "expert",
+      "subtlety_tags": [
+        "cross_file",
+        "state_confusion",
+        "parser_or_config_reasoning",
+        "implicit_trust",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker can influence a multi-step workflow",
+        "attacker can observe or reuse application state across requests"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.js",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "ssrf",
+      "required_evidence": [
+        "src/index.js",
+        "GET /api/system/status",
+        "GET /api/cover"
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Subtle Ssrf Pivot To Idor",
+      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
+      "impact": "lateral_movement",
+      "difficulty": "expert",
+      "subtlety_tags": [
+        "cross_file",
+        "state_confusion",
+        "parser_or_config_reasoning",
+        "implicit_trust",
+        "realistic_decoy",
+        "secondary_chain"
+      ],
+      "required_evidence": [
+        "src/index.js",
+        "GET /api/cover",
+        "GET /api/system/status",
+        "GET /api/playlists/:id"
+      ],
+      "chain_prerequisites": [
+        "attacker can influence a multi-step workflow",
+        "attacker can observe or reuse application state across requests"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.js",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "ssrf",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A10",
+          "description": "The cover art query proxy makes HTTP calls using axios on user-supplied URL inputs with no address block restriction, enabling SSRF.",
+          "location": "src/index.js",
+          "method": "GET /api/cover",
+          "severity": "high",
+          "cwe": "CWE-918",
+          "required_evidence": [
+            "src/index.js",
+            "GET /api/cover"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 2,
+          "owasp_id": "A05",
+          "description": "An open diagnostics route leaks system node settings and an administrative metrics integration API token key when active debug query options are provided.",
+          "location": "src/index.js",
+          "method": "GET /api/system/status",
+          "severity": "medium",
+          "cwe": "CWE-209",
+          "required_evidence": [
+            "src/index.js",
+            "GET /api/system/status"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 3,
+          "owasp_id": "A01",
+          "description": "Viewing private playlists by ID lacks checking user ownership, allowing any authenticated user to retrieve details of another listener's playlists.",
+          "location": "src/index.js",
+          "method": "GET /api/playlists/:id",
+          "severity": "medium",
+          "cwe": "CWE-639",
+          "required_evidence": [
+            "src/index.js",
+            "GET /api/playlists/:id"
+          ],
+          "negative_evidence": []
         }
       ]
     }
@@ -72,5 +180,11 @@
       "location": "src/index.js",
       "description": "Proper parameterized query logic in POST /api/tracks to add tracks to playlists safely."
     }
-  ]
+  ],
+  "benchmark_profile": {
+    "version": "v0.9",
+    "target_difficulty": "expert",
+    "upgrade_style": "in-place mixed difficulty ladder",
+    "decoy_file": "src/referenceGuards.js"
+  }
 }

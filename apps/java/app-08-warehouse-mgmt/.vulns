@@ -31,7 +31,7 @@
       "location": "src/main/java/com/warehouse/service/ShippingService.java",
       "method": "generateLabel",
       "line_range": "12-35",
-      "description": "Shipping label URL fetched server-side via HttpURLConnection with no scheme, host, or port validation — allows access to cloud metadata, internal services, and local files",
+      "description": "Shipping label URL fetched server-side via HttpURLConnection with no scheme, host, or port validation \u2014 allows access to cloud metadata, internal services, and local files",
       "severity": "critical",
       "cwe": "CWE-918"
     }
@@ -50,7 +50,12 @@
           "location": "src/main/java/com/warehouse/service/EmployeeLdapService.java",
           "method": "searchEmployees",
           "severity": "medium",
-          "cwe": "CWE-90"
+          "cwe": "CWE-90",
+          "required_evidence": [
+            "src/main/java/com/warehouse/service/EmployeeLdapService.java",
+            "searchEmployees"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 2,
@@ -59,7 +64,12 @@
           "location": "src/main/java/com/warehouse/controller/EmployeeController.java",
           "method": "search",
           "severity": "low",
-          "cwe": "CWE-209"
+          "cwe": "CWE-209",
+          "required_evidence": [
+            "src/main/java/com/warehouse/controller/EmployeeController.java",
+            "search"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 3,
@@ -68,7 +78,112 @@
           "location": "src/main/java/com/warehouse/controller/InventoryController.java",
           "method": "adjustQuantity",
           "severity": "high",
-          "cwe": "CWE-862"
+          "cwe": "CWE-862",
+          "required_evidence": [
+            "src/main/java/com/warehouse/controller/InventoryController.java",
+            "adjustQuantity"
+          ],
+          "negative_evidence": []
+        }
+      ],
+      "difficulty": "medium",
+      "subtlety_tags": [
+        "cross_file",
+        "direct_data_flow",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker can reach the public request path",
+        "attacker can control one request parameter or body field"
+      ],
+      "negative_evidence": [
+        "src/main/java/com/warehouse/support/ReferenceGuards.java",
+        "ReferenceGuards.sameOwner",
+        "ReferenceGuards.allowedCallback"
+      ],
+      "vulnerability_family": "injection",
+      "required_evidence": [
+        "src/main/java/com/warehouse/service/EmployeeLdapService.java",
+        "searchEmployees",
+        "src/main/java/com/warehouse/controller/EmployeeController.java",
+        "search",
+        "src/main/java/com/warehouse/controller/InventoryController.java",
+        "adjustQuantity"
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Subtle Ssrf Pivot To Auth Session",
+      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
+      "impact": "data_modification",
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy",
+        "secondary_chain"
+      ],
+      "required_evidence": [
+        "src/main/java/com/warehouse/service/ShippingService.java",
+        "generateLabel",
+        "src/main/java/com/warehouse/service/EmployeeLdapService.java",
+        "searchEmployees",
+        "src/main/resources/application.properties",
+        "application"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/main/java/com/warehouse/support/ReferenceGuards.java",
+        "ReferenceGuards.sameOwner",
+        "ReferenceGuards.allowedCallback"
+      ],
+      "vulnerability_family": "ssrf",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A10",
+          "description": "Shipping label URL fetched server-side via HttpURLConnection with no scheme, host, or port validation \u2014 allows access to cloud metadata, internal services, and local files",
+          "location": "src/main/java/com/warehouse/service/ShippingService.java",
+          "method": "generateLabel",
+          "severity": "critical",
+          "cwe": "CWE-918",
+          "required_evidence": [
+            "src/main/java/com/warehouse/service/ShippingService.java",
+            "generateLabel"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 2,
+          "owasp_id": "A03",
+          "description": "LDAP filter constructed via string concatenation with user-supplied search term, enabling LDAP injection to enumerate all employees or extract hidden attributes",
+          "location": "src/main/java/com/warehouse/service/EmployeeLdapService.java",
+          "method": "searchEmployees",
+          "severity": "high",
+          "cwe": "CWE-90",
+          "required_evidence": [
+            "src/main/java/com/warehouse/service/EmployeeLdapService.java",
+            "searchEmployees"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 3,
+          "owasp_id": "A05",
+          "description": "Spring Boot Actuator endpoints (env, heapdump, beans, mappings) exposed publicly without authentication via management.endpoints.web.exposure.include=*",
+          "location": "src/main/resources/application.properties",
+          "method": "application",
+          "severity": "high",
+          "cwe": "CWE-16",
+          "required_evidence": [
+            "src/main/resources/application.properties",
+            "application"
+          ],
+          "negative_evidence": []
         }
       ]
     }
@@ -76,19 +191,25 @@
   "decoys": [
     {
       "location": "src/main/java/com/warehouse/repository/InventoryRepository.java",
-      "description": "Spring Data JPA with parameterised @Query — NOT injectable"
+      "description": "Spring Data JPA with parameterised @Query \u2014 NOT injectable"
     },
     {
       "location": "src/main/java/com/warehouse/config/SecurityConfig.java",
-      "description": "BCryptPasswordEncoder — password hashing is SAFE"
+      "description": "BCryptPasswordEncoder \u2014 password hashing is SAFE"
     },
     {
       "location": "src/main/java/com/warehouse/controller/OrderController.java",
-      "description": "@PreAuthorize on status change endpoints — access control is correct"
+      "description": "@PreAuthorize on status change endpoints \u2014 access control is correct"
     },
     {
       "location": "src/main/java/com/warehouse/config/SecurityConfig.java",
-      "description": "Session fixation protection set to migrateSession() — properly configured"
+      "description": "Session fixation protection set to migrateSession() \u2014 properly configured"
     }
-  ]
+  ],
+  "benchmark_profile": {
+    "version": "v0.9",
+    "target_difficulty": "medium",
+    "upgrade_style": "in-place mixed difficulty ladder",
+    "decoy_file": "src/main/java/com/warehouse/support/ReferenceGuards.java"
+  }
 }

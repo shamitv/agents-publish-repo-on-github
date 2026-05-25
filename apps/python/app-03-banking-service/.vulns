@@ -49,7 +49,12 @@
           "location": "app.py",
           "method": "admin_list_users",
           "severity": "medium",
-          "cwe": "CWE-284"
+          "cwe": "CWE-284",
+          "required_evidence": [
+            "app.py",
+            "admin_list_users"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 2,
@@ -58,7 +63,12 @@
           "location": "app.py",
           "method": "login",
           "severity": "low",
-          "cwe": "CWE-614"
+          "cwe": "CWE-614",
+          "required_evidence": [
+            "app.py",
+            "login"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 3,
@@ -67,7 +77,108 @@
           "location": "app.py",
           "method": "dispatch_transfer",
           "severity": "high",
-          "cwe": "CWE-799"
+          "cwe": "CWE-799",
+          "required_evidence": [
+            "app.py",
+            "dispatch_transfer"
+          ],
+          "negative_evidence": []
+        }
+      ],
+      "difficulty": "medium",
+      "subtlety_tags": [
+        "cross_file",
+        "direct_data_flow",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker can reach the public request path",
+        "attacker can control one request parameter or body field"
+      ],
+      "negative_evidence": [
+        "reference_guards.py",
+        "same_owner",
+        "allowed_callback"
+      ],
+      "vulnerability_family": "auth_session",
+      "required_evidence": [
+        "app.py",
+        "admin_list_users",
+        "login",
+        "dispatch_transfer"
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Subtle Auth Session Pivot To Injection",
+      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
+      "impact": "data_modification",
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy",
+        "secondary_chain"
+      ],
+      "required_evidence": [
+        "app.py",
+        "dispatch_transfer",
+        "list_transactions",
+        "API_KEYS_CONFIG"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "reference_guards.py",
+        "same_owner",
+        "allowed_callback"
+      ],
+      "vulnerability_family": "injection",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A04",
+          "description": "wire transfer dispatch endpoint contains no rate-limiting, request throttling, or checkout limits, allowing malicious bots or automated scripts to trigger infinite consecutive transfers and drain accounts",
+          "location": "app.py",
+          "method": "dispatch_transfer",
+          "severity": "medium",
+          "cwe": "CWE-307",
+          "required_evidence": [
+            "app.py",
+            "dispatch_transfer"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 2,
+          "owasp_id": "A03",
+          "description": "Transaction filter endpoint parses raw, unvalidated JSON input from the user and supplies it directly to the PyMongo/mongomock find() engine, allowing arbitrary NoSQL operator injection ($ne, $gt) to leak private wire accounts",
+          "location": "app.py",
+          "method": "list_transactions",
+          "severity": "high",
+          "cwe": "CWE-943",
+          "required_evidence": [
+            "app.py",
+            "list_transactions"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 3,
+          "owasp_id": "A02",
+          "description": "Sensitive payment gateway API keys (GATEWAY_API_KEY) are hardcoded directly into the backend source code file rather than being loaded securely from external, encrypted environment variables",
+          "location": "app.py",
+          "method": "API_KEYS_CONFIG",
+          "severity": "high",
+          "cwe": "CWE-798",
+          "required_evidence": [
+            "app.py",
+            "API_KEYS_CONFIG"
+          ],
+          "negative_evidence": []
         }
       ]
     }
@@ -75,11 +186,17 @@
   "decoys": [
     {
       "location": "app.py",
-      "description": "Safe, cryptographically signed HTTP cookies for session auth handshakes — secure auth decoy"
+      "description": "Safe, cryptographically signed HTTP cookies for session auth handshakes \u2014 secure auth decoy"
     },
     {
       "location": "app.py",
-      "description": "Safe, parameterized username lookup on login — secure query decoy"
+      "description": "Safe, parameterized username lookup on login \u2014 secure query decoy"
     }
-  ]
+  ],
+  "benchmark_profile": {
+    "version": "v0.9",
+    "target_difficulty": "medium",
+    "upgrade_style": "in-place mixed difficulty ladder",
+    "decoy_file": "reference_guards.py"
+  }
 }

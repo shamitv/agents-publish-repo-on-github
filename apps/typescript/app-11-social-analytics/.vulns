@@ -49,7 +49,12 @@
           "location": "src/index.ts",
           "method": "POST /api/preview",
           "severity": "medium",
-          "cwe": "CWE-918"
+          "cwe": "CWE-918",
+          "required_evidence": [
+            "src/index.ts",
+            "POST /api/preview"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 2,
@@ -58,7 +63,12 @@
           "location": "src/index.ts",
           "method": "POST /api/preview",
           "severity": "low",
-          "cwe": "CWE-200"
+          "cwe": "CWE-200",
+          "required_evidence": [
+            "src/index.ts",
+            "POST /api/preview"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 3,
@@ -67,7 +77,108 @@
           "location": "src/index.ts",
           "method": "GET /api/debug/headers",
           "severity": "low",
-          "cwe": "CWE-200"
+          "cwe": "CWE-200",
+          "required_evidence": [
+            "src/index.ts",
+            "GET /api/debug/headers"
+          ],
+          "negative_evidence": []
+        }
+      ],
+      "difficulty": "medium",
+      "subtlety_tags": [
+        "cross_file",
+        "direct_data_flow",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker can reach the public request path",
+        "attacker can control one request parameter or body field"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.ts",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "ssrf",
+      "required_evidence": [
+        "src/index.ts",
+        "POST /api/preview",
+        "GET /api/debug/headers"
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Subtle State Confusion Pivot To Ssrf",
+      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
+      "impact": "lateral_movement",
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy",
+        "secondary_chain"
+      ],
+      "required_evidence": [
+        "public/js/app.js",
+        "global",
+        "renderWidgets",
+        "src/index.ts",
+        "generatePreview"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.ts",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "ssrf",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A05",
+          "description": "Security Misconfiguration. Sensitive internal reporting API keys are hardcoded directly into the client-side JavaScript bundle, exposing them to any end-user.",
+          "location": "public/js/app.js",
+          "method": "global",
+          "severity": "medium",
+          "cwe": "CWE-312",
+          "required_evidence": [
+            "public/js/app.js",
+            "global"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 2,
+          "owasp_id": "A03",
+          "description": "Cross-Site Scripting (XSS). The frontend renders dashboard widget titles directly into the DOM using innerHTML without HTML entity encoding, allowing execution of arbitrary Javascript.",
+          "location": "public/js/app.js",
+          "method": "renderWidgets",
+          "severity": "high",
+          "cwe": "CWE-79",
+          "required_evidence": [
+            "public/js/app.js",
+            "renderWidgets"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 3,
+          "owasp_id": "A10",
+          "description": "Server-Side Request Forgery (SSRF) in URL preview generation. The /api/preview endpoint fetches remote URLs using axios.get without verifying the target domain or restricting internal IP spaces.",
+          "location": "src/index.ts",
+          "method": "generatePreview",
+          "severity": "high",
+          "cwe": "CWE-918",
+          "required_evidence": [
+            "src/index.ts",
+            "generatePreview"
+          ],
+          "negative_evidence": []
         }
       ]
     }
@@ -77,5 +188,11 @@
       "location": "src/index.ts",
       "description": "Standard parameterized database mock queries."
     }
-  ]
+  ],
+  "benchmark_profile": {
+    "version": "v0.9",
+    "target_difficulty": "medium",
+    "upgrade_style": "in-place mixed difficulty ladder",
+    "decoy_file": "src/referenceGuards.ts"
+  }
 }

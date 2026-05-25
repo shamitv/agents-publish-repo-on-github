@@ -38,7 +38,7 @@
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "Debug Token Leak → SSRF Internal Recon → Unsigned Firmware Injection",
+      "chain_name": "Debug Token Leak \u2192 SSRF Internal Recon \u2192 Unsigned Firmware Injection",
       "attack_scenario": "An attacker queries the public /api/debug/devices debug endpoint to leak private device tokens. They then use the SSRF vulnerability in the sensor proxy endpoint to scan internal port ranges and locate private network hosts. Finally, the attacker uses the firmware update endpoint to point a device to a malicious unsigned binary stored on an internal host, achieving persistent compromise of the smart device.",
       "impact": "lateral_movement",
       "components": [
@@ -49,7 +49,12 @@
           "location": "app.py",
           "method": "debug_devices",
           "severity": "medium",
-          "cwe": "CWE-200"
+          "cwe": "CWE-200",
+          "required_evidence": [
+            "app.py",
+            "debug_devices"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 2,
@@ -58,7 +63,12 @@
           "location": "app.py",
           "method": "fetch_sensor_data",
           "severity": "medium",
-          "cwe": "CWE-918"
+          "cwe": "CWE-918",
+          "required_evidence": [
+            "app.py",
+            "fetch_sensor_data"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 3,
@@ -67,7 +77,111 @@
           "location": "app.py",
           "method": "update_firmware",
           "severity": "medium",
-          "cwe": "CWE-494"
+          "cwe": "CWE-494",
+          "required_evidence": [
+            "app.py",
+            "update_firmware"
+          ],
+          "negative_evidence": []
+        }
+      ],
+      "difficulty": "expert",
+      "subtlety_tags": [
+        "cross_file",
+        "state_confusion",
+        "parser_or_config_reasoning",
+        "implicit_trust",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker can influence a multi-step workflow",
+        "attacker can observe or reuse application state across requests"
+      ],
+      "negative_evidence": [
+        "reference_guards.py",
+        "same_owner",
+        "allowed_callback"
+      ],
+      "vulnerability_family": "ssrf",
+      "required_evidence": [
+        "app.py",
+        "debug_devices",
+        "fetch_sensor_data",
+        "update_firmware"
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Subtle Ssrf Pivot To Auth Session",
+      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
+      "impact": "lateral_movement",
+      "difficulty": "expert",
+      "subtlety_tags": [
+        "cross_file",
+        "state_confusion",
+        "parser_or_config_reasoning",
+        "implicit_trust",
+        "realistic_decoy",
+        "secondary_chain"
+      ],
+      "required_evidence": [
+        "app.py",
+        "fetch_sensor_data",
+        "update_firmware",
+        "debug_devices"
+      ],
+      "chain_prerequisites": [
+        "attacker can influence a multi-step workflow",
+        "attacker can observe or reuse application state across requests"
+      ],
+      "negative_evidence": [
+        "reference_guards.py",
+        "same_owner",
+        "allowed_callback"
+      ],
+      "vulnerability_family": "ssrf",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A10",
+          "description": "The sensor data proxy endpoint processes user-provided URLs without validating if they point to private network addresses or internal hosts, allowing SSRF.",
+          "location": "app.py",
+          "method": "fetch_sensor_data",
+          "severity": "medium",
+          "cwe": "CWE-918",
+          "required_evidence": [
+            "app.py",
+            "fetch_sensor_data"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 2,
+          "owasp_id": "A08",
+          "description": "The firmware update endpoint accepts any URL and downloads the firmware binary without checking signatures, hashes, or origin authority.",
+          "location": "app.py",
+          "method": "update_firmware",
+          "severity": "high",
+          "cwe": "CWE-494",
+          "required_evidence": [
+            "app.py",
+            "update_firmware"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 3,
+          "owasp_id": "A05",
+          "description": "An unauthenticated debug endpoint (/api/debug/devices) is exposed, leaking details of all registered devices along with their private access API tokens.",
+          "location": "app.py",
+          "method": "debug_devices",
+          "severity": "high",
+          "cwe": "CWE-200",
+          "required_evidence": [
+            "app.py",
+            "debug_devices"
+          ],
+          "negative_evidence": []
         }
       ]
     }
@@ -81,5 +195,11 @@
       "location": "app.py",
       "description": "Rate-limited status polling on /api/devices/{device_id}/status using an in-memory timestamp store to enforce a request cooldown period."
     }
-  ]
+  ],
+  "benchmark_profile": {
+    "version": "v0.9",
+    "target_difficulty": "expert",
+    "upgrade_style": "in-place mixed difficulty ladder",
+    "decoy_file": "reference_guards.py"
+  }
 }

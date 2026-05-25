@@ -38,7 +38,7 @@
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "IDOR Information Mining → Insecure Deserialization Remote Code Execution",
+      "chain_name": "IDOR Information Mining \u2192 Insecure Deserialization Remote Code Execution",
       "attack_scenario": "An attacker logs in, retrieves construction contract details by calling `/api/contracts/1` (IDOR), and copies details. They then POST a template config to `/api/contracts/template` containing a system command execution payload (such as `require('child_process').execSync(...)`) evaluated unsafely via eval(), achieving Remote Code Execution.",
       "impact": "account_takeover",
       "components": [
@@ -49,7 +49,12 @@
           "location": "src/index.js",
           "method": "GET /api/contracts/:id",
           "severity": "medium",
-          "cwe": "CWE-639"
+          "cwe": "CWE-639",
+          "required_evidence": [
+            "src/index.js",
+            "GET /api/contracts/:id"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 2,
@@ -58,7 +63,110 @@
           "location": "src/index.js",
           "method": "POST /api/contracts/template",
           "severity": "medium",
-          "cwe": "CWE-502"
+          "cwe": "CWE-502",
+          "required_evidence": [
+            "src/index.js",
+            "POST /api/contracts/template"
+          ],
+          "negative_evidence": []
+        }
+      ],
+      "difficulty": "expert",
+      "subtlety_tags": [
+        "cross_file",
+        "state_confusion",
+        "parser_or_config_reasoning",
+        "implicit_trust",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker can influence a multi-step workflow",
+        "attacker can observe or reuse application state across requests"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.js",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "idor",
+      "required_evidence": [
+        "src/index.js",
+        "GET /api/contracts/:id",
+        "POST /api/contracts/template"
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Subtle State Confusion Pivot To Idor",
+      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
+      "impact": "account_takeover",
+      "difficulty": "expert",
+      "subtlety_tags": [
+        "cross_file",
+        "state_confusion",
+        "parser_or_config_reasoning",
+        "implicit_trust",
+        "realistic_decoy",
+        "secondary_chain"
+      ],
+      "required_evidence": [
+        "src/index.js",
+        "POST /api/contracts/:id/delete",
+        "POST /api/contracts/template",
+        "GET /api/contracts/:id"
+      ],
+      "chain_prerequisites": [
+        "attacker can influence a multi-step workflow",
+        "attacker can observe or reuse application state across requests"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.js",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "idor",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A09",
+          "description": "Deleting sensitive construction contracts from the system tracker produces no audit logs, blindfolding administrators to data removal.",
+          "location": "src/index.js",
+          "method": "POST /api/contracts/:id/delete",
+          "severity": "low",
+          "cwe": "CWE-778",
+          "required_evidence": [
+            "src/index.js",
+            "POST /api/contracts/:id/delete"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 2,
+          "owasp_id": "A08",
+          "description": "Template layout parameters are deserialized using the insecure eval() constructor, enabling remote code execution on the hosting server.",
+          "location": "src/index.js",
+          "method": "POST /api/contracts/template",
+          "severity": "high",
+          "cwe": "CWE-502",
+          "required_evidence": [
+            "src/index.js",
+            "POST /api/contracts/template"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 3,
+          "owasp_id": "A01",
+          "description": "Viewing project contracts by ID lacks verification of user ownership, allowing any authenticated user to retrieve details of another manager's contracts.",
+          "location": "src/index.js",
+          "method": "GET /api/contracts/:id",
+          "severity": "medium",
+          "cwe": "CWE-639",
+          "required_evidence": [
+            "src/index.js",
+            "GET /api/contracts/:id"
+          ],
+          "negative_evidence": []
         }
       ]
     }
@@ -72,5 +180,11 @@
       "location": "src/index.js",
       "description": "Proper role restriction on GET /api/admin/stats checking for ADMIN role."
     }
-  ]
+  ],
+  "benchmark_profile": {
+    "version": "v0.9",
+    "target_difficulty": "expert",
+    "upgrade_style": "in-place mixed difficulty ladder",
+    "decoy_file": "src/referenceGuards.js"
+  }
 }

@@ -49,7 +49,12 @@
           "location": "src/main/java/com/auction/platform/model/User.java",
           "method": "n/a",
           "severity": "low",
-          "cwe": "CWE-256"
+          "cwe": "CWE-256",
+          "required_evidence": [
+            "src/main/java/com/auction/platform/model/User.java",
+            "n/a"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 2,
@@ -58,7 +63,111 @@
           "location": "src/main/java/com/auction/platform/controller/WebhookController.java",
           "method": "handlePaymentWebhook",
           "severity": "medium",
-          "cwe": "CWE-345"
+          "cwe": "CWE-345",
+          "required_evidence": [
+            "src/main/java/com/auction/platform/controller/WebhookController.java",
+            "handlePaymentWebhook"
+          ],
+          "negative_evidence": []
+        }
+      ],
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/main/java/com/auction/platform/support/ReferenceGuards.java",
+        "ReferenceGuards.sameOwner",
+        "ReferenceGuards.allowedCallback"
+      ],
+      "vulnerability_family": "ssrf",
+      "required_evidence": [
+        "src/main/java/com/auction/platform/model/User.java",
+        "n/a",
+        "src/main/java/com/auction/platform/controller/WebhookController.java",
+        "handlePaymentWebhook"
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Subtle Ssrf Pivot To State Confusion",
+      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
+      "impact": "data_modification",
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy",
+        "secondary_chain"
+      ],
+      "required_evidence": [
+        "src/main/java/com/auction/platform/controller/WebhookController.java",
+        "handlePaymentWebhook",
+        "src/main/java/com/auction/platform/model/User.java",
+        "n/a",
+        "src/main/java/com/auction/platform/service/BidService.java",
+        "placeBid"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/main/java/com/auction/platform/support/ReferenceGuards.java",
+        "ReferenceGuards.sameOwner",
+        "ReferenceGuards.allowedCallback"
+      ],
+      "vulnerability_family": "ssrf",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A08",
+          "description": "Webhook listener accepts arbitrary payloads without verifying payment signatures, allowing forged payment notifications",
+          "location": "src/main/java/com/auction/platform/controller/WebhookController.java",
+          "method": "handlePaymentWebhook",
+          "severity": "medium",
+          "cwe": "CWE-345",
+          "required_evidence": [
+            "src/main/java/com/auction/platform/controller/WebhookController.java",
+            "handlePaymentWebhook"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 2,
+          "owasp_id": "A07",
+          "description": "User passwords are saved in plaintext directly in the database without any hashing",
+          "location": "src/main/java/com/auction/platform/model/User.java",
+          "method": "n/a",
+          "severity": "high",
+          "cwe": "CWE-256",
+          "required_evidence": [
+            "src/main/java/com/auction/platform/model/User.java",
+            "n/a"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 3,
+          "owasp_id": "A04",
+          "description": "Bidding workflow suffers from race conditions allowing multiple concurrent lower bids to win or execute due to lack of db locks",
+          "location": "src/main/java/com/auction/platform/service/BidService.java",
+          "method": "placeBid",
+          "severity": "medium",
+          "cwe": "CWE-362",
+          "required_evidence": [
+            "src/main/java/com/auction/platform/service/BidService.java",
+            "placeBid"
+          ],
+          "negative_evidence": []
         }
       ]
     }
@@ -72,5 +181,11 @@
       "location": "src/main/java/com/auction/platform/service/WalletService.java",
       "description": "deductBalance utilizes serializable transactional isolation levels to avoid balance race conditions"
     }
-  ]
+  ],
+  "benchmark_profile": {
+    "version": "v0.9",
+    "target_difficulty": "hard",
+    "upgrade_style": "in-place mixed difficulty ladder",
+    "decoy_file": "src/main/java/com/auction/platform/support/ReferenceGuards.java"
+  }
 }

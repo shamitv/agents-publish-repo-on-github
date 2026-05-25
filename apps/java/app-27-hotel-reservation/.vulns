@@ -49,7 +49,12 @@
           "location": "src/main/java/com/hotel/reservation/controller/AdminController.java",
           "method": "getSystemInfo",
           "severity": "medium",
-          "cwe": "CWE-215"
+          "cwe": "CWE-215",
+          "required_evidence": [
+            "src/main/java/com/hotel/reservation/controller/AdminController.java",
+            "getSystemInfo"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 2,
@@ -58,7 +63,111 @@
           "location": "src/main/java/com/hotel/reservation/config/SecurityConfig.java",
           "method": "filterChain",
           "severity": "medium",
-          "cwe": "CWE-384"
+          "cwe": "CWE-384",
+          "required_evidence": [
+            "src/main/java/com/hotel/reservation/config/SecurityConfig.java",
+            "filterChain"
+          ],
+          "negative_evidence": []
+        }
+      ],
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/main/java/com/hotel/reservation/support/ReferenceGuards.java",
+        "ReferenceGuards.sameOwner",
+        "ReferenceGuards.allowedCallback"
+      ],
+      "vulnerability_family": "auth_session",
+      "required_evidence": [
+        "src/main/java/com/hotel/reservation/controller/AdminController.java",
+        "getSystemInfo",
+        "src/main/java/com/hotel/reservation/config/SecurityConfig.java",
+        "filterChain"
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Subtle Auth Session Pivot To Injection",
+      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
+      "impact": "account_takeover",
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy",
+        "secondary_chain"
+      ],
+      "required_evidence": [
+        "src/main/java/com/hotel/reservation/config/SecurityConfig.java",
+        "filterChain",
+        "src/main/java/com/hotel/reservation/controller/AdminController.java",
+        "getSystemInfo",
+        "src/main/java/com/hotel/reservation/controller/RoomController.java",
+        "searchRooms"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/main/java/com/hotel/reservation/support/ReferenceGuards.java",
+        "ReferenceGuards.sameOwner",
+        "ReferenceGuards.allowedCallback"
+      ],
+      "vulnerability_family": "injection",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A07",
+          "description": "Session fixation protection is disabled via sessionFixation().none(), meaning session IDs are not rotated upon login",
+          "location": "src/main/java/com/hotel/reservation/config/SecurityConfig.java",
+          "method": "filterChain",
+          "severity": "medium",
+          "cwe": "CWE-384",
+          "required_evidence": [
+            "src/main/java/com/hotel/reservation/config/SecurityConfig.java",
+            "filterChain"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 2,
+          "owasp_id": "A05",
+          "description": "Exposed admin debug endpoint without authentication leaks system variables and default admin credentials",
+          "location": "src/main/java/com/hotel/reservation/controller/AdminController.java",
+          "method": "getSystemInfo",
+          "severity": "medium",
+          "cwe": "CWE-215",
+          "required_evidence": [
+            "src/main/java/com/hotel/reservation/controller/AdminController.java",
+            "getSystemInfo"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 3,
+          "owasp_id": "A03",
+          "description": "JPQL query constructed using string concatenation with user-supplied parameters allows SQL/JPQL injection",
+          "location": "src/main/java/com/hotel/reservation/controller/RoomController.java",
+          "method": "searchRooms",
+          "severity": "high",
+          "cwe": "CWE-89",
+          "required_evidence": [
+            "src/main/java/com/hotel/reservation/controller/RoomController.java",
+            "searchRooms"
+          ],
+          "negative_evidence": []
         }
       ]
     }
@@ -72,5 +181,11 @@
       "location": "src/main/java/com/hotel/reservation/controller/GuestController.java",
       "description": "getGuestDetails validates that GUEST users can only retrieve their own record"
     }
-  ]
+  ],
+  "benchmark_profile": {
+    "version": "v0.9",
+    "target_difficulty": "hard",
+    "upgrade_style": "in-place mixed difficulty ladder",
+    "decoy_file": "src/main/java/com/hotel/reservation/support/ReferenceGuards.java"
+  }
 }

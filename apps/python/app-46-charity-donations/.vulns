@@ -38,7 +38,7 @@
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "API Key Exposure → SQLi Donor Dump → Silent Refund Fraud",
+      "chain_name": "API Key Exposure \u2192 SQLi Donor Dump \u2192 Silent Refund Fraud",
       "attack_scenario": "An attacker reads the hardcoded Stripe key from the source code. They then use the SQL injection vulnerability on the search donation endpoint to extract transaction IDs and donor information. Lastly, using the leaked Stripe credentials and transaction details, they trigger a refund to themselves silently due to missing audit logs.",
       "impact": "db_exfiltration",
       "components": [
@@ -49,7 +49,12 @@
           "location": "app.py",
           "method": "STRIPE_KEY",
           "severity": "medium",
-          "cwe": "CWE-798"
+          "cwe": "CWE-798",
+          "required_evidence": [
+            "app.py",
+            "STRIPE_KEY"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 2,
@@ -58,7 +63,12 @@
           "location": "app.py",
           "method": "search_donations",
           "severity": "medium",
-          "cwe": "CWE-89"
+          "cwe": "CWE-89",
+          "required_evidence": [
+            "app.py",
+            "search_donations"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 3,
@@ -67,7 +77,111 @@
           "location": "app.py",
           "method": "process_refund",
           "severity": "low",
-          "cwe": "CWE-778"
+          "cwe": "CWE-778",
+          "required_evidence": [
+            "app.py",
+            "process_refund"
+          ],
+          "negative_evidence": []
+        }
+      ],
+      "difficulty": "expert",
+      "subtlety_tags": [
+        "cross_file",
+        "state_confusion",
+        "parser_or_config_reasoning",
+        "implicit_trust",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker can influence a multi-step workflow",
+        "attacker can observe or reuse application state across requests"
+      ],
+      "negative_evidence": [
+        "reference_guards.py",
+        "same_owner",
+        "allowed_callback"
+      ],
+      "vulnerability_family": "injection",
+      "required_evidence": [
+        "app.py",
+        "STRIPE_KEY",
+        "search_donations",
+        "process_refund"
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Subtle State Confusion Pivot To Injection",
+      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
+      "impact": "db_exfiltration",
+      "difficulty": "expert",
+      "subtlety_tags": [
+        "cross_file",
+        "state_confusion",
+        "parser_or_config_reasoning",
+        "implicit_trust",
+        "realistic_decoy",
+        "secondary_chain"
+      ],
+      "required_evidence": [
+        "app.py",
+        "process_refund",
+        "search_donations",
+        "STRIPE_KEY"
+      ],
+      "chain_prerequisites": [
+        "attacker can influence a multi-step workflow",
+        "attacker can observe or reuse application state across requests"
+      ],
+      "negative_evidence": [
+        "reference_guards.py",
+        "same_owner",
+        "allowed_callback"
+      ],
+      "vulnerability_family": "injection",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A09",
+          "description": "High-value financial refund operations are performed silently without producing any audit log records.",
+          "location": "app.py",
+          "method": "process_refund",
+          "severity": "medium",
+          "cwe": "CWE-778",
+          "required_evidence": [
+            "app.py",
+            "process_refund"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 2,
+          "owasp_id": "A03",
+          "description": "User search query is concatenated directly into a raw SQL query inside search_donations(), causing SQL injection.",
+          "location": "app.py",
+          "method": "search_donations",
+          "severity": "high",
+          "cwe": "CWE-89",
+          "required_evidence": [
+            "app.py",
+            "search_donations"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 3,
+          "owasp_id": "A02",
+          "description": "Stripe payment gateway API key is hardcoded directly in the application source code.",
+          "location": "app.py",
+          "method": "STRIPE_KEY",
+          "severity": "high",
+          "cwe": "CWE-798",
+          "required_evidence": [
+            "app.py",
+            "STRIPE_KEY"
+          ],
+          "negative_evidence": []
         }
       ]
     }
@@ -81,5 +195,11 @@
       "location": "app.py",
       "description": "Proper parameterized SQL queries for retrieving campaigns by title/description."
     }
-  ]
+  ],
+  "benchmark_profile": {
+    "version": "v0.9",
+    "target_difficulty": "expert",
+    "upgrade_style": "in-place mixed difficulty ladder",
+    "decoy_file": "reference_guards.py"
+  }
 }

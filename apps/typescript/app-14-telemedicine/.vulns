@@ -38,7 +38,7 @@
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "Weak JWT Signatures → IDOR Records Exfiltration",
+      "chain_name": "Weak JWT Signatures \u2192 IDOR Records Exfiltration",
       "attack_scenario": "An attacker cracks or guesses the weak JWT secret offline, then crafts a custom JWT asserting a doctor role. Using this forged token, they query the appointment details endpoint to exfiltrate private patient records and doctor consultation notes via IDOR.",
       "impact": "db_exfiltration",
       "components": [
@@ -49,7 +49,12 @@
           "location": "src/index.ts",
           "method": "login",
           "severity": "medium",
-          "cwe": "CWE-327"
+          "cwe": "CWE-327",
+          "required_evidence": [
+            "src/index.ts",
+            "login"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 2,
@@ -58,7 +63,107 @@
           "location": "src/index.ts",
           "method": "GET /api/appointments/:id",
           "severity": "medium",
-          "cwe": "CWE-639"
+          "cwe": "CWE-639",
+          "required_evidence": [
+            "src/index.ts",
+            "GET /api/appointments/:id"
+          ],
+          "negative_evidence": []
+        }
+      ],
+      "difficulty": "medium",
+      "subtlety_tags": [
+        "cross_file",
+        "direct_data_flow",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker can reach the public request path",
+        "attacker can control one request parameter or body field"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.ts",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "idor",
+      "required_evidence": [
+        "src/index.ts",
+        "login",
+        "GET /api/appointments/:id"
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Subtle Auth Session Pivot To Idor",
+      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
+      "impact": "db_exfiltration",
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy",
+        "secondary_chain"
+      ],
+      "required_evidence": [
+        "src/index.ts",
+        "login",
+        "generateJWT",
+        "GET /api/appointments/:id"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.ts",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "idor",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A07",
+          "description": "Session token cookie is set with httpOnly: false, permitting client-side scripts to access it and exposing users to session hijacking via XSS.",
+          "location": "src/index.ts",
+          "method": "login",
+          "severity": "medium",
+          "cwe": "CWE-1004",
+          "required_evidence": [
+            "src/index.ts",
+            "login"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 2,
+          "owasp_id": "A02",
+          "description": "Authentication tokens are signed with a weak, hardcoded secret ('healthcare123') using HS256, allowing offline key cracking or token forgery.",
+          "location": "src/index.ts",
+          "method": "generateJWT",
+          "severity": "high",
+          "cwe": "CWE-327",
+          "required_evidence": [
+            "src/index.ts",
+            "generateJWT"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 3,
+          "owasp_id": "A01",
+          "description": "Appointment details endpoint retrieves private physician notes and patient PII by ID without checking if the requesting user is the patient or doctor assigned to the appointment.",
+          "location": "src/index.ts",
+          "method": "GET /api/appointments/:id",
+          "severity": "high",
+          "cwe": "CWE-639",
+          "required_evidence": [
+            "src/index.ts",
+            "GET /api/appointments/:id"
+          ],
+          "negative_evidence": []
         }
       ]
     }
@@ -72,5 +177,11 @@
       "location": "src/index.ts",
       "description": "Scoped list view `/api/appointments` restricting standard patient users to only see their own appointments."
     }
-  ]
+  ],
+  "benchmark_profile": {
+    "version": "v0.9",
+    "target_difficulty": "medium",
+    "upgrade_style": "in-place mixed difficulty ladder",
+    "decoy_file": "src/referenceGuards.ts"
+  }
 }
