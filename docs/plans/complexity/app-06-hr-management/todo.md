@@ -42,6 +42,7 @@ This checklist tracks the tasks required to implement the enterprise architectur
 - [ ] Construct an HTML dashboard showing onboarding flows, list of employees, and logs read from Elasticsearch.
 
 ## Phase 8: Verification
+- [ ] Audit all source code to ensure NO comments or annotations exist that can tip off agents. Limit all vulnerability/chain mapping details strictly to `.vulns` and `scenarios.md`.
 - [ ] Verify Log4j RCE (A08) works against the Kafka consumer queue.
 - [ ] Verify IDOR (A01) retrieves profiles from PostgreSQL correctly.
 - [ ] Verify weak cryptography (A02) still decrypts SSNs stored in PostgreSQL.

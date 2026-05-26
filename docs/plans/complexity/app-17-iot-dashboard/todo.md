@@ -43,3 +43,5 @@ This checklist tracks the tasks required to implement the enterprise architectur
 - [ ] Verify SSRF (A10) operates and can target Redis, OpenSearch, and Kafka hosts.
 - [ ] Confirm configuration leak (A05) reveals the new database and broker credentials.
 - [ ] Run the complete integration tests using Docker Compose.
+
+- [ ] Audit all source code to ensure NO comments or annotations exist that can tip off agents. Limit all vulnerability/chain mapping details strictly to `.vulns` and `scenarios.md`.

@@ -43,5 +43,6 @@ This checklist tracks the tasks required to implement the enterprise full-stack 
 
 ## Phase 7: Verification
 - [ ] Verify Elasticsearch Injection vulnerability (A03) successfully extracts documents or alters search scope.
+- [ ] Audit all source code to ensure NO comments or annotations exist that can tip off agents. Limit all vulnerability/chain mapping details strictly to `.vulns` and `scenarios.md`.
 - [ ] Verify IDOR vulnerability (A01) bypasses session checks in the modularized order controller.
 - [ ] Confirm absence of logs (A09) in Kafka consumer files.

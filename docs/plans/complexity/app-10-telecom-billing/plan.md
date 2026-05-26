@@ -62,3 +62,9 @@ src/main/java/com/telecom/
 - **Chain-02 (HARD to Find & Exploit)**: *Dynamic Tariff Injection → Kafka Desync → Credit Adjustment Hijack*
   - *Narrative*: Attacker performs a complex SQL Injection that inserts an invalid record into the PostgreSQL `rate_plans` cache. When a CDR event is processed by Kafka, the `CdrConsumer` queries PostgreSQL and reads the corrupted row. Due to a parsing exception that defaults to off-peak pricing, the calculation loops infinitely. The attacker exploits this lag to trigger a payment cancellation event. The payment gateway, desynchronized from Kafka billing totals, executes a credit adjustment bypass, resulting in large balances credited back to the attacker's account.
   - *Subtlety*: High. It relies on a database state injection triggering a thread loop lag in the event processor, desynchronizing the payment gateway state.
+
+---
+
+## 5. Code Comment Constraints (Agent Tipping Prevention)
+- **No Code-Level Tips**: Source code files (`src/`) must not contain any explicit comments, annotations, or markers (e.g. `// VULNERABILITY`, `// CHAIN LINK`, etc.) that could tip off security-detection agents.
+- **Metadata Localization**: All details regarding standalone vulnerabilities, exploit chains, and locations are strictly restricted to the ground-truth metadata files (`.vulns` JSON manifest) and internal reference files (`scenarios.md`).

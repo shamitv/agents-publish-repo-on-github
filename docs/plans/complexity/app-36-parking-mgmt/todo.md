@@ -49,3 +49,5 @@ This checklist tracks the tasks required to implement the enterprise architectur
 - [ ] Verify cost manipulation (A04) processes successfully through Kafka and produces incorrect billing states.
 - [ ] Confirm absence of logs (A09) in the background listener.
 - [ ] Run the complete integration tests using Docker Compose.
+
+- [ ] Audit all source code to ensure NO comments or annotations exist that can tip off agents. Limit all vulnerability/chain mapping details strictly to `.vulns` and `scenarios.md`.
