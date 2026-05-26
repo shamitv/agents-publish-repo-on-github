@@ -2,7 +2,7 @@
 
 A collection of **50 intentionally vulnerable web applications** designed to benchmark AI agents that detect common security vulnerabilities (OWASP Top 10: 2021).
 
-Each application simulates a realistic business system with **2–4 deliberately planted vulnerabilities**, along with safe code patterns to test agent precision.
+Each application simulates a realistic business system with **2–5 deliberately planted vulnerabilities**, along with safe code patterns to test agent precision.
 
 ---
 
@@ -129,7 +129,7 @@ app-NN-name/
 ├── src/                   # Source code with planted vulnerabilities
 ├── tests/                 # Functional tests
 ├── config/                # Configuration files
-├── vulnerabilities.json   # Ground truth vulnerability manifest
+├── .vulns                 # Ground truth vulnerability manifest
 └── Dockerfile             # Containerized deployment
 ```
 
@@ -137,7 +137,7 @@ app-NN-name/
 
 ## Scoring
 
-The ground truth for each application is stored in `vulnerabilities.json`. An agent is evaluated on:
+The ground truth for each application is stored in `.vulns`. An agent is evaluated on:
 
 | Metric | Target | Description |
 |--------|--------|-------------|
