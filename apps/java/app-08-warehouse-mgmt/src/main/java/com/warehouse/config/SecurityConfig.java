@@ -1,42 +1,4 @@
-package com.warehouse.config;
-
-import com.warehouse.model.User;
-import com.warehouse.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.header.writers.XXssProtectionHeaderWriter;
-
-import java.util.Optional;
-
-@Configuration
-@EnableWebSecurity
-@EnableMethodSecurity
-public class SecurityConfig {
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-            .csrf(csrf -> csrf.disable()) // Disable CSRF to allow pure JSON REST communications from SPA
-            .headers(headers -> headers
-                .frameOptions(frame -> frame.disable()) // Enable standard frame options
-                .xssProtection(xss -> xss.headerValue(XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK))
-            )
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/index.html", "/css/**", "/js/**").permitAll()
-                // Planted Vulnerability: Exposed Actuator endpoints without security guards
+: Exposed Actuator endpoints without security guards
                 .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().authenticated()
             )
@@ -54,7 +16,6 @@ public class SecurityConfig {
                 })
                 .permitAll()
             )
-            // Session fixation protection properly configured to rotate session tokens (decoy)
             .sessionManagement(session -> session
                 .sessionFixation(fixation -> fixation.migrateSession())
             )
@@ -68,10 +29,8 @@ public class SecurityConfig {
                 .deleteCookies("JSESSIONID")
                 .permitAll()
             );
-
         return http.build();
     }
-
     @Bean
     public UserDetailsService userDetailsService() {
         return username -> {
@@ -86,7 +45,6 @@ public class SecurityConfig {
                     .build();
         };
     }
-
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(); // SAFE decoy pattern

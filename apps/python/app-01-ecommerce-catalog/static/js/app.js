@@ -10,7 +10,6 @@ document.addEventListener("DOMContentLoaded", () => {
     checkAuthentication();
 });
 
-// Verify active session profile
 function checkAuthentication() {
     fetch("/api/auth/me")
         .then(res => {
@@ -41,7 +40,6 @@ function checkAuthentication() {
         });
 }
 
-// Authentication handlers
 function handleLoginSubmit(e) {
     e.preventDefault();
     const user = document.getElementById("username").value.trim();
@@ -80,7 +78,6 @@ function handleLogout() {
         .catch(err => console.error("Logout failed:", err));
 }
 
-// Router switcher
 function showView(viewName) {
     currentView = viewName;
 
@@ -106,7 +103,6 @@ function showView(viewName) {
     }
 }
 
-// 1. Catalog View
 function loadCatalog(searchQuery = '') {
     const consoleFeed = document.getElementById("sqlConsoleFeed");
     let url = "/api/products";
@@ -117,7 +113,6 @@ function loadCatalog(searchQuery = '') {
     fetch(url)
         .then(res => res.json())
         .then(data => {
-            // Update pipeline console feed (SQL Injection target A03 tracer!)
             if (data.success === false) {
                 consoleFeed.innerHTML = `<span style="color: var(--danger);">[SQL EXCEPTION ERROR]:\n${data.error}\n\nQuery executed:\n${data.query_executed}</span>`;
                 return;
@@ -164,7 +159,6 @@ function triggerCatalogSearch() {
     loadCatalog(q);
 }
 
-// 2. Client Cart Basket
 function addToCart(id, name, price) {
     const existing = cart.find(item => item.id === id);
     if (existing) {
@@ -266,7 +260,6 @@ function commitCheckout() {
     });
 }
 
-// 3. Orders View
 function loadOrders() {
     fetch("/api/orders")
         .then(res => res.json())
@@ -306,11 +299,7 @@ function loadOrders() {
         .catch(err => console.error("Error loading purchases:", err));
 }
 
-// 4. Order Details Modal (IDOR playground - A01 target!)
 function readOrderDetails(orderId) {
-    // VULNERABILITY A01: Horizontal IDOR bypass target.
-    // Retrieves individual order receipt payloads solely based on path variables, allowing users to
-    // inspect each other's transactions without ownership validations.
     fetch(`/api/orders/${orderId}`)
         .then(res => {
             if (res.ok) return res.json();

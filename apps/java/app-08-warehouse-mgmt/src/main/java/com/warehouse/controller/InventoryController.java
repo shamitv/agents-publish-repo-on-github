@@ -1,5 +1,4 @@
 package com.warehouse.controller;
-
 import com.warehouse.model.InventoryItem;
 import com.warehouse.service.InventoryService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -7,31 +6,25 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
-
 @RestController
 @RequestMapping("/api/inventory")
 public class InventoryController {
-
     @Autowired
     private InventoryService inventoryService;
-
     @GetMapping
     public ResponseEntity<List<InventoryItem>> listAll() {
         return ResponseEntity.ok(inventoryService.listAll());
     }
-
     @GetMapping("/low-stock")
     public ResponseEntity<List<InventoryItem>> listLowStock() {
         return ResponseEntity.ok(inventoryService.listLowStock());
     }
-
     @GetMapping("/{id}")
     public ResponseEntity<InventoryItem> getById(@PathVariable Long id) {
         return inventoryService.getById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
-
     @PostMapping
     @PreAuthorize("hasAnyRole('SUPERVISOR', 'ADMIN')")
     public ResponseEntity<?> create(@RequestBody InventoryItem item) {
@@ -42,7 +35,6 @@ public class InventoryController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPERVISOR', 'ADMIN')")
     public ResponseEntity<?> update(@PathVariable Long id, @RequestBody InventoryItem details) {
@@ -53,7 +45,6 @@ public class InventoryController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
@@ -64,8 +55,6 @@ public class InventoryController {
             return ResponseEntity.notFound().build();
         }
     }
-
-    // CHAIN LINK 3 (chain-01): Inventory adjustment endpoint requires only authentication,
     // not the SUPERVISOR or ADMIN role. Any warehouse worker account discovered via the
     // LDAP injection in step 1 can modify quantities for any item.
     @PostMapping("/{id}/adjust")
@@ -73,7 +62,6 @@ public class InventoryController {
             @PathVariable Long id,
             @RequestParam int delta) {
         try {
-            // Missing @PreAuthorize role check — any authenticated user can adjust stock
             InventoryItem updated = inventoryService.getById(id)
                     .map(item -> {
                         item.setQuantity(item.getQuantity() + delta);

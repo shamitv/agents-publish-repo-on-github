@@ -52,7 +52,6 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        // DECOY: Strong BCrypt hashing for authentication
         return new BCryptPasswordEncoder();
     }
 }

@@ -55,7 +55,6 @@ def init_db():
         price REAL NOT NULL
     )''')
     
-    # Seed Users (In a real system, passwords would be hashed; standard plaintext check for decoy simplicity or simple validation)
     users_data = [
         ('alice', 'alice123', 'CUSTOMER'),
         ('bob', 'bob123', 'CUSTOMER'),
@@ -108,7 +107,6 @@ def login():
     username = data.get('username', '').strip()
     password = data.get('password', '').strip()
     
-    # Decoy: Secure, parameterized SQL query for login verification
     cursor = db_conn.cursor()
     cursor.execute("SELECT * FROM users WHERE username = ? AND password_hash = ?", (username, password))
     user = cursor.fetchone()
@@ -131,9 +129,6 @@ def logout():
     session.clear()
     return jsonify({'success': True})
 
-# CHAIN LINK 1 (chain-01): User enumeration endpoint.
-# Returns 200 if a username exists, 404 if not — individually a low-severity
-# information-disclosure issue, but enables the first step of the session-forge chain.
 @app.route('/api/users/exists', methods=['GET'])
 def user_exists():
     username = request.args.get('username', '').strip()
@@ -160,13 +155,11 @@ def list_products():
     cursor = db_conn.cursor()
     
     if q:
-        # VULNERABILITY A03: Raw SQL string concatenation mapping user-input parameters (SQL Injection target)
         query = f"SELECT id, sku, name, description, category, price, quantity FROM products WHERE name LIKE '%{q}%' OR description LIKE '%{q}%'"
         try:
             cursor.execute(query)
             rows = cursor.fetchall()
         except Exception as e:
-            # Verbose SQL error response helps tool benchmarking and validates A03 trigger success
             return jsonify({'success': False, 'error': str(e), 'query_executed': query}), 400
     else:
         cursor.execute("SELECT id, sku, name, description, category, price, quantity FROM products")
@@ -243,7 +236,6 @@ def get_order_details(order_id):
         
     cursor = db_conn.cursor()
     
-    # VULNERABILITY A01: IDOR. Checks order details by ID directly without verifying owner user_id matches session['user_id']!
     cursor.execute("SELECT o.id, o.order_number, o.total_amount, o.status, o.created_at, u.username FROM orders o JOIN users u ON o.user_id = u.id WHERE o.id = ?", (order_id,))
     order = cursor.fetchone()
     
@@ -316,9 +308,6 @@ def create_order():
             
         db_conn.commit()
         
-        # VULNERABILITY A09: Severe Logging Failure.
-        # Critical financial checkout and catalog stock deduction complete, but no auditable logs are written!
-        # (Generic decoy prints might occur on connection setups, but nothing logs this action).
         
         return jsonify({'success': True, 'order_id': order_id, 'order_number': order_number})
     except Exception as e:

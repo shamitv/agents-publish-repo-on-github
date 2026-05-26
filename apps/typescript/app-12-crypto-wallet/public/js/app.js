@@ -96,7 +96,6 @@ function loadDashboard() {
             document.getElementById("walletBalance").innerText = wallet.balance.toFixed(4);
             document.getElementById("walletAddress").innerText = wallet.address;
             
-            // OWASP A02: Plaintext private key exposed!
             document.getElementById("walletPrivateKey").innerText = wallet.privateKey;
             
             loadTransactions();
@@ -139,7 +138,6 @@ function handleTransfer(e) {
     const recipientAddress = document.getElementById("transferRecipient").value.trim();
     const amount = parseFloat(document.getElementById("transferAmount").value);
 
-    // OWASP A04/A07: Immediate execution without confirmation or MFA!
     fetch("/api/wallet/transfer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

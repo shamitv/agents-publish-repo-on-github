@@ -1,22 +1,15 @@
 package com.pharma.tracking.service;
-
 import com.pharma.tracking.model.CustodyRecord;
 import com.pharma.tracking.repository.CustodyRecordRepository;
 import org.springframework.stereotype.Service;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
-
 @Service
 public class CustodyService {
-
     private final CustodyRecordRepository custodyRecordRepository;
-
     public CustodyService(CustodyRecordRepository custodyRecordRepository) {
         this.custodyRecordRepository = custodyRecordRepository;
     }
-
-    // VULNERABILITY A02: Weak signature hashing for chain of custody
-    // CHAIN LINK 2 (chain-01): Weak signature algorithm (MD5) is forgeable
     public String generateCustodySignature(Long batchId, String timestamp, String fromEntity, String toEntity) {
         try {
             String payload = batchId + ":" + timestamp + ":" + fromEntity + ":" + toEntity;
@@ -31,18 +24,15 @@ public class CustodyService {
             throw new RuntimeException("Error generating signature", e);
         }
     }
-
     public CustodyRecord recordTransfer(Long batchId, String fromEntity, String toEntity) {
         String timestamp = LocalDateTime.now().toString();
         String signature = generateCustodySignature(batchId, timestamp, fromEntity, toEntity);
-
         CustodyRecord record = new CustodyRecord();
         record.setBatchId(batchId);
         record.setFromEntity(fromEntity);
         record.setToEntity(toEntity);
         record.setTransferredAt(LocalDateTime.now());
         record.setSignatureHash(signature);
-
         return custodyRecordRepository.save(record);
     }
 }

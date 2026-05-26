@@ -1,5 +1,4 @@
 package com.hr.controller;
-
 import com.hr.dto.EmployeeDTO;
 import com.hr.model.Employee;
 import com.hr.repository.DepartmentRepository;
@@ -14,22 +13,16 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
 import java.util.HashMap;
-
 @RestController
 @RequestMapping("/api/employees")
 public class EmployeeController {
-
     @Autowired
     private EmployeeService employeeService;
-
     @Autowired
     private EmployeeImportService employeeImportService;
-
     @Autowired
     private DepartmentRepository departmentRepository;
-
     @GetMapping
     public ResponseEntity<List<EmployeeDTO>> listEmployees(@RequestParam(value = "q", required = false) String query) {
         List<Employee> list = employeeService.searchEmployees(query);
@@ -38,14 +31,12 @@ public class EmployeeController {
                 .collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
     }
-
     @GetMapping("/{id}")
     public ResponseEntity<EmployeeDTO> getEmployee(@PathVariable Long id) {
         return employeeService.getEmployeeById(id)
                 .map(emp -> ResponseEntity.ok(EmployeeDTO.fromEntity(emp)))
                 .orElse(ResponseEntity.notFound().build());
     }
-
     @PostMapping
     @PreAuthorize("hasRole('HR_ADMIN')")
     public ResponseEntity<EmployeeDTO> createEmployee(@RequestBody Map<String, Object> payload) {
@@ -65,7 +56,6 @@ public class EmployeeController {
         Employee saved = employeeService.saveEmployee(emp);
         return ResponseEntity.ok(EmployeeDTO.fromEntity(saved));
     }
-
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('HR_ADMIN')")
     public ResponseEntity<EmployeeDTO> updateEmployee(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
@@ -86,15 +76,12 @@ public class EmployeeController {
             return ResponseEntity.ok(EmployeeDTO.fromEntity(saved));
         }).orElse(ResponseEntity.notFound().build());
     }
-
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('HR_ADMIN')")
     public ResponseEntity<Void> deleteEmployee(@PathVariable Long id) {
         employeeService.deleteEmployee(id);
         return ResponseEntity.noContent().build();
     }
-
-    // CHAIN LINK 1 (chain-01): Audit endpoint exposes raw employee data including the
     // passwordHash field. The missing @PreAuthorize means any authenticated employee can
     // call this for any employee ID. Individually a minor IDOR, but the exposed hash
     // enables the offline-crack step that unlocks higher-privilege sessions.
@@ -111,7 +98,6 @@ public class EmployeeController {
             return ResponseEntity.ok(auditData);
         }).orElse(ResponseEntity.notFound().build());
     }
-
     // Import employees endpoint
     @PostMapping("/import")
     @PreAuthorize("hasRole('HR_ADMIN')")

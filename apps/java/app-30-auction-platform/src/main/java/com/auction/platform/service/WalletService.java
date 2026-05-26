@@ -15,7 +15,6 @@ public class WalletService {
         this.walletRepository = walletRepository;
     }
 
-    // DECOY: Wallet balance operations utilize strict SERIALIZABLE transactional isolation (safe)
     @Transactional(isolation = Isolation.SERIALIZABLE)
     public void deductBalance(Long userId, Double amount) {
         Wallet wallet = walletRepository.findByUserId(userId)

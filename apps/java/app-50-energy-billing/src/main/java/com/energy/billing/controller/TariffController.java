@@ -19,7 +19,6 @@ public class TariffController {
         this.tariffService = tariffService;
     }
 
-    // DECOY: Normal security checks properly require BILLING_ADMIN role to fetch active tariff schedules
     @GetMapping
     @PreAuthorize("hasRole('BILLING_ADMIN')")
     public ResponseEntity<List<Tariff>> getTariffs() {

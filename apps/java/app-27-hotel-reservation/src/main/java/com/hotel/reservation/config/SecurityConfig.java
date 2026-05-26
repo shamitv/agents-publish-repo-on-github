@@ -1,5 +1,4 @@
 package com.hotel.reservation.config;
-
 import com.hotel.reservation.repository.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,18 +14,14 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
-
     private final UserRepository userRepository;
-
     public SecurityConfig(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
-
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -38,15 +33,12 @@ public class SecurityConfig {
                 .requestMatchers("/api/admin/debug").permitAll()
                 .anyRequest().authenticated()
             )
-            // VULNERABILITY A07: Session Fixation allowed
-            // CHAIN LINK 2 (chain-01): Session fixation protection is disabled
             .sessionManagement(session -> session
                 .sessionFixation(sessionFixation -> sessionFixation.none())
             )
             .httpBasic(Customizer.withDefaults());
         return http.build();
     }
-
     @Bean
     public UserDetailsService userDetailsService() {
         return username -> userRepository.findByUsername(username)
@@ -56,10 +48,8 @@ public class SecurityConfig {
                         .build())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
     }
-
     @Bean
     public PasswordEncoder passwordEncoder() {
-        // DECOY: Strong BCrypt hashing is safe
         return new BCryptPasswordEncoder();
     }
 }

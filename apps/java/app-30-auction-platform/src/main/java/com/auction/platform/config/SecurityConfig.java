@@ -1,5 +1,4 @@
 package com.auction.platform.config;
-
 import com.auction.platform.repository.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,19 +14,15 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 @SuppressWarnings("deprecation")
 public class SecurityConfig {
-
     private final UserRepository userRepository;
-
     public SecurityConfig(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
-
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -41,7 +36,6 @@ public class SecurityConfig {
             .httpBasic(Customizer.withDefaults());
         return http.build();
     }
-
     @Bean
     public UserDetailsService userDetailsService() {
         return username -> userRepository.findByUsername(username)
@@ -51,11 +45,8 @@ public class SecurityConfig {
                         .build())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
     }
-
     @Bean
     public PasswordEncoder passwordEncoder() {
-        // VULNERABILITY A07: Plaintext password storage
-        // CHAIN LINK 1 (chain-01): User passwords stored in plaintext
         return NoOpPasswordEncoder.getInstance();
     }
 }

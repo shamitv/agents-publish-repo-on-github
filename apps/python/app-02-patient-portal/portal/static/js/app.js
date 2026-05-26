@@ -1,15 +1,11 @@
 // -------------------------------------------------------------
 // App 02 - Nexus Health Vault Patient Portal Client JavaScript
 // -------------------------------------------------------------
-
 let currentUser = null;
 let currentView = 'dashboard';
-
 document.addEventListener("DOMContentLoaded", () => {
     checkAuthentication();
 });
-
-// Verify active identity session
 function checkAuthentication() {
     fetch("/api/auth/me")
         .then(res => {
@@ -20,13 +16,9 @@ function checkAuthentication() {
             currentUser = user;
             document.getElementById("currentUserLabel").innerText = user.username;
             document.getElementById("currentUserRoleLabel").innerText = `ROLE: ${user.role}`;
-
             document.getElementById("authPortal").style.display = 'none';
             document.getElementById("appLayout").style.display = 'flex';
-            
-            // Set IDOR visualizer default input to current user's patient_id
             document.getElementById("idorPatientIdInput").value = user.patient_id;
-
             showView(currentView);
         })
         .catch(() => {
@@ -35,17 +27,12 @@ function checkAuthentication() {
             document.getElementById("authPortal").style.display = 'flex';
         });
 }
-
-// Authentication handlers
 function handleLoginSubmit(e) {
     e.preventDefault();
     const user = document.getElementById("username").value.trim();
     const pass = document.getElementById("password").value.trim();
     const errBlock = document.getElementById("loginError");
-
     errBlock.style.display = 'none';
-
-    // Django standard CSRF bypass is handled via @csrf_exempt in view
     fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -63,7 +50,6 @@ function handleLoginSubmit(e) {
         errBlock.style.display = 'block';
     });
 }
-
 function handleLogout() {
     fetch("/api/auth/logout", { method: "POST" })
         .then(() => {
@@ -73,25 +59,20 @@ function handleLogout() {
         })
         .catch(err => console.error("Logout failed:", err));
 }
-
-// Router switcher
 function showView(viewName) {
     currentView = viewName;
-
     // Toggle active link highlights
     document.querySelectorAll(".sidebar .nav-link").forEach(link => {
         link.classList.remove("active");
     });
     const activeLink = document.getElementById(`nav-${viewName}`);
     if (activeLink) activeLink.classList.add("active");
-
     // Toggle view visibility
     document.querySelectorAll(".spa-view").forEach(view => {
         view.style.display = 'none';
     });
     const targetView = document.getElementById(`view-${viewName}`);
     if (targetView) targetView.style.display = 'block';
-
     // Populate data depending on view
     if (viewName === 'dashboard') {
         if (currentUser) {
@@ -102,11 +83,7 @@ function showView(viewName) {
         loadAppointments();
     }
 }
-
-// 1. Diagnostics Records Vault (A01 horizontal IDOR sandbox!)
 function loadRecords(patientId) {
-    // VULNERABILITY A01: Horizontal IDOR. Fetches medical data purely by URL parameter,
-    // allowing other patients' diagnostics/prescriptions to be downloaded without ownership checks.
     fetch(`/api/patients/${patientId}/records`)
         .then(res => {
             if (res.ok) return res.json();
@@ -117,10 +94,8 @@ function loadRecords(patientId) {
             document.getElementById("recordBloodBadge").innerText = `BLOOD: ${data.blood_type}`;
             document.getElementById("recordPatientId").innerText = `PATIENT-${String(data.patient_id).padStart(4, '0')}`;
             document.getElementById("recordDob").innerText = data.date_of_birth;
-
             const tbody = document.getElementById("prescriptionsTableBody");
             tbody.innerHTML = '';
-
             if (data.prescriptions.length === 0) {
                 tbody.innerHTML = `
                     <tr>
@@ -131,7 +106,6 @@ function loadRecords(patientId) {
                 `;
                 return;
             }
-
             data.prescriptions.forEach(rx => {
                 const tr = document.createElement("tr");
                 tr.innerHTML = `
@@ -149,22 +123,18 @@ function loadRecords(patientId) {
             alert(err.message);
         });
 }
-
 function triggerIdorRecordFetch() {
     const id = parseInt(document.getElementById("idorPatientIdInput").value);
     if (!isNaN(id)) {
         loadRecords(id);
     }
 }
-
-// 2. Appointment Scheduler View
 function loadAppointments() {
     fetch("/api/appointments")
         .then(res => res.json())
         .then(appts => {
             const tbody = document.getElementById("appointmentsTableBody");
             tbody.innerHTML = '';
-
             if (appts.length === 0) {
                 tbody.innerHTML = `
                     <tr>
@@ -175,7 +145,6 @@ function loadAppointments() {
                 `;
                 return;
             }
-
             appts.forEach(appt => {
                 const tr = document.createElement("tr");
                 tr.innerHTML = `
@@ -192,17 +161,14 @@ function loadAppointments() {
         })
         .catch(err => console.error("Error loading consultations queue:", err));
 }
-
 function handleAppointmentSubmit(e) {
     e.preventDefault();
-
     const payload = {
         clinic_department: document.getElementById("apptDept").value,
         scheduled_date: document.getElementById("apptDate").value,
         scheduled_time: document.getElementById("apptTime").value.trim(),
         reason_for_visit: document.getElementById("apptReason").value.trim()
     };
-
     fetch("/api/appointments/new", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

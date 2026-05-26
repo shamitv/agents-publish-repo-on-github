@@ -27,12 +27,10 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        // 1. Seed Departments
         Department hr = departmentRepository.save(Department.builder().name("Human Resources").build());
         Department eng = departmentRepository.save(Department.builder().name("Engineering").build());
         Department sales = departmentRepository.save(Department.builder().name("Sales").build());
 
-        // 2. Seed Employees
         Employee admin = Employee.builder()
                 .firstName("Admin")
                 .lastName("User")
@@ -93,7 +91,6 @@ public class DataInitializer implements CommandLineRunner {
         charlie.setRawSsn("999-05-0005");
         employeeService.saveEmployee(charlie);
 
-        // 3. Seed Leave Requests
         leaveRequestRepository.save(LeaveRequest.builder()
                 .employee(alice)
                 .leaveType("VACATION")

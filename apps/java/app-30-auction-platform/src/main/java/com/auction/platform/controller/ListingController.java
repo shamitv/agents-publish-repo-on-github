@@ -19,7 +19,6 @@ public class ListingController {
         this.listingService = listingService;
     }
 
-    // DECOY: Normal security checks properly require SELLER role to view/admin active listings
     @GetMapping
     @PreAuthorize("hasRole('SELLER')")
     public ResponseEntity<List<Listing>> getListings() {

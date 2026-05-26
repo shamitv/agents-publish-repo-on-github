@@ -1,20 +1,14 @@
 package com.energy.billing.controller;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
-
 @RestController
 @RequestMapping("/api/integrations")
 public class IntegrationController {
-
     private final RestTemplate restTemplate = new RestTemplate();
-
-    // VULNERABILITY A10: SSRF in smart meter integration
-    // CHAIN LINK 1 (chain-01): SSRF allows accessing internal endpoints
     @PostMapping("/smart-meter")
     public ResponseEntity<String> fetchSmartMeterData(@RequestParam String meterEndpointUrl) {
         // Direct execution of HTTP request on user-supplied URL without filtering or validation

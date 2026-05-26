@@ -12,6 +12,8 @@ Entertainment & Ticketing Services
 - SQLite (in-memory)
 
 ## Features
+
+For chained vulnerability scenarios, see [scenarios.md](scenarios.md).
 - User registration and login
 - Search events by keywords (e.g. Rock, Tech)
 - Retrieve specific event details (with parameterized query decoy)
@@ -23,27 +25,6 @@ The vulnerabilities in this application are intentional. Refer to [.vulns](file:
 
 ---
 
-## Chained Vulnerability Scenario
-
-### Chain: "Predictable Session Hijacking → SQLi Ticket Theft"
-
-An attacker exploits weak PRNG session keys to take over target customer sessions, and uses SQL injection to extract private ticket details and steal booking assets.
-
-| Step | Issue | Severity (standalone) | OWASP | Location |
-|------|-------|-----------------------|-------|----------|
-| 1 | Predictable session key generation via Math.random() | Medium | A07 | `src/index.ts` → `POST /api/auth/login` |
-| 2 | SQL injection in event search leaks ticket details | High | A03 | `src/index.ts` → `GET /api/events/search` |
-
-**Attack narrative**:
-1. The attacker observes that session cookies generated at login are predictable numbers created via `Math.random()`.
-2. The attacker uses PRNG state prediction techniques to guess the session ID of an active customer who recently logged in.
-3. The attacker sets the hijacked session cookie in their browser.
-4. Using the hijacked session, the attacker calls `/api/events/search?q=1' UNION SELECT ...` to execute SQL injection, dumping the database tables containing booking references (e.g., `REF-8871`) and customer transaction IDs.
-5. The attacker cancels or redirects the ticket assets to their own account.
-
-**Combined Impact**: `account_takeover` — Attacker hijacks victim customer accounts and steals digital ticketing assets.
-
----
 
 ## API Endpoints
 

@@ -38,7 +38,7 @@
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "Package Search SQLi → Unsalted MD5 Credential Cracking",
+      "chain_name": "Package Search SQLi \u2192 Unsalted MD5 Credential Cracking",
       "attack_scenario": "An attacker uses a SQL union injection query on `/api/packages/search?q=coffee' UNION SELECT 1,username,password_hash,role FROM users --` to dump the users table. They retrieve the unsalted MD5 hash `a57e4e138a08d3744952bd0176cd1f91` for the admin_agent user. By performing offline MD5 decryption/lookup, they crack the admin password ('adminpass2026') and take over the admin session.",
       "impact": "account_takeover",
       "components": [
@@ -49,7 +49,12 @@
           "location": "src/index.ts",
           "method": "GET /api/packages/search",
           "severity": "medium",
-          "cwe": "CWE-89"
+          "cwe": "CWE-89",
+          "required_evidence": [
+            "src/index.ts",
+            "GET /api/packages/search"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 2,
@@ -58,7 +63,108 @@
           "location": "src/index.ts",
           "method": "POST /api/auth/login",
           "severity": "medium",
-          "cwe": "CWE-328"
+          "cwe": "CWE-328",
+          "required_evidence": [
+            "src/index.ts",
+            "POST /api/auth/login"
+          ],
+          "negative_evidence": []
+        }
+      ],
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.ts",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "injection",
+      "required_evidence": [
+        "src/index.ts",
+        "GET /api/packages/search",
+        "POST /api/auth/login"
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Subtle State Confusion Pivot To Injection",
+      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
+      "impact": "account_takeover",
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy",
+        "secondary_chain"
+      ],
+      "required_evidence": [
+        "src/index.ts",
+        "POST /api/subscriptions/update",
+        "POST /api/auth/login",
+        "GET /api/packages/search"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.ts",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "injection",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A09",
+          "description": "Critical security events such as subscription modifications or payment level updates are not logged, disabling security event visibility.",
+          "location": "src/index.ts",
+          "method": "POST /api/subscriptions/update",
+          "severity": "low",
+          "cwe": "CWE-778",
+          "required_evidence": [
+            "src/index.ts",
+            "POST /api/subscriptions/update"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 2,
+          "owasp_id": "A07",
+          "description": "User account passwords are encrypted using unsalted MD5 hashing and saved in the database, allowing brute-force or rainbow table cracking.",
+          "location": "src/index.ts",
+          "method": "POST /api/auth/login",
+          "severity": "medium",
+          "cwe": "CWE-328",
+          "required_evidence": [
+            "src/index.ts",
+            "POST /api/auth/login"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 3,
+          "owasp_id": "A03",
+          "description": "The search query parameter is directly concatenated into a raw SQL query statement, leading to SQL injection.",
+          "location": "src/index.ts",
+          "method": "GET /api/packages/search",
+          "severity": "high",
+          "cwe": "CWE-89",
+          "required_evidence": [
+            "src/index.ts",
+            "GET /api/packages/search"
+          ],
+          "negative_evidence": []
         }
       ]
     }
@@ -76,5 +182,11 @@
       "location": "src/index.ts",
       "description": "Proper session token security with cryptographically secure generation using crypto.randomBytes."
     }
-  ]
+  ],
+  "benchmark_profile": {
+    "version": "v0.9",
+    "target_difficulty": "hard",
+    "upgrade_style": "in-place mixed difficulty ladder",
+    "decoy_file": "src/referenceGuards.ts"
+  }
 }

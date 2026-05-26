@@ -38,7 +38,7 @@
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "Stored Guestbook XSS → Session Hijack IDOR Exfiltration",
+      "chain_name": "Stored Guestbook XSS \u2192 Session Hijack IDOR Exfiltration",
       "attack_scenario": "An attacker posts an XSS cookie stealer payload to `/api/guestbook`. When the curator admin reviews the guestbook, their session cookie is leaked to the attacker. Using the hijacked admin cookie, the attacker bypasses access controls and queries `/api/exhibits/2` (IDOR) to exfiltrate private, high-value catalog notes.",
       "impact": "db_exfiltration",
       "components": [
@@ -49,7 +49,12 @@
           "location": "src/index.js",
           "method": "GET /api/guestbook",
           "severity": "medium",
-          "cwe": "CWE-79"
+          "cwe": "CWE-79",
+          "required_evidence": [
+            "src/index.js",
+            "GET /api/guestbook"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 2,
@@ -58,7 +63,108 @@
           "location": "src/index.js",
           "method": "GET /api/exhibits/:id",
           "severity": "medium",
-          "cwe": "CWE-639"
+          "cwe": "CWE-639",
+          "required_evidence": [
+            "src/index.js",
+            "GET /api/exhibits/:id"
+          ],
+          "negative_evidence": []
+        }
+      ],
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.js",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "idor",
+      "required_evidence": [
+        "src/index.js",
+        "GET /api/guestbook",
+        "GET /api/exhibits/:id"
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Subtle State Confusion Pivot To Idor",
+      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
+      "impact": "db_exfiltration",
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy",
+        "secondary_chain"
+      ],
+      "required_evidence": [
+        "src/index.js",
+        "POST /api/exhibits/:id/delete",
+        "GET /api/guestbook",
+        "GET /api/exhibits/:id"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.js",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "idor",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A09",
+          "description": "Deleting sensitive museum artifacts from the catalog produces no audit log tracking outputs, blinding administrators to record destruction.",
+          "location": "src/index.js",
+          "method": "POST /api/exhibits/:id/delete",
+          "severity": "low",
+          "cwe": "CWE-778",
+          "required_evidence": [
+            "src/index.js",
+            "POST /api/exhibits/:id/delete"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 2,
+          "owasp_id": "A03",
+          "description": "Visitor guestbook comments are rendered to the client without HTML entity encoding, leaving visitors vulnerable to Stored XSS.",
+          "location": "src/index.js",
+          "method": "GET /api/guestbook",
+          "severity": "high",
+          "cwe": "CWE-79",
+          "required_evidence": [
+            "src/index.js",
+            "GET /api/guestbook"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 3,
+          "owasp_id": "A01",
+          "description": "The exhibit detail retrieval endpoint fails to verify if the requesting user owns the exhibit or possesses curator/admin permissions, allowing authenticated users to access confidential notes.",
+          "location": "src/index.js",
+          "method": "GET /api/exhibits/:id",
+          "severity": "medium",
+          "cwe": "CWE-639",
+          "required_evidence": [
+            "src/index.js",
+            "GET /api/exhibits/:id"
+          ],
+          "negative_evidence": []
         }
       ]
     }
@@ -72,5 +178,11 @@
       "location": "src/index.js",
       "description": "Proper Bcrypt hashing for password storage and validation."
     }
-  ]
+  ],
+  "benchmark_profile": {
+    "version": "v0.9",
+    "target_difficulty": "hard",
+    "upgrade_style": "in-place mixed difficulty ladder",
+    "decoy_file": "src/referenceGuards.js"
+  }
 }

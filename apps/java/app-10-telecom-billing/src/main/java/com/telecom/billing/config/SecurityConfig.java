@@ -53,7 +53,6 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        // DECOY: Strong password hashing is used for customer authentication
         return new BCryptPasswordEncoder();
     }
 }

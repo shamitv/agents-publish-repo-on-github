@@ -113,7 +113,6 @@ function loadOrgBoards() {
         .catch(err => console.error("Failed to load boards:", err));
 }
 
-// OWASP A01 Target: Insecure Direct Object Reference (IDOR)
 function loadBoard(boardId) {
     if (!boardId) return;
     
@@ -146,7 +145,6 @@ function renderTasks(tasks) {
         const card = document.createElement("div");
         card.className = "task-card";
         
-        // OWASP A03: Cross-Site Scripting (XSS)
         // Task description is rendered using innerHTML without sanitization
         card.innerHTML = `
             <div class="title">${t.title}</div>
@@ -176,7 +174,6 @@ function handleCreateTask(e) {
     .catch(err => console.error("Failed to add task:", err));
 }
 
-// OWASP A09 Target: Security Logging Failure
 function updateBoardVisibility() {
     const newVisibility = document.getElementById("boardVisibilitySelect").value;
     

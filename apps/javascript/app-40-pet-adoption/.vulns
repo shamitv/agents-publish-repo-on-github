@@ -38,7 +38,7 @@
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "Diagnostics Configuration Disclosure → Remote Code Execution via Insecure Deserialization",
+      "chain_name": "Diagnostics Configuration Disclosure \u2192 Remote Code Execution via Insecure Deserialization",
       "attack_scenario": "An attacker invokes `/api/system/diagnostics?debug=true` to obtain the layout configuration token `PET-PORTAL-DEV-LAYOUT-KEY-2026`. Utilizing this token in the header `x-layout-token` to bypass authentication, they POST a layout configuration payload to `/api/pets/layout` containing a system command execution string evaluated via eval().",
       "impact": "account_takeover",
       "components": [
@@ -49,7 +49,12 @@
           "location": "src/index.js",
           "method": "GET /api/system/diagnostics",
           "severity": "medium",
-          "cwe": "CWE-209"
+          "cwe": "CWE-209",
+          "required_evidence": [
+            "src/index.js",
+            "GET /api/system/diagnostics"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 2,
@@ -58,7 +63,108 @@
           "location": "src/index.js",
           "method": "POST /api/pets/layout",
           "severity": "medium",
-          "cwe": "CWE-502"
+          "cwe": "CWE-502",
+          "required_evidence": [
+            "src/index.js",
+            "POST /api/pets/layout"
+          ],
+          "negative_evidence": []
+        }
+      ],
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.js",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "auth_session",
+      "required_evidence": [
+        "src/index.js",
+        "GET /api/system/diagnostics",
+        "POST /api/pets/layout"
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Subtle Deserialization Pivot To Injection",
+      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
+      "impact": "account_takeover",
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy",
+        "secondary_chain"
+      ],
+      "required_evidence": [
+        "src/index.js",
+        "POST /api/pets/layout",
+        "GET /api/system/diagnostics",
+        "GET /api/pets/search"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.js",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "injection",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A08",
+          "description": "Layout configurations submitted by users are parsed using the insecure eval() constructor, enabling remote code execution on the server host.",
+          "location": "src/index.js",
+          "method": "POST /api/pets/layout",
+          "severity": "high",
+          "cwe": "CWE-502",
+          "required_evidence": [
+            "src/index.js",
+            "POST /api/pets/layout"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 2,
+          "owasp_id": "A05",
+          "description": "An open diagnostics route leaks server settings and a hardcoded administrative recovery API token when query parameters activate debug mode.",
+          "location": "src/index.js",
+          "method": "GET /api/system/diagnostics",
+          "severity": "medium",
+          "cwe": "CWE-209",
+          "required_evidence": [
+            "src/index.js",
+            "GET /api/system/diagnostics"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 3,
+          "owasp_id": "A03",
+          "description": "User search query input is directly concatenated into a raw SQL statement, leading to SQL injection.",
+          "location": "src/index.js",
+          "method": "GET /api/pets/search",
+          "severity": "high",
+          "cwe": "CWE-89",
+          "required_evidence": [
+            "src/index.js",
+            "GET /api/pets/search"
+          ],
+          "negative_evidence": []
         }
       ]
     }
@@ -72,5 +178,11 @@
       "location": "src/index.js",
       "description": "Proper Bcrypt hashing for password storage and validation."
     }
-  ]
+  ],
+  "benchmark_profile": {
+    "version": "v0.9",
+    "target_difficulty": "hard",
+    "upgrade_style": "in-place mixed difficulty ladder",
+    "decoy_file": "src/referenceGuards.js"
+  }
 }

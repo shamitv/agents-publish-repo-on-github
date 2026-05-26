@@ -24,7 +24,6 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        // Seed Users (Vulnerable plaintext passwords stored here)
         User b1 = userRepository.save(new User(null, "buyer", "buyerpwd123", "BUYER"));
         User s1 = userRepository.save(new User(null, "seller", "sellerpwd123", "SELLER"));
         userRepository.save(new User(null, "admin", "adminpwd123", "ADMIN"));

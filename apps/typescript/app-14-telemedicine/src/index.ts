@@ -4,21 +4,14 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
-
 const app = express();
 const port = 8014;
-
-// VULNERABILITY A02: Weak JWT signing key.
-// CHAIN LINK 1 (chain-01): Weak JWT signing key allows an attacker to forge tokens offline.
 const JWT_SECRET = 'healthcare123';
-
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors({ origin: true, credentials: true }));
-
 // Initialize SQLite database
 const db = new sqlite3.Database(':memory:');
-
 function initDb() {
   db.serialize(() => {
     db.run(`
@@ -29,7 +22,6 @@ function initDb() {
         role TEXT NOT NULL
       )
     `);
-
     db.run(`
       CREATE TABLE appointments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,9 +34,7 @@ function initDb() {
         FOREIGN KEY(doctor_id) REFERENCES users(id)
       )
     `);
-
     // Seed users
-    // Decoy: Safe BCrypt password hashing for user accounts
     const salt = bcrypt.genSaltSync(10);
     const users = [
       { username: 'john_patient', pass: 'john_pass_123', role: 'PATIENT' },
@@ -52,14 +42,12 @@ function initDb() {
       { username: 'dr_house', pass: 'house_pass_789', role: 'DOCTOR' },
       { username: 'admin', pass: 'admin_pass_2026', role: 'ADMIN' }
     ];
-
     const stmt = db.prepare('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)');
     users.forEach(u => {
       const hash = bcrypt.hashSync(u.pass, salt);
       stmt.run(u.username, hash, u.role);
     });
     stmt.finalize();
-
     // Seed appointments
     db.run(`
       INSERT INTO appointments (patient_id, doctor_id, date, status, doctor_notes)
@@ -71,16 +59,13 @@ function initDb() {
     `);
   });
 }
-
 initDb();
-
 // Middleware to verify JWT token
 interface UserPayload {
   userId: number;
   username: string;
   role: string;
 }
-
 declare global {
   namespace Express {
     interface Request {
@@ -88,13 +73,11 @@ declare global {
     }
   }
 }
-
 function authenticateToken(req: Request, res: Response, next: NextFunction) {
   const token = req.cookies.token;
   if (!token) {
     return res.status(401).json({ message: 'Access denied. No token provided.' });
   }
-
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as UserPayload;
     req.user = decoded;
@@ -103,19 +86,14 @@ function authenticateToken(req: Request, res: Response, next: NextFunction) {
     return res.status(403).json({ message: 'Invalid or expired token.' });
   }
 }
-
 // --- Auth Endpoints ---
-
 app.post('/api/auth/register', (req: Request, res: Response) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ message: 'Username and password required.' });
   }
-
-  // Decoy: Safe BCrypt hashing during user registration
   const salt = bcrypt.genSaltSync(10);
   const hash = bcrypt.hashSync(password, salt);
-
   db.run(
     'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',
     [username, hash, 'PATIENT'],
@@ -127,54 +105,39 @@ app.post('/api/auth/register', (req: Request, res: Response) => {
     }
   );
 });
-
 app.post('/api/auth/login', (req: Request, res: Response) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ message: 'Username and password required.' });
   }
-
   db.get('SELECT * FROM users WHERE username = ?', [username], (err, user: any) => {
     if (err || !user) {
       return res.status(401).json({ message: 'Invalid credentials.' });
     }
-
     const match = bcrypt.compareSync(password, user.password_hash);
     if (!match) {
       return res.status(401).json({ message: 'Invalid credentials.' });
     }
-
     const payload: UserPayload = { userId: user.id, username: user.username, role: user.role };
-    // VULNERABILITY A02: Weak JWT signing key.
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '2h' });
-
-    // VULNERABILITY A07: Session token cookie missing httpOnly flag.
-    // Setting httpOnly: false allows JavaScript to access this cookie, exposing it to XSS.
     res.cookie('token', token, {
       httpOnly: false,
       secure: false,
       maxAge: 7200000 // 2 hours
     });
-
     res.json({ success: true, user: { username: user.username, role: user.role } });
   });
 });
-
 app.post('/api/auth/logout', (req: Request, res: Response) => {
   res.clearCookie('token');
   res.json({ success: true });
 });
-
 app.get('/api/auth/me', authenticateToken, (req: Request, res: Response) => {
   res.json({ user: req.user });
 });
-
 // --- Appointment Endpoints ---
-
-// Decoy: Scoped list view correctly filtering records by ownership
 app.get('/api/appointments', authenticateToken, (req: Request, res: Response) => {
   const user = req.user!;
-  
   if (user.role === 'PATIENT') {
     db.all(
       'SELECT id, date, status FROM appointments WHERE patient_id = ?',
@@ -200,14 +163,10 @@ app.get('/api/appointments', authenticateToken, (req: Request, res: Response) =>
     });
   }
 });
-
-// VULNERABILITY A01: Broken Access Control (IDOR).
-// CHAIN LINK 2 (chain-01): The appointment details endpoint retrieves the appointment
 // along with sensitive physician notes without verifying if the authenticated user
 // is the patient or the doctor associated with the appointment record.
 app.get('/api/appointments/:id', authenticateToken, (req: Request, res: Response) => {
   const appointmentId = req.params.id;
-
   db.get(
     'SELECT a.*, p.username as patient_name, d.username as doctor_name FROM appointments a ' +
     'JOIN users p ON a.patient_id = p.id ' +
@@ -221,13 +180,11 @@ app.get('/api/appointments/:id', authenticateToken, (req: Request, res: Response
       if (!row) {
         return res.status(404).json({ message: 'Appointment not found.' });
       }
-
       // IDOR: Fails to check if req.user.userId matches row.patient_id or row.doctor_id
       res.json(row);
     }
   );
 });
-
 app.listen(port, () => {
   console.log(`Telemedicine app listening at http://localhost:${port}`);
 });

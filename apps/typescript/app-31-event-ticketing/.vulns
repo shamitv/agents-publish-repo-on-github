@@ -38,7 +38,7 @@
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "Predictable Session Hijacking → SQLi Ticket Theft",
+      "chain_name": "Predictable Session Hijacking \u2192 SQLi Ticket Theft",
       "attack_scenario": "An attacker predicts the session tokens of other active customers due to the use of Math.random(). They hijack a customer's session, execute SQL injection on the event search to dump private ticket orders, and cancel or steal premium reservations.",
       "impact": "account_takeover",
       "components": [
@@ -49,7 +49,12 @@
           "location": "src/index.ts",
           "method": "login",
           "severity": "medium",
-          "cwe": "CWE-330"
+          "cwe": "CWE-330",
+          "required_evidence": [
+            "src/index.ts",
+            "login"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 2,
@@ -58,7 +63,108 @@
           "location": "src/index.ts",
           "method": "GET /api/events/search",
           "severity": "medium",
-          "cwe": "CWE-89"
+          "cwe": "CWE-89",
+          "required_evidence": [
+            "src/index.ts",
+            "GET /api/events/search"
+          ],
+          "negative_evidence": []
+        }
+      ],
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.ts",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "injection",
+      "required_evidence": [
+        "src/index.ts",
+        "login",
+        "GET /api/events/search"
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Subtle Auth Session Pivot To Injection",
+      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
+      "impact": "account_takeover",
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy",
+        "secondary_chain"
+      ],
+      "required_evidence": [
+        "src/index.ts",
+        "login",
+        "POST /api/tickets/book",
+        "GET /api/events/search"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.ts",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "injection",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A07",
+          "description": "Session identifiers are generated using Math.random() (a predictable PRNG) instead of cryptographically secure random values, permitting session hijacking.",
+          "location": "src/index.ts",
+          "method": "login",
+          "severity": "medium",
+          "cwe": "CWE-330",
+          "required_evidence": [
+            "src/index.ts",
+            "login"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 2,
+          "owasp_id": "A04",
+          "description": "The ticket booking endpoint lacks rate limits, transactional locking, or concurrency limits, permitting automated scripting to deplete ticket inventories.",
+          "location": "src/index.ts",
+          "method": "POST /api/tickets/book",
+          "severity": "medium",
+          "cwe": "CWE-400",
+          "required_evidence": [
+            "src/index.ts",
+            "POST /api/tickets/book"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 3,
+          "owasp_id": "A03",
+          "description": "Event search endpoint concatenates user search queries directly into raw SQL statements, exposing the system to SQL injection.",
+          "location": "src/index.ts",
+          "method": "GET /api/events/search",
+          "severity": "high",
+          "cwe": "CWE-89",
+          "required_evidence": [
+            "src/index.ts",
+            "GET /api/events/search"
+          ],
+          "negative_evidence": []
         }
       ]
     }
@@ -72,5 +178,11 @@
       "location": "src/index.ts",
       "description": "Proper parameterized SQL query for retrieving individual event details by event ID."
     }
-  ]
+  ],
+  "benchmark_profile": {
+    "version": "v0.9",
+    "target_difficulty": "hard",
+    "upgrade_style": "in-place mixed difficulty ladder",
+    "decoy_file": "src/referenceGuards.ts"
+  }
 }

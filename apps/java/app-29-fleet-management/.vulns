@@ -49,7 +49,12 @@
           "location": "src/main/java/com/fleet/mgmt/controller/VehicleController.java",
           "method": "searchVehicles",
           "severity": "medium",
-          "cwe": "CWE-502"
+          "cwe": "CWE-502",
+          "required_evidence": [
+            "src/main/java/com/fleet/mgmt/controller/VehicleController.java",
+            "searchVehicles"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 2,
@@ -58,7 +63,111 @@
           "location": "src/main/java/com/fleet/mgmt/controller/IntegrationController.java",
           "method": "fetchExternalVehicleData",
           "severity": "medium",
-          "cwe": "CWE-918"
+          "cwe": "CWE-918",
+          "required_evidence": [
+            "src/main/java/com/fleet/mgmt/controller/IntegrationController.java",
+            "fetchExternalVehicleData"
+          ],
+          "negative_evidence": []
+        }
+      ],
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/main/java/com/fleet/mgmt/support/ReferenceGuards.java",
+        "ReferenceGuards.sameOwner",
+        "ReferenceGuards.allowedCallback"
+      ],
+      "vulnerability_family": "ssrf",
+      "required_evidence": [
+        "src/main/java/com/fleet/mgmt/controller/VehicleController.java",
+        "searchVehicles",
+        "src/main/java/com/fleet/mgmt/controller/IntegrationController.java",
+        "fetchExternalVehicleData"
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Subtle Ssrf Pivot To Injection",
+      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
+      "impact": "lateral_movement",
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy",
+        "secondary_chain"
+      ],
+      "required_evidence": [
+        "src/main/java/com/fleet/mgmt/controller/IntegrationController.java",
+        "fetchExternalVehicleData",
+        "pom.xml",
+        "dependencies",
+        "src/main/java/com/fleet/mgmt/service/DriverService.java",
+        "lookupDriverByLicense"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/main/java/com/fleet/mgmt/support/ReferenceGuards.java",
+        "ReferenceGuards.sameOwner",
+        "ReferenceGuards.allowedCallback"
+      ],
+      "vulnerability_family": "ssrf",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A10",
+          "description": "SSRF in external vehicle endpoint allows fetching arbitrary server-side resources without validation",
+          "location": "src/main/java/com/fleet/mgmt/controller/IntegrationController.java",
+          "method": "fetchExternalVehicleData",
+          "severity": "medium",
+          "cwe": "CWE-918",
+          "required_evidence": [
+            "src/main/java/com/fleet/mgmt/controller/IntegrationController.java",
+            "fetchExternalVehicleData"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 2,
+          "owasp_id": "A06",
+          "description": "Log4j dependency is pinned to vulnerable version 2.14.1 (CVE-2021-44228) allowing remote code execution",
+          "location": "pom.xml",
+          "method": "dependencies",
+          "severity": "critical",
+          "cwe": "CWE-502",
+          "required_evidence": [
+            "pom.xml",
+            "dependencies"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 3,
+          "owasp_id": "A03",
+          "description": "LDAP query constructed via string concatenation with user-provided parameters allows LDAP injection",
+          "location": "src/main/java/com/fleet/mgmt/service/DriverService.java",
+          "method": "lookupDriverByLicense",
+          "severity": "medium",
+          "cwe": "CWE-90",
+          "required_evidence": [
+            "src/main/java/com/fleet/mgmt/service/DriverService.java",
+            "lookupDriverByLicense"
+          ],
+          "negative_evidence": []
         }
       ]
     }
@@ -72,5 +181,11 @@
       "location": "src/main/java/com/fleet/mgmt/repository/VehicleRepository.java",
       "description": "All repository queries use parameterised Spring Data JPA methods which are safe from injection"
     }
-  ]
+  ],
+  "benchmark_profile": {
+    "version": "v0.9",
+    "target_difficulty": "hard",
+    "upgrade_style": "in-place mixed difficulty ladder",
+    "decoy_file": "src/main/java/com/fleet/mgmt/support/ReferenceGuards.java"
+  }
 }

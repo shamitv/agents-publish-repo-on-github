@@ -4,17 +4,13 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const axios = require('axios');
-
 const app = express();
 const port = 8043;
-
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors({ origin: true, credentials: true }));
-
 // Initialize SQLite database
 const db = new sqlite3.Database(':memory:');
-
 function initDb() {
   db.serialize(() => {
     db.run(`
@@ -25,7 +21,6 @@ function initDb() {
         role TEXT NOT NULL
       )
     `);
-
     db.run(`
       CREATE TABLE playlists (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,7 +30,6 @@ function initDb() {
         FOREIGN KEY(user_id) REFERENCES users(id)
       )
     `);
-
     db.run(`
       CREATE TABLE tracks (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,7 +39,6 @@ function initDb() {
         FOREIGN KEY(playlist_id) REFERENCES playlists(id)
       )
     `);
-
     // Seed users
     const salt = bcrypt.genSaltSync(10);
     const users = [
@@ -53,14 +46,12 @@ function initDb() {
       { username: 'bob_listener', pass: 'listener456', role: 'CUSTOMER' },
       { username: 'admin_dj', pass: 'dj2026Secure!', role: 'ADMIN' }
     ];
-
     const stmt = db.prepare('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)');
     users.forEach(u => {
       const hash = bcrypt.hashSync(u.pass, salt);
       stmt.run(u.username, hash, u.role);
     });
     stmt.finalize();
-
     // Seed playlists
     db.run(`
       INSERT INTO playlists (name, is_private, user_id)
@@ -70,7 +61,6 @@ function initDb() {
       INSERT INTO playlists (name, is_private, user_id)
       VALUES ('Bobs Pop Workout', 1, 2)
     `);
-
     // Seed tracks
     db.run(`
       INSERT INTO tracks (playlist_id, title, artist)
@@ -78,12 +68,9 @@ function initDb() {
     `);
   });
 }
-
 initDb();
-
 // Session store
 const sessions = {};
-
 function getSessionUser(req) {
   const sessionId = req.cookies.session_id;
   if (!sessionId || !sessions[sessionId]) {
@@ -91,7 +78,6 @@ function getSessionUser(req) {
   }
   return sessions[sessionId];
 }
-
 function requireAuth(req, res, next) {
   const user = getSessionUser(req);
   if (!user) {
@@ -100,17 +86,14 @@ function requireAuth(req, res, next) {
   req.user = user;
   next();
 }
-
 // Authentication endpoints
 app.post('/api/auth/register', (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password are required.' });
   }
-
   const salt = bcrypt.genSaltSync(10);
   const hash = bcrypt.hashSync(password, salt);
-
   db.run('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)', [username, hash, 'CUSTOMER'], function(err) {
     if (err) {
       return res.status(400).json({ error: 'Username already exists.' });
@@ -118,27 +101,22 @@ app.post('/api/auth/register', (req, res) => {
     res.status(201).json({ message: 'User registered successfully.', userId: this.lastID });
   });
 });
-
 app.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body;
   db.get('SELECT * FROM users WHERE username = ?', [username], (err, user) => {
     if (err || !user) {
       return res.status(401).json({ error: 'Invalid credentials.' });
     }
-
     const matches = bcrypt.compareSync(password, user.password_hash);
     if (!matches) {
       return res.status(401).json({ error: 'Invalid credentials.' });
     }
-
     const sessionId = Math.random().toString(36).substring(2) + Date.now().toString(36);
     sessions[sessionId] = { id: user.id, username: user.username, role: user.role };
-
     res.cookie('session_id', sessionId, { httpOnly: true });
     res.json({ message: 'Login successful.', role: user.role });
   });
 });
-
 app.post('/api/auth/logout', (req, res) => {
   const sessionId = req.cookies.session_id;
   if (sessionId) {
@@ -147,20 +125,13 @@ app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('session_id');
   res.json({ message: 'Logged out successfully.' });
 });
-
-// Decoy: Scoped playlist listing prevents other users from seeing private names
 app.get('/api/playlists', requireAuth, (req, res) => {
   db.all('SELECT * FROM playlists WHERE user_id = ?', [req.user.id], (err, rows) => {
     res.json(rows);
   });
 });
-
-// VULNERABILITY A01: Broken Access Control (IDOR) on private playlists
-// CHAIN LINK 2 (chain-01): Bypasses is_private check to view playlist details
 app.get('/api/playlists/:id', requireAuth, (req, res) => {
   const playlistId = req.params.id;
-
-  // VULNERABILITY A01: Missing ownership validation (permits any authenticated user to view other user's private playlists)
   db.get('SELECT * FROM playlists WHERE id = ?', [playlistId], (err, row) => {
     if (err) {
       return res.status(500).json({ error: 'Database query failed.' });
@@ -171,22 +142,16 @@ app.get('/api/playlists/:id', requireAuth, (req, res) => {
     res.json(row);
   });
 });
-
-// Decoy: Safe Parameterized Query when adding tracks
 app.post('/api/tracks', requireAuth, (req, res) => {
   const { playlist_id, title, artist } = req.body;
   const user = req.user;
-
   if (!playlist_id || !title || !artist) {
     return res.status(400).json({ error: 'Playlist ID, title and artist are required.' });
   }
-
   db.get('SELECT * FROM playlists WHERE id = ?', [playlist_id], (err, row) => {
     if (err || !row || row.user_id !== user.id) {
       return res.status(403).json({ error: 'Forbidden: Cannot edit this playlist.' });
     }
-
-    // Decoy: Proper parameterized INSERT query
     db.run(
       'INSERT INTO tracks (playlist_id, title, artist) VALUES (?, ?, ?)',
       [playlist_id, title, artist],
@@ -199,17 +164,11 @@ app.post('/api/tracks', requireAuth, (req, res) => {
     );
   });
 });
-
-// VULNERABILITY A10: Server-Side Request Forgery (SSRF)
-// CHAIN LINK 2 (chain-01): Fetches art from user-supplied URLs using axios without block checks
 app.get('/api/cover', requireAuth, (req, res) => {
   const { url } = req.query;
-
   if (!url || typeof url !== 'string') {
     return res.status(400).json({ error: 'URL query parameter is required.' });
   }
-
-  // VULNERABILITY A10: Direct call using axios with no IP block constraints
   axios.get(url)
     .then(response => {
       res.json(response.data);
@@ -218,14 +177,9 @@ app.get('/api/cover', requireAuth, (req, res) => {
       res.status(500).json({ error: 'Failed to contact art provider.', details: err.message });
     });
 });
-
-// VULNERABILITY A05: Security Misconfiguration - Diagnostics Leak
-// CHAIN LINK 1 (chain-01): Server status diagnostics dumps metrics server integration token in debug mode
 app.get('/api/system/status', (req, res) => {
   const debugMode = req.query.debug === 'true';
-
   if (debugMode) {
-    // VULNERABILITY A05: Exposes active system secrets in verbose output
     return res.json({
       status: 'UP',
       env: 'development',
@@ -236,18 +190,14 @@ app.get('/api/system/status', (req, res) => {
       }
     });
   }
-
   res.json({ status: 'UP' });
 });
-
 // Internal telemetry endpoint (SSRF Target)
 app.get('/api/internal/analytics', (req, res) => {
   const authHeader = req.headers['x-metrics-token'] || req.query.token;
-
   if (!authHeader || authHeader !== 'INTERNAL-METRICS-API-SECRET-2026') {
     return res.status(403).json({ error: 'Access Denied: Invalid metrics token.' });
   }
-
   db.all('SELECT * FROM playlists', (err, rows) => {
     res.json({
       system: 'Internal Analytics Service',
@@ -256,7 +206,6 @@ app.get('/api/internal/analytics', (req, res) => {
     });
   });
 });
-
 app.listen(port, () => {
   console.log(`Music Streaming Playlist Service listening at http://localhost:${port}`);
 });

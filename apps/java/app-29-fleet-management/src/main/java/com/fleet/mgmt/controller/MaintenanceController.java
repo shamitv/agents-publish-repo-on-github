@@ -19,7 +19,6 @@ public class MaintenanceController {
         this.maintenanceService = maintenanceService;
     }
 
-    // DECOY: Normal security checks properly require FLEET_MANAGER role to view service history
     @GetMapping
     @PreAuthorize("hasRole('FLEET_MANAGER')")
     public ResponseEntity<List<MaintenanceRecord>> getRecords() {

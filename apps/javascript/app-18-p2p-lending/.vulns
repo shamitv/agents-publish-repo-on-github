@@ -38,7 +38,7 @@
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "Plaintext Credential Leak → IDOR Loan Data Harvesting",
+      "chain_name": "Plaintext Credential Leak \u2192 IDOR Loan Data Harvesting",
       "attack_scenario": "An attacker reads plaintext credentials from a debug configuration or database leak at `/api/debug/users` to get admin passwords (`lenderSecure2026!`). Authenticating with the admin credentials, the attacker invokes the loan details endpoint `/api/contracts/1` and extracts private borrower financial contract details via IDOR.",
       "impact": "db_exfiltration",
       "components": [
@@ -49,7 +49,12 @@
           "location": "src/index.js",
           "method": "initDb",
           "severity": "medium",
-          "cwe": "CWE-312"
+          "cwe": "CWE-312",
+          "required_evidence": [
+            "src/index.js",
+            "initDb"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 2,
@@ -58,7 +63,108 @@
           "location": "src/index.js",
           "method": "GET /api/contracts/:id",
           "severity": "medium",
-          "cwe": "CWE-639"
+          "cwe": "CWE-639",
+          "required_evidence": [
+            "src/index.js",
+            "GET /api/contracts/:id"
+          ],
+          "negative_evidence": []
+        }
+      ],
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.js",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "ssrf",
+      "required_evidence": [
+        "src/index.js",
+        "initDb",
+        "GET /api/contracts/:id"
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Subtle State Confusion Pivot To Idor",
+      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
+      "impact": "db_exfiltration",
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy",
+        "secondary_chain"
+      ],
+      "required_evidence": [
+        "src/index.js",
+        "POST /api/loans/apply",
+        "initDb",
+        "GET /api/contracts/:id"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.js",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "idor",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A04",
+          "description": "The loan application endpoint fails to validate interest rates, allowing negative or zero interest loan generation to bypass standard interest accrual rules.",
+          "location": "src/index.js",
+          "method": "POST /api/loans/apply",
+          "severity": "medium",
+          "cwe": "CWE-20",
+          "required_evidence": [
+            "src/index.js",
+            "POST /api/loans/apply"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 2,
+          "owasp_id": "A02",
+          "description": "User account passwords are saved in plaintext format in the database, risking exposure in data dumps.",
+          "location": "src/index.js",
+          "method": "initDb",
+          "severity": "medium",
+          "cwe": "CWE-312",
+          "required_evidence": [
+            "src/index.js",
+            "initDb"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 3,
+          "owasp_id": "A01",
+          "description": "Viewing loan contract agreements by ID lacks checking user ownership, allowing any authenticated borrower to view details of any other borrower's loan agreement.",
+          "location": "src/index.js",
+          "method": "GET /api/contracts/:id",
+          "severity": "medium",
+          "cwe": "CWE-639",
+          "required_evidence": [
+            "src/index.js",
+            "GET /api/contracts/:id"
+          ],
+          "negative_evidence": []
         }
       ]
     }
@@ -72,5 +178,11 @@
       "location": "src/index.js",
       "description": "Proper parameterized query logic in POST /api/user/settings to update customer parameters."
     }
-  ]
+  ],
+  "benchmark_profile": {
+    "version": "v0.9",
+    "target_difficulty": "hard",
+    "upgrade_style": "in-place mixed difficulty ladder",
+    "decoy_file": "src/referenceGuards.js"
+  }
 }

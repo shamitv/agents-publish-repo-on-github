@@ -38,7 +38,7 @@
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "Weak Token → IDOR Bid Espionage → Payment Fraud",
+      "chain_name": "Weak Token \u2192 IDOR Bid Espionage \u2192 Payment Fraud",
       "attack_scenario": "An attacker logs in, takes note of the generated session token structure, and predicts another user's session token offline due to the predictable PRNG. The attacker hijacks the victim's session, uses the IDOR vulnerability on the proposal endpoint to read competitor bid values and pricing details, and then triggers the payment release endpoint to steal project funds.",
       "impact": "account_takeover",
       "components": [
@@ -49,7 +49,12 @@
           "location": "app.py",
           "method": "login",
           "severity": "medium",
-          "cwe": "CWE-330"
+          "cwe": "CWE-330",
+          "required_evidence": [
+            "app.py",
+            "login"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 2,
@@ -58,7 +63,110 @@
           "location": "app.py",
           "method": "get_proposal",
           "severity": "medium",
-          "cwe": "CWE-639"
+          "cwe": "CWE-639",
+          "required_evidence": [
+            "app.py",
+            "get_proposal"
+          ],
+          "negative_evidence": []
+        }
+      ],
+      "difficulty": "expert",
+      "subtlety_tags": [
+        "cross_file",
+        "state_confusion",
+        "parser_or_config_reasoning",
+        "implicit_trust",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker can influence a multi-step workflow",
+        "attacker can observe or reuse application state across requests"
+      ],
+      "negative_evidence": [
+        "reference_guards.py",
+        "same_owner",
+        "allowed_callback"
+      ],
+      "vulnerability_family": "idor",
+      "required_evidence": [
+        "app.py",
+        "login",
+        "get_proposal"
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Subtle Auth Session Pivot To Idor",
+      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
+      "impact": "account_takeover",
+      "difficulty": "expert",
+      "subtlety_tags": [
+        "cross_file",
+        "state_confusion",
+        "parser_or_config_reasoning",
+        "implicit_trust",
+        "realistic_decoy",
+        "secondary_chain"
+      ],
+      "required_evidence": [
+        "app.py",
+        "login",
+        "release_payment",
+        "get_proposal"
+      ],
+      "chain_prerequisites": [
+        "attacker can influence a multi-step workflow",
+        "attacker can observe or reuse application state across requests"
+      ],
+      "negative_evidence": [
+        "reference_guards.py",
+        "same_owner",
+        "allowed_callback"
+      ],
+      "vulnerability_family": "idor",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A07",
+          "description": "Session tokens are generated using a predictable PRNG (random.randint) rather than a cryptographically secure random generator, allowing session prediction and hijacking.",
+          "location": "app.py",
+          "method": "login",
+          "severity": "medium",
+          "cwe": "CWE-330",
+          "required_evidence": [
+            "app.py",
+            "login"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 2,
+          "owasp_id": "A04",
+          "description": "The payment release feature allows clients or unauthorized users to release escrow funds before delivery verification is performed and fails to check client-job association.",
+          "location": "app.py",
+          "method": "release_payment",
+          "severity": "medium",
+          "cwe": "CWE-285",
+          "required_evidence": [
+            "app.py",
+            "release_payment"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 3,
+          "owasp_id": "A01",
+          "description": "The proposal detail endpoint returns competitor bids to any authenticated user without validating if the user is the hiring client or the submitting freelancer.",
+          "location": "app.py",
+          "method": "get_proposal",
+          "severity": "medium",
+          "cwe": "CWE-639",
+          "required_evidence": [
+            "app.py",
+            "get_proposal"
+          ],
+          "negative_evidence": []
         }
       ]
     }
@@ -72,5 +180,11 @@
       "location": "app.py",
       "description": "Proper role-based authorization check on the admin user list endpoint (/api/admin/users) restricting it to users with ADMIN role."
     }
-  ]
+  ],
+  "benchmark_profile": {
+    "version": "v0.9",
+    "target_difficulty": "expert",
+    "upgrade_style": "in-place mixed difficulty ladder",
+    "decoy_file": "reference_guards.py"
+  }
 }

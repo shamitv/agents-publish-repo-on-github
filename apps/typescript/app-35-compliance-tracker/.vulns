@@ -38,7 +38,7 @@
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "Dev Mode Config Leak → Admin Document Retrieval Bypass",
+      "chain_name": "Dev Mode Config Leak \u2192 Admin Document Retrieval Bypass",
       "attack_scenario": "An attacker sends a request to the debug endpoint `/api/admin/debug?dev=true` to leak the developer administration token `ADMIN-DEV-TOKEN-KEY-8871`. Using this token in the `x-admin-token` header, the attacker authenticates as admin and accesses `/api/documents/1` to view sensitive customer compliance documents.",
       "impact": "account_takeover",
       "components": [
@@ -49,7 +49,12 @@
           "location": "src/index.ts",
           "method": "GET /api/admin/debug",
           "severity": "medium",
-          "cwe": "CWE-209"
+          "cwe": "CWE-209",
+          "required_evidence": [
+            "src/index.ts",
+            "GET /api/admin/debug"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 2,
@@ -58,7 +63,108 @@
           "location": "src/index.ts",
           "method": "GET /api/documents/:id",
           "severity": "medium",
-          "cwe": "CWE-639"
+          "cwe": "CWE-639",
+          "required_evidence": [
+            "src/index.ts",
+            "GET /api/documents/:id"
+          ],
+          "negative_evidence": []
+        }
+      ],
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.ts",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "ssrf",
+      "required_evidence": [
+        "src/index.ts",
+        "GET /api/admin/debug",
+        "GET /api/documents/:id"
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Subtle Deserialization Pivot To Idor",
+      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
+      "impact": "account_takeover",
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy",
+        "secondary_chain"
+      ],
+      "required_evidence": [
+        "src/index.ts",
+        "POST /api/documents",
+        "GET /api/admin/debug",
+        "GET /api/documents/:id"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.ts",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "idor",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A08",
+          "description": "Document metadata is deserialized using the insecure eval() function, allowing execution of arbitrary system code via malicious metadata input.",
+          "location": "src/index.ts",
+          "method": "POST /api/documents",
+          "severity": "high",
+          "cwe": "CWE-502",
+          "required_evidence": [
+            "src/index.ts",
+            "POST /api/documents"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 2,
+          "owasp_id": "A05",
+          "description": "The debug endpoint leaks process environment details and a hardcoded administrative recovery API token when dev parameter is supplied.",
+          "location": "src/index.ts",
+          "method": "GET /api/admin/debug",
+          "severity": "medium",
+          "cwe": "CWE-209",
+          "required_evidence": [
+            "src/index.ts",
+            "GET /api/admin/debug"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 3,
+          "owasp_id": "A01",
+          "description": "Retrieving document details by ID from the database fails to verify if the requesting user owns the document or possesses administrative permissions, allowing unauthorized access to arbitrary documents.",
+          "location": "src/index.ts",
+          "method": "GET /api/documents/:id",
+          "severity": "medium",
+          "cwe": "CWE-639",
+          "required_evidence": [
+            "src/index.ts",
+            "GET /api/documents/:id"
+          ],
+          "negative_evidence": []
         }
       ]
     }
@@ -76,5 +182,11 @@
       "location": "src/index.ts",
       "description": "Safe JSON deserialization logic using JSON.parse in POST /api/documents/safe."
     }
-  ]
+  ],
+  "benchmark_profile": {
+    "version": "v0.9",
+    "target_difficulty": "hard",
+    "upgrade_style": "in-place mixed difficulty ladder",
+    "decoy_file": "src/referenceGuards.ts"
+  }
 }

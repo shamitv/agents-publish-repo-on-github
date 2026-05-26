@@ -12,6 +12,8 @@ Animal Welfare & Pet Adoption
 - SQLite (in-memory)
 
 ## Features
+
+For chained vulnerability scenarios, see [scenarios.md](scenarios.md).
 - User registration and login
 - Browse adoption list (Decoy: secure parameters)
 - Search available pets (vulnerable to SQLi)
@@ -24,26 +26,6 @@ The vulnerabilities in this application are intentional. Refer to [.vulns](file:
 
 ---
 
-## Chained Vulnerability Scenario
-
-### Chain: "Diagnostics Configuration Exposure → Remote Code Execution via Insecure Deserialization"
-
-An attacker queries the diagnostics API to leak the layout key, then executes system shell commands on the hosting server via the eval() endpoint.
-
-| Step | Issue | Severity (standalone) | OWASP | Location |
-|------|-------|-----------------------|-------|----------|
-| 1 | Diagnostics config leaks layout secret key | Medium | A05 | `src/index.js` → `GET /api/system/diagnostics` |
-| 2 | Layout metadata parsed via eval() | High | A08 | `src/index.js` → `POST /api/pets/layout` |
-
-**Attack narrative**:
-1. The attacker queries `/api/system/diagnostics?debug=true` to obtain the API key: `PET-PORTAL-DEV-LAYOUT-KEY-2026`.
-2. The attacker calls `/api/pets/layout` passing the header `x-layout-token: PET-PORTAL-DEV-LAYOUT-KEY-2026`.
-3. In the request body, they supply a malicious layoutConfig evaluated by eval, such as: `(function(){ require('child_process').execSync('whoami') })()`.
-4. The server runs the command and returns the shell output, achieving full code execution.
-
-**Combined Impact**: `account_takeover` — Attacker gains full control of the web server host.
-
----
 
 ## API Endpoints
 

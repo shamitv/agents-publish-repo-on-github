@@ -38,7 +38,7 @@
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "Expense Search SQLi → Unsalted MD5 administrator credentials extraction → Corporate Expenses Exfiltration via IDOR",
+      "chain_name": "Expense Search SQLi \u2192 Unsalted MD5 administrator credentials extraction \u2192 Corporate Expenses Exfiltration via IDOR",
       "attack_scenario": "An attacker logs in as a low-privilege customer and uses SQL Injection on the `/api/expenses/search?q=xyz' UNION SELECT 1,username,password_hash,role,5.0,'USD' FROM users --` endpoint to dump the user credentials. The attacker retrieves the unsalted MD5 password hash `97b9f87efd939e99eb015560b43ffbb4` for user `admin_accountant`. They decrypt this hash offline to recover the password ('accountantSecure2026!') and log in. Once authenticated as an administrator, they use IDOR on `/api/expenses/:id` to retrieve and exfiltrate all employee expense records.",
       "impact": "db_exfiltration",
       "components": [
@@ -49,7 +49,12 @@
           "location": "src/index.js",
           "method": "GET /api/expenses/search",
           "severity": "medium",
-          "cwe": "CWE-89"
+          "cwe": "CWE-89",
+          "required_evidence": [
+            "src/index.js",
+            "GET /api/expenses/search"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 2,
@@ -58,7 +63,110 @@
           "location": "src/index.js",
           "method": "POST /api/auth/login",
           "severity": "medium",
-          "cwe": "CWE-328"
+          "cwe": "CWE-328",
+          "required_evidence": [
+            "src/index.js",
+            "POST /api/auth/login"
+          ],
+          "negative_evidence": []
+        }
+      ],
+      "difficulty": "expert",
+      "subtlety_tags": [
+        "cross_file",
+        "state_confusion",
+        "parser_or_config_reasoning",
+        "implicit_trust",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker can influence a multi-step workflow",
+        "attacker can observe or reuse application state across requests"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.js",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "idor",
+      "required_evidence": [
+        "src/index.js",
+        "GET /api/expenses/search",
+        "POST /api/auth/login"
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Subtle Auth Session Pivot To Idor",
+      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
+      "impact": "db_exfiltration",
+      "difficulty": "expert",
+      "subtlety_tags": [
+        "cross_file",
+        "state_confusion",
+        "parser_or_config_reasoning",
+        "implicit_trust",
+        "realistic_decoy",
+        "secondary_chain"
+      ],
+      "required_evidence": [
+        "src/index.js",
+        "POST /api/auth/login",
+        "GET /api/expenses/search",
+        "GET /api/expenses/:id"
+      ],
+      "chain_prerequisites": [
+        "attacker can influence a multi-step workflow",
+        "attacker can observe or reuse application state across requests"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.js",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "idor",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A07",
+          "description": "User credentials are saved and verified using unsalted MD5 hashes, allowing database-compromised passwords to be cracked offline via precomputed tables.",
+          "location": "src/index.js",
+          "method": "POST /api/auth/login",
+          "severity": "medium",
+          "cwe": "CWE-328",
+          "required_evidence": [
+            "src/index.js",
+            "POST /api/auth/login"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 2,
+          "owasp_id": "A03",
+          "description": "The search query parameter is directly concatenated into SQL query string, leaving the database vulnerable to SQL injection attacks.",
+          "location": "src/index.js",
+          "method": "GET /api/expenses/search",
+          "severity": "high",
+          "cwe": "CWE-89",
+          "required_evidence": [
+            "src/index.js",
+            "GET /api/expenses/search"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 3,
+          "owasp_id": "A01",
+          "description": "Viewing specific expense report by ID lacks validation of user ownership, allowing any authenticated user to retrieve details of another employee's expenses.",
+          "location": "src/index.js",
+          "method": "GET /api/expenses/:id",
+          "severity": "medium",
+          "cwe": "CWE-639",
+          "required_evidence": [
+            "src/index.js",
+            "GET /api/expenses/:id"
+          ],
+          "negative_evidence": []
         }
       ]
     }
@@ -72,5 +180,11 @@
       "location": "src/index.js",
       "description": "Proper parameterized query design in POST /api/expenses to insert new expense records safely."
     }
-  ]
+  ],
+  "benchmark_profile": {
+    "version": "v0.9",
+    "target_difficulty": "expert",
+    "upgrade_style": "in-place mixed difficulty ladder",
+    "decoy_file": "src/referenceGuards.js"
+  }
 }

@@ -38,7 +38,7 @@
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "Verbose Diagnostics Exposure → Administrative Ticket Export Bypass",
+      "chain_name": "Verbose Diagnostics Exposure \u2192 Administrative Ticket Export Bypass",
       "attack_scenario": "An attacker queries the health diagnostics endpoint `/api/system/health?diagnostics=true` to leak the system configuration containing the hardcoded recovery key `SUPPORT-ADMIN-DEV-RECOVERY-KEY-2026`. The attacker then invokes the endpoint `/api/admin/export` passing this key in the `x-admin-token` header, enabling them to bulk export all tickets and users from the database.",
       "impact": "db_exfiltration",
       "components": [
@@ -49,7 +49,12 @@
           "location": "src/index.ts",
           "method": "GET /api/system/health",
           "severity": "medium",
-          "cwe": "CWE-209"
+          "cwe": "CWE-209",
+          "required_evidence": [
+            "src/index.ts",
+            "GET /api/system/health"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 2,
@@ -58,7 +63,108 @@
           "location": "src/index.ts",
           "method": "POST /api/admin/export",
           "severity": "medium",
-          "cwe": "CWE-306"
+          "cwe": "CWE-306",
+          "required_evidence": [
+            "src/index.ts",
+            "POST /api/admin/export"
+          ],
+          "negative_evidence": []
+        }
+      ],
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.ts",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "auth_session",
+      "required_evidence": [
+        "src/index.ts",
+        "GET /api/system/health",
+        "POST /api/admin/export"
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Subtle Auth Session Pivot To Idor",
+      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
+      "impact": "db_exfiltration",
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy",
+        "secondary_chain"
+      ],
+      "required_evidence": [
+        "src/index.ts",
+        "GET /api/system/health",
+        "GET /api/tickets/search",
+        "GET /api/tickets/:id"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "src/referenceGuards.ts",
+        "sameOwner",
+        "allowedCallback"
+      ],
+      "vulnerability_family": "idor",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A05",
+          "description": "An endpoint exposes diagnostic info and verbose environment variables (including administrative recovery token and cookie secret) when requesting the system health status with diagnostic mode.",
+          "location": "src/index.ts",
+          "method": "GET /api/system/health",
+          "severity": "medium",
+          "cwe": "CWE-209",
+          "required_evidence": [
+            "src/index.ts",
+            "GET /api/system/health"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 2,
+          "owasp_id": "A03",
+          "description": "The search query parameter is directly concatenated into a raw SQL query statement, leading to SQL injection.",
+          "location": "src/index.ts",
+          "method": "GET /api/tickets/search",
+          "severity": "high",
+          "cwe": "CWE-89",
+          "required_evidence": [
+            "src/index.ts",
+            "GET /api/tickets/search"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 3,
+          "owasp_id": "A01",
+          "description": "The ticket detail retrieval endpoint fails to verify if the requesting user owns the ticket or possesses admin permissions, allowing authenticated users to access arbitrary tickets.",
+          "location": "src/index.ts",
+          "method": "GET /api/tickets/:id",
+          "severity": "medium",
+          "cwe": "CWE-639",
+          "required_evidence": [
+            "src/index.ts",
+            "GET /api/tickets/:id"
+          ],
+          "negative_evidence": []
         }
       ]
     }
@@ -76,5 +182,11 @@
       "location": "src/index.ts",
       "description": "Proper authentication and authorization check in GET /api/users/profile to ensure users only access their own profile details."
     }
-  ]
+  ],
+  "benchmark_profile": {
+    "version": "v0.9",
+    "target_difficulty": "hard",
+    "upgrade_style": "in-place mixed difficulty ladder",
+    "decoy_file": "src/referenceGuards.ts"
+  }
 }

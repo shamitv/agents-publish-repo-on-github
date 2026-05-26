@@ -31,7 +31,6 @@ public class CustomerController {
         User currentUser = userRepository.findByUsername(principal.getName())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        // DECOY: Normal access control check verifies that customers can only view their own account profile
         if ("CUSTOMER".equals(currentUser.getRole()) && !id.equals(currentUser.getCustomerId())) {
             return ResponseEntity.status(403).build();
         }

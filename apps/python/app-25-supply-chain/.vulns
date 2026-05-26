@@ -38,7 +38,7 @@
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "SSRF → YAML Deserialization → Lateral Movement",
+      "chain_name": "SSRF \u2192 YAML Deserialization \u2192 Lateral Movement",
       "attack_scenario": "An attacker uses the SSRF vulnerability in the supplier health check endpoint to fetch an internal URL. By pointing the inventory import endpoint to an internal server or using the SSRF capability to retrieve a payload, they feed a malicious YAML document to yaml.load(), triggering unsafe deserialization and arbitrary code execution.",
       "impact": "lateral_movement",
       "components": [
@@ -49,7 +49,12 @@
           "location": "app.py",
           "method": "check_supplier_api",
           "severity": "medium",
-          "cwe": "CWE-918"
+          "cwe": "CWE-918",
+          "required_evidence": [
+            "app.py",
+            "check_supplier_api"
+          ],
+          "negative_evidence": []
         },
         {
           "step": 2,
@@ -58,7 +63,109 @@
           "location": "app.py",
           "method": "import_inventory",
           "severity": "medium",
-          "cwe": "CWE-502"
+          "cwe": "CWE-502",
+          "required_evidence": [
+            "app.py",
+            "import_inventory"
+          ],
+          "negative_evidence": []
+        }
+      ],
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "reference_guards.py",
+        "same_owner",
+        "allowed_callback"
+      ],
+      "vulnerability_family": "ssrf",
+      "required_evidence": [
+        "app.py",
+        "check_supplier_api",
+        "import_inventory"
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Subtle Ssrf Pivot To Deserialization",
+      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
+      "impact": "lateral_movement",
+      "difficulty": "hard",
+      "subtlety_tags": [
+        "cross_file",
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy",
+        "secondary_chain"
+      ],
+      "required_evidence": [
+        "app.py",
+        "check_supplier_api",
+        "login",
+        "requirements.txt",
+        "PyYAML"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a low privilege account",
+        "attacker can combine request input with stored application state"
+      ],
+      "negative_evidence": [
+        "reference_guards.py",
+        "same_owner",
+        "allowed_callback"
+      ],
+      "vulnerability_family": "ssrf",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A10",
+          "description": "Supplier API check endpoint allows fetching user-supplied URLs without restricting requests to external public IPs, causing SSRF.",
+          "location": "app.py",
+          "method": "check_supplier_api",
+          "severity": "medium",
+          "cwe": "CWE-918",
+          "required_evidence": [
+            "app.py",
+            "check_supplier_api"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 2,
+          "owasp_id": "A07",
+          "description": "Passwords are stored in plaintext in the database and queried directly without hashing, and the session cookie lacks the Secure flag.",
+          "location": "app.py",
+          "method": "login",
+          "severity": "medium",
+          "cwe": "CWE-256",
+          "required_evidence": [
+            "app.py",
+            "login"
+          ],
+          "negative_evidence": []
+        },
+        {
+          "step": 3,
+          "owasp_id": "A06",
+          "description": "Pins vulnerable PyYAML==5.3.1 which permits arbitrary code execution (RCE) via yaml.load() when parsing untrusted serialization inputs.",
+          "location": "requirements.txt",
+          "method": "PyYAML",
+          "severity": "high",
+          "cwe": "CWE-502",
+          "required_evidence": [
+            "requirements.txt",
+            "PyYAML"
+          ],
+          "negative_evidence": []
         }
       ]
     }
@@ -72,5 +179,11 @@
       "location": "app.py",
       "description": "Proper parameterized SQL queries for retrieving warehouse records by warehouse ID."
     }
-  ]
+  ],
+  "benchmark_profile": {
+    "version": "v0.9",
+    "target_difficulty": "hard",
+    "upgrade_style": "in-place mixed difficulty ladder",
+    "decoy_file": "reference_guards.py"
+  }
 }

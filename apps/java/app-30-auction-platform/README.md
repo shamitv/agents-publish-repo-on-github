@@ -18,3 +18,5 @@ The ground‑truth list of planted vulnerabilities is defined in `vulnerabilitie
 ---
 
 *This file is auto‑generated for scaffold purposes.*
+
+For chained vulnerability scenarios, see [scenarios.md](scenarios.md).
