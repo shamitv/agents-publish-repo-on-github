@@ -1,20 +1,14 @@
 # Chained Vulnerability Scenarios — Telemedicine
 
-## Chain: "Weak JWT Signatures → IDOR Records Exfiltration"
+Supplemental notes only. Ground truth vulnerability data is maintained in [.vulns](.vulns), and the required human-readable chain is in [README.md](README.md).
+
+## Chain: "Weak JWT Validation → Patient Notes IDOR"
 
 | Step | Issue | Severity (standalone) | OWASP | Location |
 |------|-------|-----------------------|-------|----------|
-| 1 | JWT signature signed with a weak secret key | High | A02 | `src/index.ts` → `generateJWT()` |
-| 2 | IDOR on appointments retrieves private patient records | High | A01 | `src/index.ts` → `GET /api/appointments/:id` |
+| 1 | JWT payload is decoded without validating the signature | Medium | A07 | `TokenService.ts` → `verify()` |
+| 2 | Appointment details expose physician notes by ID without owner/doctor checks | Medium | A01 | `AppointmentService.ts` → `getAppointmentDetail()` |
 
+**Attack narrative**: The attacker supplies a forged JWT payload, then enumerates `/api/appointments/:id` to retrieve appointment records and confidential doctor notes.
 
-**Attack narrative**: 1. The attacker discovers that the application uses a weak JWT secret `healthcare123` to sign its tokens.
-2. The attacker uses offline tools to sign a forged JWT with claims `{"userId": 3, "username": "dr_house", "role": "DOCTOR"}`.
-3. The attacker sets this forged token in the session cookie.
-4. Using doctor authority, the attacker enumerates the appointment endpoint `/api/appointments/<id>`. Because the endpoint suffers from IDOR, they fetch all consultation notes and details of every patient.
-
-**Combined Impact**: `db_exfiltration` — Attacker steals confidential patient records and physician notes.
-
----
-
-_This file is for internal reference. Ground truth vulnerability data is maintained in [.vulns](.vulns)._
+**Combined Impact**: Database exfiltration of patient appointment records and physician notes.
