@@ -7,11 +7,10 @@ A university-grade Learning Management System (LMS) providing course catalog bro
 Education Technology (EdTech)
 
 ## Tech Stack
-Python, Flask, SQLite (in-memory), Pickle (for course import)
+Python, Flask, SQLite fallback with PostgreSQL/MongoDB integration surfaces, Kafka-style grading/import workers, Pickle (for course import)
 
 ## Features
 
-For chained vulnerability scenarios, see [scenarios.md](scenarios.md).
 - User authentication with role-based access (Student, Instructor, Admin)
 - Course catalog with browsing and creation
 - Student enrollment management
@@ -24,6 +23,24 @@ This application contains intentionally planted vulnerabilities for security age
 
 ---
 
+## Chained Vulnerability Scenario
+
+### Chain: "Config Leak -> Session Forgery -> Quiz Submission Exfiltration"
+
+An attacker recovers the Flask signing secret, forges a privileged session, and reads another student's submission.
+
+| Step | Issue | Severity (standalone) | OWASP | Location |
+|------|-------|-----------------------|-------|----------|
+| 1 | Debug endpoint exposes secrets without authentication | Low | A05 | `src/services/debug_service.py` -> `collect()` |
+| 2 | Session role values are trusted after cookie verification | Medium | A02 | `src/services/auth_service.py` -> `current_user()` |
+| 3 | Submission lookup omits student ownership checks | Medium | A01 | `src/services/submission_service.py` -> `get_submission()` |
+
+**Attack narrative**: The attacker calls `/api/debug/config`, uses the leaked secret to forge a signed session cookie with elevated role claims, and requests `/api/submissions/{id}` for submissions owned by other students.
+
+**Combined Impact**: Unauthorized exfiltration of quiz answers and grades.
+
+---
+
 
 ## API Endpoints
 
@@ -32,6 +49,7 @@ This application contains intentionally planted vulnerabilities for security age
 | POST | /api/auth/login | No | User login |
 | POST | /api/auth/logout | Yes | User logout |
 | GET | /api/auth/me | Yes | Current user info |
+| GET | /api/health | No | Health and integration surface check |
 | GET | /api/courses | No | List all courses |
 | POST | /api/courses | Yes (Instructor/Admin) | Create a course |
 | POST | /api/courses/import | Yes (Instructor/Admin) | Import course from pickle data |
@@ -54,6 +72,5 @@ python app.py
 ## Running via Docker
 
 ```sh
-docker build -t app-05-learning-mgmt .
-docker run -p 8085:8085 app-05-learning-mgmt
+docker compose up --build
 ```

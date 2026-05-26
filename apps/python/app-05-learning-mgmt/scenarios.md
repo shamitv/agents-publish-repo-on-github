@@ -1,17 +1,19 @@
-# Chained Vulnerability Scenarios — Learning Mgmt
+# Chained Vulnerability Scenarios — Online Learning Management System
 
-## Chain: "Config Leak → Session Forgery → Pickle RCE → Data Exfiltration"
+## Chain: "Config Leak -> Session Forgery -> Quiz Submission Exfiltration"
+
+An attacker combines a debug configuration leak, forgeable session trust, and an IDOR to read quiz submissions belonging to other students.
 
 | Step | Issue | Severity (standalone) | OWASP | Location |
 |------|-------|-----------------------|-------|----------|
-| 1 | Debug config endpoint exposes Flask secret_key | Low | A05 | `app.py` → `debug_config()` |
-| 2 | Course import deserializes untrusted pickle payload | Medium | A08 | `app.py` → `import_course()` |
+| 1 | Debug endpoint exposes the Flask signing secret and environment without authentication | Low | A05 | `src/services/debug_service.py` -> `collect()` |
+| 2 | Session role values are trusted after cookie verification | Medium | A02 | `src/services/auth_service.py` -> `current_user()` |
+| 3 | Submission lookup returns records by ID without ownership checks | Medium | A01 | `src/services/submission_service.py` -> `get_submission()` |
 
+**Attack narrative**: The attacker sends `GET /api/debug/config`, reads the Flask signing secret, forges an instructor/admin session cookie, and then requests `/api/submissions/{id}` values belonging to other students.
 
-**Attack narrative**: The attacker sends `GET /api/debug/config` without authentication and reads the Flask `secret_key` from the JSON response. Using this key, they craft a signed session cookie with `role=ADMIN` and `user_id=4`. With the forged admin session, they send `POST /api/courses/import` with a base64-encoded malicious pickle payload that executes `os.system()` to dump the SQLite database contents to an attacker-controlled endpoint.
-
-**Combined Impact**: Full database exfiltration including all user credentials, student grades, and course data.
+**Combined Impact**: Bulk exfiltration of student quiz submissions and grades.
 
 ---
 
-_This file is for internal reference. Ground truth vulnerability data is maintained in [.vulns](.vulns)._
+_This file is supplemental internal narrative. Ground truth vulnerability data is maintained in [.vulns](.vulns)._
