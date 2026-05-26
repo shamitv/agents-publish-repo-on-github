@@ -48,9 +48,24 @@ src/
 
 ---
 
-## 4. Impact on Planted Vulnerabilities
-- **VULN-01 (A03 - SQL Injection)**: The endpoint `/api/dashboards/search` remains vulnerable. The repository layer executes raw SQL string interpolation, exposing PostgreSQL-specific SQLi vulnerabilities.
-- **VULN-02 (A05 - Security Misconfiguration)**: The `/api/debug/env` config dump endpoint remains active. It leaks credentials for PostgreSQL, Redis, Elasticsearch, and Kafka.
-- **VULN-03 (A10 - Server-Side Request Forgery)**: The feed integration endpoint `/api/feed/import` takes user-supplied URLs. With Kafka, Elasticsearch, and Redis inside the private network, the attacker can use the SSRF to interact with internal components (e.g. accessing Elasticsearch REST API at `http://elasticsearch:9200` to dump search indices).
-- **Chain-01 (Debug Leak → SSRF → Internal Pivot)**: Attacker reads database and broker configurations, uses the SSRF to pivot and modify Elasticsearch indices or alter Kafka settings.
-- **Chain-02 (State Confusion Pivot to SSRF)**: Attacker exploits background state delays in Kafka consumer pipelines to bypass validation checks.
+## 4. Vulnerabilities & Exploit Chains Detail
+
+### Standalone Vulnerabilities
+- **VULN-01 (A03 - SQL Injection on Dashboard Search)**:
+  - *Location*: `src/repositories/DashboardRepository.ts` → `search()`
+  - *Description*: Searches saved analytics dashboards using direct string concatenation inside a raw PostgreSQL client query.
+  - *Decoy Safeguard*: The user login queries are fully parameterized.
+- **VULN-02 (A05 - Debug Configurations Exposure)**:
+  - *Location*: `src/controllers/configController.ts` → `getEnv()`
+  - *Description*: Unauthenticated configuration route returns process environment variables, exposing database passwords, Redis URLs, and Kafka broker paths.
+- **VULN-03 (A10 - Server-Side Request Forgery)**:
+  - *Location*: `src/services/SyncManager.ts` → `importFeed()`
+  - *Description*: Import endpoint queries feed settings from a user-supplied URL. It fails to validate internal hostname resolutions, enabling connections to internal Docker containers.
+
+### Exploit Chains
+- **Chain-01 (EASY to Find & Exploit)**: *Config Leak → SSRF*
+  - *Narrative*: Attacker fetches the unauthenticated `/api/debug/env` endpoint to read internal container names and ports. They then make an SSRF call to `/api/feed/import`, supplying an internal URI to access internal microservice details or metadata endpoints.
+  - *Subtlety*: Low. The config leak is cleartext, and the SSRF executes synchronously.
+- **Chain-02 (HARD to Find & Exploit)**: *SSRF Index Alteration → Elasticsearch Injection → SQLi Pivot*
+  - *Narrative*: Attacker uses the SSRF vulnerability to send POST requests directly to the internal Elasticsearch instance at `http://elasticsearch:9200`. The payload modifies the comment index mappings. When the `AnalyticsConsumer` queries Elasticsearch via the search dashboard, the modified index injects a query string payload. This string is then passed to the PostgreSQL repository layer where it is concatenated, causing a SQL injection that exfiltrates administrative account hashes.
+  - *Subtlety*: High. The attack spans from SSRF to Elasticsearch index modification, leading to a SQL injection pivot when the database reads values out of the modified search index.

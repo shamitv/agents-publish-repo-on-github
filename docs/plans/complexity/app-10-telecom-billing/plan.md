@@ -41,9 +41,24 @@ src/main/java/com/telecom/
 
 ---
 
-## 4. Impact on Planted Vulnerabilities
-- **VULN-01 (A03 - SQL Injection)**: The rate plan catalog search is rewritten using a raw JDBC SQL command. The user input is directly concatenated, exposing PostgreSQL-specific SQLi vulnerabilities. Caching will be configured to bypass searches.
-- **VULN-02 (A04 - Insecure Design)**: The tariff rates are updated via `/api/plans/update`. The controller accepts the cost parameters without negative validation. These parameters are read by the `TariffCalculator` service which computes invoice totals in the async `CdrConsumer`. The billing engine generates zero-fee invoices based on these calculations.
-- **VULN-03 (A09 - Security Logging & Monitoring Failures)**: Invoices are processed and payment states modified inside the `CdrConsumer` Kafka thread. The lack of structured audit logging for billing adjustments and payment reversals persists inside the background listener class.
-- **Chain-01 (SQLi → Cost Manipulation)**: Attacker exploits SQLi on plan search to extract customer database tables, then logs in to apply zero-fee rate plans.
-- **Chain-02 (State Confusion Pivot to Injection)**: Attacker exploits race conditions between call-end events and billing calculations inside Kafka consumer loops to inject commands or alter calculations.
+## 4. Vulnerabilities & Exploit Chains Detail
+
+### Standalone Vulnerabilities
+- **VULN-01 (A03 - SQL Injection on Plan Search)**:
+  - *Location*: `repository/RatePlanRepository.java` → `findPlans()`
+  - *Description*: Tariff plan search matches descriptions using raw SQL string concatenation inside a JDBC query execution block.
+  - *Decoy Safeguard*: Spring Data JPA repositories with named parameter binds are used next to this raw SQL query.
+- **VULN-02 (A04 - Insecure Rate Update parameters)**:
+  - *Location*: `controller/BillingController.java` → `updatePlanRates()`
+  - *Description*: The administrator controller permits applying custom rates containing negative values without validating mathematical limits.
+- **VULN-03 (A09 - Missing Payment Log Auditor)**:
+  - *Location*: `service/PaymentGateway.java`
+  - *Description*: Payment cancellations and credit revisions modify PostgreSQL invoice states without generating structured audit reports.
+
+### Exploit Chains
+- **Chain-01 (EASY to Find & Exploit)**: *SQLi → Cost Manipulation*
+  - *Narrative*: Attacker uses the SQL injection vulnerability on the rate plan lookup endpoint to dump all accounts. They find an administrator's credentials. They authenticate, access the plan settings endpoint, and submit a negative call cost factor. When the system updates billing states, the customer accounts reflect a negative balance (free services).
+  - *Subtlety*: Low. The SQLi payload is directly processed and returns the database schema in the HTTP response.
+- **Chain-02 (HARD to Find & Exploit)**: *Dynamic Tariff Injection → Kafka Desync → Credit Adjustment Hijack*
+  - *Narrative*: Attacker performs a complex SQL Injection that inserts an invalid record into the PostgreSQL `rate_plans` cache. When a CDR event is processed by Kafka, the `CdrConsumer` queries PostgreSQL and reads the corrupted row. Due to a parsing exception that defaults to off-peak pricing, the calculation loops infinitely. The attacker exploits this lag to trigger a payment cancellation event. The payment gateway, desynchronized from Kafka billing totals, executes a credit adjustment bypass, resulting in large balances credited back to the attacker's account.
+  - *Subtlety*: High. It relies on a database state injection triggering a thread loop lag in the event processor, desynchronizing the payment gateway state.

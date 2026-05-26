@@ -8,7 +8,7 @@ The application will be restructured into a modular TypeScript MVC framework:
 - **Event Streaming**: Apache Kafka for background appointment notifications, billing workflows, and prescription log dispatching.
 - **Complex Business Logic**: Overlap checks for doctor schedules, doctor availability rules, and billing refund policies.
 - **Modular Codebase**: Split code into folders: `routes/`, `controllers/`, `services/`, `models/`, `consumers/`.
-- **Enterprise UI**: An interactive clinic portal displaying appointment calendars, real-time consultation logs, and medical history documents.
+- **Enterprise UI**: Patient/Doctor portal displaying appointment calendars, real-time consultation logs, and medical history documents.
 
 ---
 
@@ -44,9 +44,24 @@ src/
 
 ---
 
-## 4. Impact on Planted Vulnerabilities
-- **VULN-01 (A01 - IDOR)**: The patient records/details lookup service (`ConsultationService`) retrieves notes from MongoDB. The controller (`controllers/patientController.ts`) fails to perform user validation checking, allowing any patient to pull clinical notes belonging to other patients.
-- **VULN-02 (A02 - Cryptographic Failures)**: The JWT signing mechanism uses a weak secret or accepts the `none` algorithm. This weak validation remains active in the authentication service, allowing attackers to forge patient/doctor privileges and query PostgreSQL.
-- **VULN-03 (A07 - Identification and Authentication Failures)**: The session validation logic relies on predictable session values stored in the Redis session cache. Session hijacking remains easily exploitable.
-- **Chain-01 (Weak JWT Signatures → IDOR)**: Attacker signs a custom JWT with doctor privilege, submits it to endpoints, and accesses patient notes in MongoDB using IDOR.
-- **Chain-02 (State Confusion Pivot to IDOR)**: Attacker exploits out-of-order execution states in Kafka scheduling topics to alter appointment details and view doctor reports.
+## 4. Vulnerabilities & Exploit Chains Detail
+
+### Standalone Vulnerabilities
+- **VULN-01 (A01 - IDOR on Consultation Notes)**:
+  - *Location*: `src/controllers/patientController.ts` → `getPatientNotes()`
+  - *Description*: Patient consultation notes endpoint reads records from MongoDB by ID. It fails to check if the patient ID inside the session matches the patient ID of the requested note document.
+  - *Decoy Safeguard*: The user registration validations require matching signature parameters.
+- **VULN-02 (A02 - Weak JWT Token Validation)**:
+  - *Location*: `src/services/AuthService.ts` → `verifyToken()`
+  - *Description*: The JWT verification middleware accepts tokens signed with a weak secret or configured with the insecure `none` algorithm.
+- **VULN-03 (A07 - Insecure Session Handling)**:
+  - *Location*: `src/controllers/authController.ts`
+  - *Description*: Session cookie definitions omit the `httpOnly` flag, permitting cookie reading via client-side scripts.
+
+### Exploit Chains
+- **Chain-01 (EASY to Find & Exploit)**: *JWT Forgery → IDOR Patient Notes*
+  - *Narrative*: Attacker creates a forged JWT configured with the `none` algorithm and doctor permissions. They submit this token to authenticate and call `/api/patients/notes/:id` to retrieve another patient's medical details from MongoDB.
+  - *Subtlety*: Low. Accept-none JWT vulnerabilities are easily flagged by security scanners.
+- **Chain-02 (HARD to Find & Exploit)**: *Session Hijack → Kafka State Race → Prescription Injection*
+  - *Narrative*: Attacker exploits the missing `httpOnly` cookie flag via a cross-site script to extract the patient's session token. They then hijack the session. To inject a prescription, they trigger multiple rapid booking requests to the appointment API via Kafka. Due to race conditions in the `ScheduleValidator` that processes booking logs asynchronously, the server updates state variables in Redis in an incorrect sequence. This state mismatch is read by the `PrescriptionConsumer` thread, allowing the attacker to issue unauthorized prescriptions under a different patient's account.
+  - *Subtlety*: High. It requires exploiting out-of-order execution states in the Kafka consumer thread to overwrite Redis state variables, bypassing prescription authorization checks.

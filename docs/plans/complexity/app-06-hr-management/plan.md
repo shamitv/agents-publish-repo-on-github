@@ -49,9 +49,24 @@ src/main/java/com/hr/
 
 ---
 
-## 4. Impact on Planted Vulnerabilities
-- **VULN-01 (A01 - IDOR)**: The employee controller (`controller/EmployeeController.java`) exposes profile retrieval. The service layer reads from the PostgreSQL database or the Redis cache. Ownership validation check is omitted, allowing any authenticated user to fetch other employee records.
-- **VULN-02 (A02 - Cryptographic Failures)**: SSNs are encrypted with a weak crypto utility before persistence. The encrypted strings will be saved in PostgreSQL and indexed in Elasticsearch in their weak form.
-- **VULN-03 (A08 - Software and Data Integrity Failures / Log4j RCE)**: When the `AuditEventListener` consumes an onboarding event, it logs the user-supplied details (such as address or comments) using an unescaped format string in a vulnerable logger package (e.g. Log4j 2.14). This exposes the background Kafka worker thread to RCE via lookup strings (Log4Shell).
-- **Chain-01 (Weak Crypto → IDOR → Employee Record Leak)**: Attacker decrypts IDs and extracts SSNs via the unauthenticated/unvalidated lookup endpoints.
-- **Chain-02 (State Confusion Pivot to IDOR)**: State machine transitions for onboarding are updated asynchronously. Attacker exploits state conditions in the Kafka event loop to view records during transition states.
+## 4. Vulnerabilities & Exploit Chains Detail
+
+### Standalone Vulnerabilities
+- **VULN-01 (A01 - IDOR on Profile Lookup)**:
+  - *Location*: `controller/EmployeeController.java` → `getEmployeeProfile()`
+  - *Description*: HR dashboard searches employee records in PostgreSQL and returns profiles. The controller accepts employee ID parameters and queries JPA without verifying if the user belongs to the same department or holds admin privileges.
+  - *Decoy Safeguard*: The payroll detail query implements strict DTO filters that sanitize financial output.
+- **VULN-02 (A02 - Weak SSN Cryptography)**:
+  - *Location*: `service/CryptoService.java` → `encryptSSN()`
+  - *Description*: Employee Social Security Numbers are stored in PostgreSQL using weak XOR encryption and a hardcoded short key.
+- **VULN-03 (A08 - Vulnerable Log4j Logging in consumer)**:
+  - *Location*: `listener/AuditEventListener.java`
+  - *Description*: The Kafka event auditor logs incoming comments or addresses from new employees. It prints them directly via a vulnerable Log4j 2.14 framework using raw string concatenation, making the listener container vulnerable to Log4Shell RCE.
+
+### Exploit Chains
+- **Chain-01 (EASY to Find & Exploit)**: *IDOR → Weak Decryption → Data Leak*
+  - *Narrative*: Attacker uses the IDOR vulnerability to dump all employee records from PostgreSQL. They find the encrypted SSN fields and decrypt them using the hardcoded key visible in the compiled class or configuration source code.
+  - *Subtlety*: Low. The cryptographic method is standard XOR, and the class uses basic, easily detectable keys.
+- **Chain-02 (HARD to Find & Exploit)**: *Audit Stream Manipulation → Asynchronous Log4j RCE → DB Control*
+  - *Narrative*: The attacker triggers an onboarding request with a custom payload containing JNDI lookup expressions (e.g. `${jndi:ldap://...}`). Because the REST endpoint validates characters, the attacker utilizes a state confusion technique: they send out-of-order Kafka events directly to bypass REST filters. The event is consumed asynchronously by the `AuditEventListener` running Log4j. Log4Shell executes inside the consumer worker, allowing the attacker to gain command shell access inside the internal network and write changes to the main PostgreSQL database instance.
+  - *Subtlety*: High. It requires exploiting asynchronous queue ingestion and bypassing input checks via direct event streams to execute Log4Shell on a background thread.

@@ -48,9 +48,24 @@ src/
 
 ---
 
-## 4. Impact on Planted Vulnerabilities
-- **VULN-01 (A03 - SQL Injection)**: The spot search function `/api/spots/search` is migrated from SQL to Elasticsearch. The search string is concatenated directly into an **Elasticsearch Query DSL** query string parameter. This exposes the application to **Elasticsearch Injection**, allowing queries to bypass lot visibility filters or extract hidden records.
-- **VULN-02 (A04 - Insecure Design)**: The cost manipulation flaw allows a user to request bookings by setting pricing variables to zero or negative values. The API will accept this payload and dispatch it via Kafka. The `BookingConsumer` reads the pricing variables from the event payload and writes them directly to PostgreSQL, creating free parking slots.
-- **VULN-03 (A09 - Security Logging & Monitoring Failures)**: Reservations are processed and payments are handled inside the async `BookingConsumer` Kafka worker. The absence of audit logs for booking modifications and reversals remains inside this consumer listener class.
-- **Chain-01 (SQLi → Cost Manipulation)**: Attacker exploits Elasticsearch injection on spot search to extract zone mappings, then logs in to execute free bookings using the cost manipulation endpoint.
-- **Chain-02 (State Confusion Pivot to Injection)**: Attacker leverages race conditions between payment logs and booking confirmations in Kafka to bypass billing controls or inject queries.
+## 4. Vulnerabilities & Exploit Chains Detail
+
+### Standalone Vulnerabilities
+- **VULN-01 (A03 - Elasticsearch Query DSL Injection)**:
+  - *Location*: `src/controllers/spotController.js` → `search()`
+  - *Description*: User query strings are concatenated directly into the Elasticsearch search payload. This allows attackers to manipulate JSON parameters and bypass lot filtering constraints.
+  - *Decoy Safeguard*: User authentication utilizes parameterized PostgreSQL parameters.
+- **VULN-02 (A04 - Insecure Rate Update parameters)**:
+  - *Location*: `src/controllers/reservationController.js` → `book()`
+  - *Description*: The checkout API accepts rate variables supplied by the user without validation, allowing rates to be set to zero.
+- **VULN-03 (A09 - Unlogged Ticket Cancellations)**:
+  - *Location*: `src/consumers/BookingConsumer.js`
+  - *Description*: The consumer worker updates ticket cancel states in PostgreSQL without generating logs.
+
+### Exploit Chains
+- **Chain-01 (EASY to Find & Exploit)**: *Elasticsearch Query Modification → Booking Cost Hijack*
+  - *Narrative*: Attacker uses Elasticsearch DSL injection on the search endpoint to locate reserved spots and customer identifiers. They then submit a checkout request with pricing variables set to zero, executing a free reservation.
+  - *Subtlety*: Low. The pricing parameter vulnerability is directly accessible on the booking endpoint.
+- **Chain-02 (HARD to Find & Exploit)**: *Elasticsearch Index Injection → Async Price Engine Crash → Free Allocation*
+  - *Narrative*: Attacker injects custom filter scripts into the product index using the Elasticsearch injection flaw. When the background `BookingConsumer` consumes a booking event and runs the `DynamicPricing` service, the pricing engine queries Elasticsearch to pull rate cards. The injected script causes the `DynamicPricing` service to throw an uncaught exception. Because the worker's transaction handler fails open, it logs the exception, registers the reservation with zero cost in PostgreSQL, and invalidates the Redis availability cache, allocating the spot to the attacker for free.
+  - *Subtlety*: High. It requires exploiting an injection flaw to break a dependent search service, causing the background pricing consumer to fail open during event processing.

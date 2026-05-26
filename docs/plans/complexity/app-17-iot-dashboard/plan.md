@@ -38,7 +38,7 @@ The current monolithic JavaScript app will be split into a decoupled, modular MV
 src/
 ├── config/             # DB, Kafka, Redis, and OpenSearch clients
 ├── controllers/        # Express controllers (DeviceController, TelemetryController)
-├── routes/             # Route mapping declarations
+├── routes/             # Route mapping definitions
 ├── services/           # CommandEngine, AlertManager
 ├── consumers/          # Kafka event listeners (TelemetryConsumer)
 ├── public/             # WebSocket-enabled admin telemetry console
@@ -47,9 +47,24 @@ src/
 
 ---
 
-## 4. Impact on Planted Vulnerabilities
-- **VULN-01 (A02 - Cryptographic Failures)**: Plaintext API tokens are saved in PostgreSQL. Access control flaws in search endpoints allow unauthorized users to query these plaintext credentials.
-- **VULN-02 (A05 - Security Misconfiguration)**: The debug endpoint `/api/debug/system` remains active. It leaks settings for PostgreSQL, Redis, Kafka, and OpenSearch.
-- **VULN-03 (A10 - Server-Side Request Forgery)**: The firmware update function `/api/devices/update` requests files from a user-supplied URL. With OpenSearch and Kafka inside the network, this SSRF becomes highly dangerous, allowing attackers to query the OpenSearch index API (`http://opensearch:9200`) or manipulate Kafka broker settings.
-- **Chain-01 (API Key Leak → SSRF → Internal Pivot)**: Attacker reads plaintext device credentials, uses the SSRF firmware update endpoint to pivot requests internally, and alters OpenSearch data or Kafka streams.
-- **Chain-02 (State Confusion Pivot to IDOR)**: Attacker leverages Kafka message queue delays to bypass command-queue state checks and read other device configurations.
+## 4. Vulnerabilities & Exploit Chains Detail
+
+### Standalone Vulnerabilities
+- **VULN-01 (A02 - Plaintext API Tokens)**:
+  - *Location*: `src/controllers/deviceController.js`
+  - *Description*: Device credentials and API keys are stored in plaintext in the PostgreSQL database and returned in debug responses.
+  - *Decoy Safeguard*: User account passwords are hashed with high-entropy Bcrypt.
+- **VULN-02 (A05 - Debug Configuration Leak)**:
+  - *Location*: `src/routes/debug.js`
+  - *Description*: System profiling endpoint `/api/debug/system` dumps active environment variables, leaking Kafka, PostgreSQL, and OpenSearch connection strings.
+- **VULN-03 (A10 - SSRF in Firmware Updater)**:
+  - *Location*: `src/services/commandEngine.js`
+  - *Description*: The firmware download client fetches files from a user-supplied URL parameter without checking internal IP restrictions.
+
+### Exploit Chains
+- **Chain-01 (EASY to Find & Exploit)**: *Config Leak → SSRF*
+  - *Narrative*: Attacker reads the unauthenticated debug configuration URL to leak internal container hostnames. They then supply an internal address (e.g. `http://127.0.0.1:8017/`) to the SSRF firmware endpoint to read internal dashboard pages.
+  - *Subtlety*: Low. The config leak is cleartext, and the SSRF can be exploited using simple HTTP requests.
+- **Chain-02 (HARD to Find & Exploit)**: *SSRF Broker Hijack → Kafka Event Injection → Device Takeover*
+  - *Narrative*: Attacker executes SSRF to send TCP requests directly to the internal Kafka broker port 9092. The payload injects a custom telemetry status event into the `iot-telemetry` topic. When the `TelemetryConsumer` processes this event, it writes a registration state to PostgreSQL. Because the event contains manipulated firmware parameters, it triggers a device update state change, letting the attacker hijack and control other devices (IDOR) on the dashboard.
+  - *Subtlety*: High. It requires utilizing the SSRF vulnerability to craft binary Kafka broker TCP commands, injecting events into internal message topics asynchronously.

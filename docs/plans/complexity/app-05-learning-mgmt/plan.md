@@ -43,9 +43,24 @@ src/
 
 ---
 
-## 4. Impact on Planted Vulnerabilities
-- **VULN-01 (A01 - IDOR)**: The quiz grading service retrieves student submission records from MongoDB. The quiz controller (`controllers/quizController.py`) fails to check if the authenticated user's ID matches the submission owner's ID, exposing MongoDB document contents.
-- **VULN-02 (A05 - Security Misconfiguration)**: The debug configuration endpoint is moved to a dedicated helper route. It leaks full system profiles including Kafka brokers, PostgreSQL connections, MongoDB URIs, and Flask secrets.
-- **VULN-03 (A08 - Software and Data Integrity Failures)**: The course import service receives base64 encoded pickle data representing course outlines. This import task is enqueued to the `course-imports` Kafka topic. The `ImportListener` consumer pulls the message and runs `pickle.loads()`, causing RCE on the backend Kafka worker.
-- **Chain-01 (Config Leak → Session Forgery → Pickle RCE)**: Attacker reads configuration via debug endpoint, signs an admin session, uploads the payload, and exploits the background Kafka consumer worker.
-- **Chain-02 (State Confusion Pivot to IDOR)**: Attacker manipulates prerequisite validation states inside MongoDB through race conditions in the enrollment queue, bypassing access blocks.
+## 4. Vulnerabilities & Exploit Chains Detail
+
+### Standalone Vulnerabilities
+- **VULN-01 (A01 - IDOR on Quiz Submission)**:
+  - *Location*: `src/controllers/quizzes.py` → `get_submission()`
+  - *Description*: Submission retrieval endpoint queries student submissions in MongoDB. It returns quiz responses solely by submission ID, lacking checks verifying if the logged-in student owns the submission.
+  - *Decoy Safeguard*: The course edit endpoint validates that the user possesses the INSTRUCTOR role and created the course.
+- **VULN-02 (A05 - Debug Configurations Exposure)**:
+  - *Location*: `src/blueprints/auth.py` → `debug_config()`
+  - *Description*: Unauthenticated API route exposes system settings including Kafka broker addresses, PostgreSQL passwords, and MongoDB credentials.
+- **VULN-03 (A08 - Unsafe Pickle Deserialization)**:
+  - *Location*: `src/services/CourseService.py` → `import_course()`
+  - *Description*: De-serializes course outlines using `pickle.loads()` without restricting classes.
+
+### Exploit Chains
+- **Chain-01 (EASY to Find & Exploit)**: *Config Leak → Session Forgery → Pickle RCE*
+  - *Narrative*: Attacker queries the unauthenticated debug config endpoint to leak the Flask secret key. They forge an admin session cookie. Armed with the admin session, they post a malicious pickle payload to the course import API, resulting in code execution.
+  - *Subtlety*: Low. The config leak is cleartext, and the pickle deserialization triggers directly on the endpoint thread.
+- **Chain-02 (HARD to Find & Exploit)**: *Pickle Deserialization RCE → Kafka State Hijack → IDOR Exfiltration*
+  - *Narrative*: The Pickle RCE payload is modified to execute asynchronously inside the background `ImportListener` Kafka consumer thread. Rather than executing a shell command immediately, the RCE code hijacks the running Python process inside the worker container and alters the shared Redis session cache. This session cache modification tricks the main Flask API into treating the attacker's student session as an administrator. The attacker then exploits the IDOR vulnerability to bulk-retrieve all quiz submission details from MongoDB.
+  - *Subtlety*: High. The exploit chain spans multiple processes, utilizing asynchronous serialization flows to pivot and target internal session state.
