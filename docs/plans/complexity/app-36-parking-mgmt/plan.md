@@ -63,15 +63,20 @@ src/
   - *Description*: The consumer worker updates ticket cancel states in PostgreSQL without generating logs.
 
 ### Exploit Chains
-- **Chain-01 (EASY to Find & Exploit)**: *Elasticsearch Query Modification → Booking Cost Hijack*
-  - *Narrative*: Attacker uses Elasticsearch DSL injection on the search endpoint to locate reserved spots and customer identifiers. They then submit a checkout request with pricing variables set to zero, executing a free reservation.
-  - *Subtlety*: Low. The pricing parameter vulnerability is directly accessible on the booking endpoint.
-- **Chain-02 (HARD to Find & Exploit)**: *Elasticsearch Index Injection → Async Price Engine Crash → Free Allocation*
-  - *Narrative*: Attacker injects custom filter scripts into the product index using the Elasticsearch injection flaw. When the background `BookingConsumer` consumes a booking event and runs the `DynamicPricing` service, the pricing engine queries Elasticsearch to pull rate cards. The injected script causes the `DynamicPricing` service to throw an uncaught exception. Because the worker's transaction handler fails open, it logs the exception, registers the reservation with zero cost in PostgreSQL, and invalidates the Redis availability cache, allocating the spot to the attacker for free.
-  - *Subtlety*: High. It requires exploiting an injection flaw to break a dependent search service, causing the background pricing consumer to fail open during event processing.
+#### chain-01: Elasticsearch Query Injection -> Client-Controlled Pricing -> Unlogged Reservation Change
+- **Impact**: `data_modification`
+- **Attack narrative**: An attacker abuses Elasticsearch query injection to discover reserved spot and customer identifiers, submits a reservation request with client-controlled pricing values set to zero, and relies on the booking consumer's missing audit logging to persist the unauthorized free allocation without a structured cancellation or adjustment trail.
+
+| Step | Issue | Severity (standalone) | OWASP | CWE | Location | Method |
+|------|-------|-----------------------|-------|-----|----------|--------|
+| 1 | Search endpoint concatenates user input into Elasticsearch query logic. | Medium | A03 | CWE-943 | `src/controllers/spotController.js` | `search()` |
+| 2 | Booking endpoint accepts client-supplied pricing variables without server-side validation. | Medium | A04 | CWE-20 | `src/controllers/reservationController.js` | `book()` |
+| 3 | Booking consumer applies ticket cancellation or adjustment state changes without structured logs. | Low | A09 | CWE-778 | `src/consumers/BookingConsumer.js` | `processBooking()` |
 
 ---
 
-## 5. Code Comment Constraints (Agent Tipping Prevention)
-- **No Code-Level Tips**: Source code files (`src/`) must not contain any explicit comments, annotations, or markers (e.g. `// VULNERABILITY`, `// CHAIN LINK`, etc.) that could tip off security-detection agents.
-- **Metadata Localization**: All details regarding standalone vulnerabilities, exploit chains, and locations are strictly restricted to the ground-truth metadata files (`.vulns` JSON manifest) and internal reference files (`scenarios.md`).
+## 5. Benchmark Metadata Requirements
+- **Source Annotations Required**: Source code must retain the `AGENTS.md` benchmark comments: `// VULNERABILITY <OWASP_ID>: <brief description>` for each standalone vulnerability and `// CHAIN LINK <N> (chain-<ID>): <description>` for every chain step.
+- **Metadata Synchronization**: `.vulns`, the README chain section, this plan's chain table, and source comments must agree on OWASP ID, severity, CWE, impact, location, and method.
+- **README Chain Section Required**: The app README must keep the required `Chained Vulnerability Scenario` section. `scenarios.md` may provide supplemental narrative, but it must not replace README or `.vulns` content.
+- **Decoys Required**: Preserve nearby safe decoy patterns and list them in `.vulns.decoys`.

@@ -62,15 +62,20 @@ src/
   - *Description*: The firmware download client fetches files from a user-supplied URL parameter without checking internal IP restrictions.
 
 ### Exploit Chains
-- **Chain-01 (EASY to Find & Exploit)**: *Config Leak → SSRF*
-  - *Narrative*: Attacker reads the unauthenticated debug configuration URL to leak internal container hostnames. They then supply an internal address (e.g. `http://127.0.0.1:8017/`) to the SSRF firmware endpoint to read internal dashboard pages.
-  - *Subtlety*: Low. The config leak is cleartext, and the SSRF can be exploited using simple HTTP requests.
-- **Chain-02 (HARD to Find & Exploit)**: *SSRF Broker Hijack → Kafka Event Injection → Device Takeover*
-  - *Narrative*: Attacker executes SSRF to send TCP requests directly to the internal Kafka broker port 9092. The payload injects a custom telemetry status event into the `iot-telemetry` topic. When the `TelemetryConsumer` processes this event, it writes a registration state to PostgreSQL. Because the event contains manipulated firmware parameters, it triggers a device update state change, letting the attacker hijack and control other devices (IDOR) on the dashboard.
-  - *Subtlety*: High. It requires utilizing the SSRF vulnerability to craft binary Kafka broker TCP commands, injecting events into internal message topics asynchronously.
+#### chain-01: Debug Config Leak -> Internal HTTP SSRF -> Plaintext Device Token Exposure
+- **Impact**: `lateral_movement`
+- **Attack narrative**: An attacker reads the unauthenticated system debug endpoint to learn internal service addresses, passes an internal HTTP URL to the firmware updater SSRF, and uses the server-side request to retrieve internal device/debug data that exposes plaintext device API tokens for use against other device-management endpoints.
+
+| Step | Issue | Severity (standalone) | OWASP | CWE | Location | Method |
+|------|-------|-----------------------|-------|-----|----------|--------|
+| 1 | System debug endpoint exposes service topology and credentials without authentication. | Low | A05 | CWE-200 | `src/routes/debug.js` | `systemProfile()` |
+| 2 | Firmware updater fetches attacker-supplied HTTP URLs without blocking internal hosts. | Medium | A10 | CWE-918 | `src/services/commandEngine.js` | `downloadFirmware()` |
+| 3 | Device debug response exposes plaintext device API tokens from PostgreSQL. | Medium | A02 | CWE-312 | `src/controllers/deviceController.js` | `getDeviceDebug()` |
 
 ---
 
-## 5. Code Comment Constraints (Agent Tipping Prevention)
-- **No Code-Level Tips**: Source code files (`src/`) must not contain any explicit comments, annotations, or markers (e.g. `// VULNERABILITY`, `// CHAIN LINK`, etc.) that could tip off security-detection agents.
-- **Metadata Localization**: All details regarding standalone vulnerabilities, exploit chains, and locations are strictly restricted to the ground-truth metadata files (`.vulns` JSON manifest) and internal reference files (`scenarios.md`).
+## 5. Benchmark Metadata Requirements
+- **Source Annotations Required**: Source code must retain the `AGENTS.md` benchmark comments: `// VULNERABILITY <OWASP_ID>: <brief description>` for each standalone vulnerability and `// CHAIN LINK <N> (chain-<ID>): <description>` for every chain step.
+- **Metadata Synchronization**: `.vulns`, the README chain section, this plan's chain table, and source comments must agree on OWASP ID, severity, CWE, impact, location, and method.
+- **README Chain Section Required**: The app README must keep the required `Chained Vulnerability Scenario` section. `scenarios.md` may provide supplemental narrative, but it must not replace README or `.vulns` content.
+- **Decoys Required**: Preserve nearby safe decoy patterns and list them in `.vulns.decoys`.
