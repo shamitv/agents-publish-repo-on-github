@@ -8,6 +8,7 @@ class InMemoryStore {
       { id: 2, username: 'admin_iot', passwordHash: bcrypt.hashSync('adminSecureIoT2026!', salt), role: 'ADMIN' }
     ];
     this.devices = [
+      // VULNERABILITY A02: Device access tokens are stored as plaintext fields.
       { id: 1, name: 'Smart Thermostat', status: 'ONLINE', deviceSecret: 'IOT-DEV-KEY-THERMO-1122' },
       { id: 2, name: 'Security Gateway', status: 'ONLINE', deviceSecret: 'IOT-DEV-KEY-GATEWAY-8877' }
     ];

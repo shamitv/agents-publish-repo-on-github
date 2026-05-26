@@ -26,6 +26,8 @@ class DeviceService {
     return {
       error: err.message,
       stack: err.stack,
+      // CHAIN LINK 1 (chain-01): Verbose command errors leak internal telemetry URL and token.
+      // VULNERABILITY A05: Debug configuration secrets are returned to authenticated users.
       gateway_config: {
         telemetry_server_url: appConfig.telemetryUrl,
         telemetry_access_key: appConfig.telemetryToken,
