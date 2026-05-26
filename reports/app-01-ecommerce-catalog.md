@@ -17,9 +17,9 @@ The following vulnerability list represents the ground truth security issues ide
 
 | ID | OWASP | Category | Severity | Location | CWE |
 |---|---|---|---|---|---|
-| V1 | A01 | Broken Access Control | High | app.py | CWE-639 |
-| V2 | A03 | Injection | High | app.py | CWE-89 |
-| V3 | A09 | Security Logging & Monitoring Failures | Medium | app.py | CWE-778 |
+| V1 | A01 | Broken Access Control | High | src/controllers/order_controller.py | CWE-639 |
+| V2 | A03 | Injection | High | src/services/search_service.py | CWE-943 |
+| V3 | A09 | Security Logging and Monitoring Failures | Medium | src/consumers/billing_consumer.py | CWE-778 |
 
 ---
 
@@ -28,29 +28,29 @@ The following vulnerability list represents the ground truth security issues ide
 ### VULN-01: A01 — Broken Access Control
 
 - **Severity:** High
-- **Location:** `app.py`:150-165 (method: `get_order_details`)
+- **Location:** `src/controllers/order_controller.py`:N/A (method: `get_order_details`)
 - **CWE:** [CWE-639](https://cwe.mitre.org/data/definitions/639.html)
 
 #### Description
-Order retrieval endpoint returns order data solely based on the order_id path variable, performing no owner validation checks between the authenticated user and the requested order's client
+Order retrieval returns any order by path ID after authentication without checking whether the requester owns the order.
 
 ### VULN-02: A03 — Injection
 
 - **Severity:** High
-- **Location:** `app.py`:110-125 (method: `list_products`)
-- **CWE:** [CWE-89](https://cwe.mitre.org/data/definitions/89.html)
+- **Location:** `src/services/search_service.py`:N/A (method: `search`)
+- **CWE:** [CWE-943](https://cwe.mitre.org/data/definitions/943.html)
 
 #### Description
-Product search query parameter is concatenated directly into a raw SQLite SELECT statement without parameterization, permitting SQL injection bypasses
+Product search inserts user input directly into SQL fallback search and Elasticsearch query_string syntax.
 
-### VULN-03: A09 — Security Logging & Monitoring Failures
+### VULN-03: A09 — Security Logging and Monitoring Failures
 
 - **Severity:** Medium
-- **Location:** `app.py`:180-200 (method: `create_order`)
+- **Location:** `src/consumers/billing_consumer.py`:N/A (method: `process_order_event`)
 - **CWE:** [CWE-778](https://cwe.mitre.org/data/definitions/778.html)
 
 #### Description
-High-value and sensitive financial activities, including order checkouts, payment state mappings, and catalog stock alterations, are executed without producing any structured audit logs or trace monitoring records
+Billing event processing changes invoice state without structured audit logging.
 
 
 ---
@@ -59,45 +59,24 @@ High-value and sensitive financial activities, including order checkouts, paymen
 
 Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-### CHAIN-01: User Enumeration → Session Forge → Admin Takeover
+### CHAIN-01: User Enumeration -> Session Forgery -> Catalog Modification
 
-- **Combined Impact:** `account_takeover`
+- **Combined Impact:** `data_modification`
 - **Difficulty:** Medium
-- **Subtlety Tags:** `cross_file` `direct_data_flow` `realistic_decoy`
+- **Subtlety Tags:** 
 
 #### Prerequisites
-- attacker can reach the public request path
-- attacker can control one request parameter or body field
+- None specified
 
 #### Attack Narrative
-Attacker confirms admin username via unauthenticated existence endpoint, then forges a Flask session cookie using the hardcoded secret_key visible in source code, gaining admin-level access without any credentials.
+An attacker confirms the admin username through an unauthenticated existence endpoint, uses the hardcoded Flask signing secret to forge an admin session cookie, and writes attacker-controlled product data through an admin endpoint that trusts the session role.
 
 #### Chain Components
 | Step | Description | Severity | OWASP | CWE | Location | Method |
 |---|---|---|---|---|---|---|
-| 1 | GET /api/users/exists returns 200/404 per username, confirming valid accounts without authentication | Low | A01 | CWE-204 | app.py | `user_exists` |
-| 2 | Flask secret_key is a hardcoded string in source code, allowing any party with source access to forge valid signed session cookies for any user or role | Medium | A05 | CWE-798 | app.py | `app_config` |
-| 3 | No CSRF tokens on any state-changing endpoint — the forged session cookie is sufficient to invoke admin-only mutations | Low | A05 | CWE-352 | app.py | `all_post_endpoints` |
-
-### CHAIN-02: Subtle State Confusion Pivot To Idor
-
-- **Combined Impact:** `account_takeover`
-- **Difficulty:** Hard
-- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy` `secondary_chain`
-
-#### Prerequisites
-- attacker has or can create a low privilege account
-- attacker can combine request input with stored application state
-
-#### Attack Narrative
-Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
-
-#### Chain Components
-| Step | Description | Severity | OWASP | CWE | Location | Method |
-|---|---|---|---|---|---|---|
-| 1 | High-value and sensitive financial activities, including order checkouts, payment state mappings, and catalog stock alterations, are executed without producing any structured audit logs or trace monitoring records | Medium | A09 | CWE-778 | app.py | `create_order` |
-| 2 | Product search query parameter is concatenated directly into a raw SQLite SELECT statement without parameterization, permitting SQL injection bypasses | High | A03 | CWE-89 | app.py | `list_products` |
-| 3 | Order retrieval endpoint returns order data solely based on the order_id path variable, performing no owner validation checks between the authenticated user and the requested order's client | High | A01 | CWE-639 | app.py | `get_order_details` |
+| 1 | Unauthenticated username existence endpoint confirms privileged account names. | Low | A01 | CWE-203 | src/controllers/user_controller.py | `user_exists` |
+| 2 | Hardcoded Flask signing secret allows forged admin session cookies. | Medium | A02 | CWE-798 | src/config/settings.py | `SECRET_KEY` |
+| 3 | Admin product mutation endpoint trusts the forgeable session role. | Medium | A01 | CWE-862 | src/controllers/product_controller.py | `create_product` |
 
 
 ---
@@ -108,5 +87,5 @@ These code patterns mimic security weaknesses but are safe. They are included to
 
 | Location | Description |
 |---|---|
-| app.py | Safe, parameterized user retrieval query during auth logins — secure SQL decoy |
-| app.py | Flask session cookies are cryptographically signed with high-entropy key — secure cookie decoy |
+| src/repositories/user_repository.py | Login uses parameterized SQL despite the nearby vulnerable product search flow. |
+| src/controllers/user_controller.py | The profile endpoint reads the authenticated session user ID rather than accepting arbitrary user IDs. |

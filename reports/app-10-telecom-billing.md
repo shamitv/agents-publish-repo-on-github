@@ -19,7 +19,9 @@ The following vulnerability list represents the ground truth security issues ide
 |---|---|---|---|---|---|
 | V1 | A03 | Injection | High | src/main/java/com/telecom/billing/controller/UsageController.java | CWE-89 |
 | V2 | A04 | Insecure Design | Medium | src/main/java/com/telecom/billing/service/PaymentService.java | CWE-799 |
-| V3 | A09 | Security Logging and Monitoring Failures | Low | src/main/java/com/telecom/billing/controller/AdminController.java | CWE-778 |
+| V3 | A01 | Broken Access Control | Medium | src/main/java/com/telecom/billing/controller/AdminController.java | CWE-862 |
+| V4 | A04 | Insecure Design | Medium | src/main/java/com/telecom/billing/controller/AdminController.java | CWE-840 |
+| V5 | A09 | Security Logging and Monitoring Failures | Low | src/main/java/com/telecom/billing/controller/AdminController.java | CWE-778 |
 
 ---
 
@@ -28,29 +30,47 @@ The following vulnerability list represents the ground truth security issues ide
 ### VULN-01: A03 — Injection
 
 - **Severity:** High
-- **Location:** `src/main/java/com/telecom/billing/controller/UsageController.java`:20-31 (method: `getUsageByDateRange`)
+- **Location:** `src/main/java/com/telecom/billing/controller/UsageController.java`:23-28 (method: `getUsageByDateRange`)
 - **CWE:** [CWE-89](https://cwe.mitre.org/data/definitions/89.html)
 
 #### Description
-Usage search SQL query constructed using string concatenation with user-supplied date values
+Usage search builds native SQL with user-controlled date values.
 
 ### VULN-02: A04 — Insecure Design
 
 - **Severity:** Medium
-- **Location:** `src/main/java/com/telecom/billing/service/PaymentService.java`:21-36 (method: `processPayment`)
+- **Location:** `src/main/java/com/telecom/billing/service/PaymentService.java`:18-32 (method: `processPayment`)
 - **CWE:** [CWE-799](https://cwe.mitre.org/data/definitions/799.html)
 
 #### Description
-No rate limiting or idempotency check on the payment processing service
+Payment processing lacks replay, idempotency, and rate-limit checks.
 
-### VULN-03: A09 — Security Logging and Monitoring Failures
+### VULN-03: A01 — Broken Access Control
+
+- **Severity:** Medium
+- **Location:** `src/main/java/com/telecom/billing/controller/AdminController.java`:37-45 (method: `updatePlanRate`)
+- **CWE:** [CWE-862](https://cwe.mitre.org/data/definitions/862.html)
+
+#### Description
+Billing-admin plan rate endpoint accepts low-privilege CUSTOMER users.
+
+### VULN-04: A04 — Insecure Design
+
+- **Severity:** Medium
+- **Location:** `src/main/java/com/telecom/billing/controller/AdminController.java`:47-50 (method: `updatePlanRate`)
+- **CWE:** [CWE-840](https://cwe.mitre.org/data/definitions/840.html)
+
+#### Description
+Plan pricing accepts caller-controlled negative or arbitrary custom rates.
+
+### VULN-05: A09 — Security Logging and Monitoring Failures
 
 - **Severity:** Low
-- **Location:** `src/main/java/com/telecom/billing/controller/AdminController.java`:21-32 (method: `adjustBalance`)
+- **Location:** `src/main/java/com/telecom/billing/controller/AdminController.java`:52-54 (method: `updatePlanRate`)
 - **CWE:** [CWE-778](https://cwe.mitre.org/data/definitions/778.html)
 
 #### Description
-Admin balance adjustment endpoint lacks audit logging, allowing undetectable database modification
+Plan rate changes are persisted without publishing an audit event.
 
 
 ---
@@ -59,45 +79,24 @@ Admin balance adjustment endpoint lacks audit logging, allowing undetectable dat
 
 Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-### CHAIN-01: SQL Injection → Payment Fraud → No Audit Trail
+### CHAIN-01: Weak Billing Admin Auth → Unvalidated Custom Rate → Missing Audit Logs → Data Modification
 
 - **Combined Impact:** `data_modification`
 - **Difficulty:** Medium
-- **Subtlety Tags:** `cross_file` `direct_data_flow` `realistic_decoy`
+- **Subtlety Tags:** 
 
 #### Prerequisites
-- attacker can reach the public request path
-- attacker can control one request parameter or body field
+- None specified
 
 #### Attack Narrative
-Attacker exploits SQL injection in usage search to leak invoice details, submits multiple forged or replayed payment confirmations via the non-idempotent payment endpoint, and utilizes unlogged admin balance adjustments to complete fraud.
+A low-privilege customer reaches a billing-admin pricing endpoint, submits an arbitrary negative plan rate, and the pricing mutation is saved without an audit event.
 
 #### Chain Components
 | Step | Description | Severity | OWASP | CWE | Location | Method |
 |---|---|---|---|---|---|---|
-| 1 | SQL injection in usage lookup allows exfiltrating details of other customers' invoices. | Medium | A03 | CWE-89 | src/main/java/com/telecom/billing/controller/UsageController.java | `getUsageByDateRange` |
-| 2 | Payment endpoint lacks concurrency / replay / rate-limiting controls, allowing payment fraud. | Medium | A04 | CWE-799 | src/main/java/com/telecom/billing/service/PaymentService.java | `processPayment` |
-| 3 | Admin balance adjustments are not audit logged. | Low | A09 | CWE-778 | src/main/java/com/telecom/billing/controller/AdminController.java | `adjustBalance` |
-
-### CHAIN-02: Subtle State Confusion Pivot To Injection
-
-- **Combined Impact:** `data_modification`
-- **Difficulty:** Hard
-- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy` `secondary_chain`
-
-#### Prerequisites
-- attacker has or can create a low privilege account
-- attacker can combine request input with stored application state
-
-#### Attack Narrative
-Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
-
-#### Chain Components
-| Step | Description | Severity | OWASP | CWE | Location | Method |
-|---|---|---|---|---|---|---|
-| 1 | Admin balance adjustment endpoint lacks audit logging, allowing undetectable database modification | Low | A09 | CWE-778 | src/main/java/com/telecom/billing/controller/AdminController.java | `adjustBalance` |
-| 2 | No rate limiting or idempotency check on the payment processing service | Medium | A04 | CWE-799 | src/main/java/com/telecom/billing/service/PaymentService.java | `processPayment` |
-| 3 | Usage search SQL query constructed using string concatenation with user-supplied date values | High | A03 | CWE-89 | src/main/java/com/telecom/billing/controller/UsageController.java | `getUsageByDateRange` |
+| 1 | Plan rate endpoint authorizes CUSTOMER users for billing-admin functionality. | Medium | A01 | CWE-862 | src/main/java/com/telecom/billing/controller/AdminController.java | `updatePlanRate` |
+| 2 | Caller-controlled custom rates, including negative values, are written directly to plan pricing. | Medium | A04 | CWE-840 | src/main/java/com/telecom/billing/controller/AdminController.java | `updatePlanRate` |
+| 3 | The pricing mutation bypasses the available billing audit producer. | Low | A09 | CWE-778 | src/main/java/com/telecom/billing/controller/AdminController.java | `updatePlanRate` |
 
 
 ---
@@ -108,5 +107,6 @@ These code patterns mimic security weaknesses but are safe. They are included to
 
 | Location | Description |
 |---|---|
-| src/main/java/com/telecom/billing/config/SecurityConfig.java | Strong hashing (BCrypt) used for customer passwords |
-| src/main/java/com/telecom/billing/controller/CustomerController.java | getCustomer validates Principal name matches resource owner before returning profile details |
+| src/main/java/com/telecom/billing/config/SecurityConfig.java | BCryptPasswordEncoder is used for customer passwords and should not be flagged. |
+| src/main/java/com/telecom/billing/controller/CustomerController.java | Customer profile endpoint checks principal ownership or admin identity before returning profile details. |
+| src/main/java/com/telecom/billing/messaging/BillingAuditProducer.java | Audit producer is available for safe workflows; the vulnerability is the pricing endpoint bypassing it. |

@@ -17,40 +17,50 @@ The following vulnerability list represents the ground truth security issues ide
 
 | ID | OWASP | Category | Severity | Location | CWE |
 |---|---|---|---|---|---|
-| V1 | A02 | Cryptographic Failures | Medium | src/index.js | CWE-312 |
-| V2 | A05 | Security Misconfiguration | Medium | src/index.js | CWE-209 |
-| V3 | A10 | Server-Side Request Forgery (SSRF) | High | src/index.js | CWE-918 |
+| V1 | A05 | Security Misconfiguration | Medium | src/services/DeviceService.js | CWE-209 |
+| V2 | A10 | Server-Side Request Forgery | High | src/services/RefreshService.js | CWE-918 |
+| V3 | A02 | Cryptographic Failures | Medium | src/db/InMemoryStore.js | CWE-312 |
+| V4 | A02 | Cryptographic Failures | Medium | src/services/TelemetryService.js | CWE-312 |
 
 ---
 
 ## Standalone Vulnerabilities
 
-### VULN-01: A02 — Cryptographic Failures
+### VULN-01: A05 — Security Misconfiguration
 
 - **Severity:** Medium
-- **Location:** `src/index.js`:47-56 (method: `initDb`)
-- **CWE:** [CWE-312](https://cwe.mitre.org/data/definitions/312.html)
-
-#### Description
-Device secret access keys are stored in plaintext in the database instead of being hashed or encrypted.
-
-### VULN-02: A05 — Security Misconfiguration
-
-- **Severity:** Medium
-- **Location:** `src/index.js`:131-163 (method: `POST /api/devices/command`)
+- **Location:** `src/services/DeviceService.js`:25-36 (method: `commandError`)
 - **CWE:** [CWE-209](https://cwe.mitre.org/data/definitions/209.html)
 
 #### Description
-Detailed configuration details (such as API secret keys) and stack traces are returned to the user on execution failure.
+Verbose command errors return stack traces plus internal telemetry URL and access token.
 
-### VULN-03: A10 — Server-Side Request Forgery (SSRF)
+### VULN-02: A10 — Server-Side Request Forgery
 
 - **Severity:** High
-- **Location:** `src/index.js`:166-182 (method: `POST /api/devices/refresh`)
+- **Location:** `src/services/RefreshService.js`:4-8 (method: `refreshStatus`)
 - **CWE:** [CWE-918](https://cwe.mitre.org/data/definitions/918.html)
 
 #### Description
-The device status refresh handler calls external URLs using axios without validating if the IP is internal, allowing SSRF.
+Device refresh fetches caller-controlled status URLs with axios and no internal network restrictions.
+
+### VULN-03: A02 — Cryptographic Failures
+
+- **Severity:** Medium
+- **Location:** `src/db/InMemoryStore.js`:10-14 (method: `constructor`)
+- **CWE:** [CWE-312](https://cwe.mitre.org/data/definitions/312.html)
+
+#### Description
+Device access tokens are stored as plaintext fields.
+
+### VULN-04: A02 — Cryptographic Failures
+
+- **Severity:** Medium
+- **Location:** `src/services/TelemetryService.js`:7-17 (method: `internalTelemetry`)
+- **CWE:** [CWE-312](https://cwe.mitre.org/data/definitions/312.html)
+
+#### Description
+Internal telemetry returns plaintext device tokens once the leaked telemetry token is supplied.
 
 
 ---
@@ -59,44 +69,24 @@ The device status refresh handler calls external URLs using axios without valida
 
 Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-### CHAIN-01: Diagnostic Trace Leak → SSRF Internal Network Pivoting
+### CHAIN-01: Debug Config Leak → HTTP SSRF → Plaintext Device Token Exposure → Lateral Movement
 
 - **Combined Impact:** `lateral_movement`
-- **Difficulty:** Hard
-- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy`
+- **Difficulty:** Medium
+- **Subtlety Tags:** 
 
 #### Prerequisites
-- attacker has or can create a low privilege account
-- attacker can combine request input with stored application state
+- None specified
 
 #### Attack Narrative
-An attacker sends a TRIGGER-ERROR command to `/api/devices/command` to force a server exception, which leaks the telemetry API credentials: `INTERNAL-SECRET-TELEMETRY-TOKEN-2026`. The attacker then makes a POST request to `/api/devices/refresh` with `statusUrl: 'http://localhost:8017/api/internal/telemetry?token=INTERNAL-SECRET-TELEMETRY-TOKEN-2026'`, leveraging the SSRF vulnerability to bypass authentication and exfiltrate internal system telemetry.
+An authenticated user triggers a command error that leaks the internal telemetry URL and token, then uses the refresh SSRF endpoint to call telemetry and retrieve plaintext device tokens.
 
 #### Chain Components
 | Step | Description | Severity | OWASP | CWE | Location | Method |
 |---|---|---|---|---|---|---|
-| 1 | Verbose stack trace leaks internal telemetry server token. | Medium | A05 | CWE-209 | src/index.js | `POST /api/devices/command` |
-| 2 | Status update proxy fetches internal endpoints without IP filtering. | Medium | A10 | CWE-918 | src/index.js | `POST /api/devices/refresh` |
-
-### CHAIN-02: Subtle Ssrf Pivot To Crypto
-
-- **Combined Impact:** `lateral_movement`
-- **Difficulty:** Hard
-- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy` `secondary_chain`
-
-#### Prerequisites
-- attacker has or can create a low privilege account
-- attacker can combine request input with stored application state
-
-#### Attack Narrative
-Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
-
-#### Chain Components
-| Step | Description | Severity | OWASP | CWE | Location | Method |
-|---|---|---|---|---|---|---|
-| 1 | The device status refresh handler calls external URLs using axios without validating if the IP is internal, allowing SSRF. | High | A10 | CWE-918 | src/index.js | `POST /api/devices/refresh` |
-| 2 | Detailed configuration details (such as API secret keys) and stack traces are returned to the user on execution failure. | Medium | A05 | CWE-209 | src/index.js | `POST /api/devices/command` |
-| 3 | Device secret access keys are stored in plaintext in the database instead of being hashed or encrypted. | Medium | A02 | CWE-312 | src/index.js | `initDb` |
+| 1 | Command failure response leaks internal telemetry URL and access token. | Medium | A05 | CWE-209 | src/services/DeviceService.js | `commandError` |
+| 2 | Device refresh fetches the attacker-supplied internal telemetry URL server-side. | Medium | A10 | CWE-918 | src/services/RefreshService.js | `refreshStatus` |
+| 3 | Internal telemetry returns device records with plaintext device tokens. | Medium | A02 | CWE-312 | src/services/TelemetryService.js | `internalTelemetry` |
 
 
 ---
@@ -107,5 +97,6 @@ These code patterns mimic security weaknesses but are safe. They are included to
 
 | Location | Description |
 |---|---|
-| src/index.js | Proper input validation on device command payload sizes in POST /api/devices/command. |
-| src/index.js | Proper parameterized query logic in GET /api/devices/:id to fetch device details safely. |
+| src/controllers/DeviceController.js | Device command payload validates command type and length before execution. |
+| src/services/DeviceService.js | Public device detail response omits the deviceSecret field. |
+| src/referenceGuards.js | Reference callback allowlist guard demonstrates safe URL validation. |

@@ -21,14 +21,14 @@ Each application simulates a realistic business system with **2–4 deliberately
 
 | ID | Category | Description | Apps |
 |----|----------|-------------|------|
-| **A01** | Broken Access Control | IDOR, privilege escalation, missing authorization | 27 |
-| **A02** | Cryptographic Failures | Plaintext secrets, weak hashing, unencrypted data | 15 |
+| **A01** | Broken Access Control | IDOR, privilege escalation, missing authorization | 29 |
+| **A02** | Cryptographic Failures | Plaintext secrets, weak hashing, unencrypted data | 16 |
 | **A03** | Injection | SQL, NoSQL, XSS, OS command, LDAP injection | 25 |
-| **A04** | Insecure Design | Missing rate limits, logic flaws, no threat modeling | 12 |
-| **A05** | Security Misconfiguration | Default creds, debug mode, exposed endpoints | 16 |
+| **A04** | Insecure Design | Missing rate limits, logic flaws, no threat modeling | 13 |
+| **A05** | Security Misconfiguration | Default creds, debug mode, exposed endpoints | 17 |
 | **A06** | Vulnerable & Outdated Components | Known-CVE libraries and frameworks | 6 |
-| **A07** | Identification & Auth Failures | Weak passwords, session issues, missing MFA | 16 |
-| **A08** | Software & Data Integrity Failures | Insecure deserialization, unsigned updates, no CSRF | 11 |
+| **A07** | Identification & Auth Failures | Weak passwords, session issues, missing MFA | 17 |
+| **A08** | Software & Data Integrity Failures | Insecure deserialization, unsigned updates, no CSRF | 12 |
 | **A09** | Security Logging & Monitoring Failures | Missing audit logs, no alerting | 12 |
 | **A10** | Server-Side Request Forgery (SSRF) | Unvalidated server-side URL fetching | 11 |
 
@@ -63,7 +63,7 @@ Each application simulates a realistic business system with **2–4 deliberately
 | 07 | [Airline Booking System](apps/java/app-07-airline-booking/README.md) | Travel | A03, A04, A07 |
 | 08 | [Warehouse Management System](apps/java/app-08-warehouse-mgmt/README.md) | Logistics | A03, A05, A10 |
 | 09 | [Legal Document Management](apps/java/app-09-legal-documents/README.md) | Legal | A01, A02, A06 |
-| 10 | [Telecom Billing Platform](apps/java/app-10-telecom-billing/README.md) | Telecom | A03, A04, A09 |
+| 10 | [Telecom Billing Platform](apps/java/app-10-telecom-billing/README.md) | Telecom | A01, A03, A04, A09 |
 | 26 | [Pharmaceutical Drug Tracking](apps/java/app-26-pharma-tracking/README.md) | Pharma | A01, A02, A08 |
 | 27 | [Hotel Reservation System](apps/java/app-27-hotel-reservation/README.md) | Hospitality | A03, A05, A07 |
 | 28 | [Manufacturing Quality Control](apps/java/app-28-mfg-quality/README.md) | Manufacturing | A01, A04, A09 |
@@ -75,7 +75,7 @@ Each application simulates a realistic business system with **2–4 deliberately
 
 | # | App Name | Domain | Vulnerabilities |
 |---|----------|--------|-----------------|
-| 11 | [Social Media Analytics Dashboard](apps/typescript/app-11-social-analytics/README.md) | Marketing | A03, A05, A10 |
+| 11 | [Social Media Analytics Dashboard](apps/typescript/app-11-social-analytics/README.md) | Marketing | A01, A03, A05, A10 |
 | 12 | [Crypto Wallet Service](apps/typescript/app-12-crypto-wallet/README.md) | FinTech | A02, A04, A07 |
 | 13 | [Project Management Tool](apps/typescript/app-13-project-mgmt/README.md) | SaaS | A01, A03, A09 |
 | 14 | [Telemedicine Appointment System](apps/typescript/app-14-telemedicine/README.md) | Telehealth | A01, A02, A07 |

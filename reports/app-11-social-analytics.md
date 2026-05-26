@@ -17,9 +17,11 @@ The following vulnerability list represents the ground truth security issues ide
 
 | ID | OWASP | Category | Severity | Location | CWE |
 |---|---|---|---|---|---|
-| V1 | A10 | Server-Side Request Forgery | High | src/index.ts | CWE-918 |
-| V2 | A03 | Injection | High | public/js/app.js | CWE-79 |
-| V3 | A05 | Security Misconfiguration | Medium | public/js/app.js | CWE-312 |
+| V1 | A10 | Server-Side Request Forgery | High | src/services/PreviewService.ts | CWE-918 |
+| V2 | A05 | Security Misconfiguration | Medium | src/controllers/DebugController.ts | CWE-200 |
+| V3 | A01 | Broken Access Control | Medium | src/services/InternalSearchService.ts | CWE-287 |
+| V4 | A03 | Injection | High | public/js/app.js | CWE-79 |
+| V5 | A05 | Security Misconfiguration | Medium | public/js/app.js | CWE-312 |
 
 ---
 
@@ -28,29 +30,47 @@ The following vulnerability list represents the ground truth security issues ide
 ### VULN-01: A10 — Server-Side Request Forgery
 
 - **Severity:** High
-- **Location:** `src/index.ts`:100-115 (method: `generatePreview`)
+- **Location:** `src/services/PreviewService.ts`:4-17 (method: `fetchPreview`)
 - **CWE:** [CWE-918](https://cwe.mitre.org/data/definitions/918.html)
 
 #### Description
-Server-Side Request Forgery (SSRF) in URL preview generation. The /api/preview endpoint fetches remote URLs using axios.get without verifying the target domain or restricting internal IP spaces.
+Preview service fetches arbitrary caller-supplied URLs with axios and no internal network restrictions.
 
-### VULN-02: A03 — Injection
+### VULN-02: A05 — Security Misconfiguration
+
+- **Severity:** Medium
+- **Location:** `src/controllers/DebugController.ts`:7-10 (method: `getConfig`)
+- **CWE:** [CWE-200](https://cwe.mitre.org/data/definitions/200.html)
+
+#### Description
+Debug configuration endpoint exposes internal service URLs, tokens, and infrastructure connection strings.
+
+### VULN-03: A01 — Broken Access Control
+
+- **Severity:** Medium
+- **Location:** `src/services/InternalSearchService.ts`:6-20 (method: `adminSearch`)
+- **CWE:** [CWE-287](https://cwe.mitre.org/data/definitions/287.html)
+
+#### Description
+Internal search admin service trusts a leaked bearer-style token and exposes service topology.
+
+### VULN-04: A03 — Injection
 
 - **Severity:** High
-- **Location:** `public/js/app.js`:80-100 (method: `renderWidgets`)
+- **Location:** `public/js/app.js`:64-80 (method: `loadWidgets`)
 - **CWE:** [CWE-79](https://cwe.mitre.org/data/definitions/79.html)
 
 #### Description
-Cross-Site Scripting (XSS). The frontend renders dashboard widget titles directly into the DOM using innerHTML without HTML entity encoding, allowing execution of arbitrary Javascript.
+Widget titles are rendered with innerHTML without encoding, allowing stored XSS.
 
-### VULN-03: A05 — Security Misconfiguration
+### VULN-05: A05 — Security Misconfiguration
 
 - **Severity:** Medium
-- **Location:** `public/js/app.js`:1-10 (method: `global`)
+- **Location:** `public/js/app.js`:1-2 (method: `global`)
 - **CWE:** [CWE-312](https://cwe.mitre.org/data/definitions/312.html)
 
 #### Description
-Security Misconfiguration. Sensitive internal reporting API keys are hardcoded directly into the client-side JavaScript bundle, exposing them to any end-user.
+Internal reporting API key is hardcoded in the browser bundle.
 
 
 ---
@@ -59,45 +79,24 @@ Security Misconfiguration. Sensitive internal reporting API keys are hardcoded d
 
 Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-### CHAIN-01: SSRF to Cloud Metadata → Full Credential Response → IAM Key Exfiltration
+### CHAIN-01: Debug Config Leak → HTTP SSRF → Internal Search Pivot → Lateral Movement
 
 - **Combined Impact:** `lateral_movement`
 - **Difficulty:** Medium
-- **Subtlety Tags:** `cross_file` `direct_data_flow` `realistic_decoy`
+- **Subtlety Tags:** 
 
 #### Prerequisites
-- attacker can reach the public request path
-- attacker can control one request parameter or body field
+- None specified
 
 #### Attack Narrative
-Attacker posts the AWS IMDS URL to the SSRF preview endpoint; the now-untruncated response returns full IAM credential JSON including AccessKeyId, SecretAccessKey, and Token, enabling lateral movement across the cloud environment.
+An attacker reads the debug configuration to discover the internal search URL and token, then sends that internal URL to the preview SSRF endpoint to access service topology unreachable from the public network.
 
 #### Chain Components
 | Step | Description | Severity | OWASP | CWE | Location | Method |
 |---|---|---|---|---|---|---|
-| 1 | POST /api/preview fetches any URL server-side via axios without IP or hostname validation, allowing access to cloud metadata services at 169.254.169.254 | Medium | A10 | CWE-918 | src/index.ts | `POST /api/preview` |
-| 2 | SSRF response body previously truncated to 500 chars; truncation removed, returning the full metadata credential payload (600+ bytes for AWS IMDSv1) | Low | A05 | CWE-200 | src/index.ts | `POST /api/preview` |
-| 3 | GET /api/debug/headers returns all request headers verbatim including internal proxy headers injected by cloud load balancers | Low | A05 | CWE-200 | src/index.ts | `GET /api/debug/headers` |
-
-### CHAIN-02: Subtle State Confusion Pivot To Ssrf
-
-- **Combined Impact:** `lateral_movement`
-- **Difficulty:** Hard
-- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy` `secondary_chain`
-
-#### Prerequisites
-- attacker has or can create a low privilege account
-- attacker can combine request input with stored application state
-
-#### Attack Narrative
-Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
-
-#### Chain Components
-| Step | Description | Severity | OWASP | CWE | Location | Method |
-|---|---|---|---|---|---|---|
-| 1 | Security Misconfiguration. Sensitive internal reporting API keys are hardcoded directly into the client-side JavaScript bundle, exposing them to any end-user. | Medium | A05 | CWE-312 | public/js/app.js | `global` |
-| 2 | Cross-Site Scripting (XSS). The frontend renders dashboard widget titles directly into the DOM using innerHTML without HTML entity encoding, allowing execution of arbitrary Javascript. | High | A03 | CWE-79 | public/js/app.js | `renderWidgets` |
-| 3 | Server-Side Request Forgery (SSRF) in URL preview generation. The /api/preview endpoint fetches remote URLs using axios.get without verifying the target domain or restricting internal IP spaces. | High | A10 | CWE-918 | src/index.ts | `generatePreview` |
+| 1 | GET /api/debug/config exposes internal search URL, service token, and infrastructure connection strings. | Medium | A05 | CWE-200 | src/controllers/DebugController.ts | `getConfig` |
+| 2 | POST /api/preview fetches the attacker-supplied internal search URL server-side with no IP or hostname restrictions. | Medium | A10 | CWE-918 | src/services/PreviewService.ts | `fetchPreview` |
+| 3 | Internal search admin endpoint trusts the leaked service token and exposes internal search topology. | Low | A01 | CWE-287 | src/services/InternalSearchService.ts | `adminSearch` |
 
 
 ---
@@ -108,4 +107,5 @@ These code patterns mimic security weaknesses but are safe. They are included to
 
 | Location | Description |
 |---|---|
-| src/index.ts | Standard parameterized database mock queries. |
+| src/referenceGuards.ts | allowedCallback validates scheme and host against an allowlist and should not be flagged as SSRF. |
+| src/cache/SessionCache.ts | Session cache stores opaque random session IDs generated with crypto.randomBytes. |

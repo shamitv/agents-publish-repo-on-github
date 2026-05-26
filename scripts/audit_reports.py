@@ -152,24 +152,29 @@ def audit_app(app_id, vulns_path, report_path):
             issues.append(f"  EXTRA CHAIN IN REPORT: {rc} mentioned in report but not in .vulns")
     
     # 3. Check severity correctness for standalone vulns
-    for vuln in vulns_list:
+    for idx, vuln in enumerate(vulns_list, 1):
         owasp_id = vuln["owasp_id"]
         severity = vuln["severity"]
         # Try old format: "VULN-01: A03 ... \n**Severity:** High"
         severity_pattern = re.findall(
-            rf'VULN-\d+:\s+{owasp_id}\s+.*?\n.*?\*\*Severity:\*\*\s+(\w+)',
+            rf'VULN-{idx:02d}:\s+{owasp_id}\s+.*?\n.*?\*\*Severity:\*\*\s+(\w+)',
             report_data["raw_content"]
         )
+        if not severity_pattern:
+            severity_pattern = re.findall(
+                rf'VULN-{idx}:\s+{owasp_id}\s+.*?\n.*?\*\*Severity:\*\*\s+(\w+)',
+                report_data["raw_content"]
+            )
         # Try new format: "| V1 | A03 | Category | Severity | Location |"
         if not severity_pattern:
             severity_pattern = re.findall(
-                rf'\|\s*V\d+\s*\|\s*{owasp_id}\s*\|[^|]+\|\s*(\w+)\s*\|',
+                rf'\|\s*V{idx}\s*\|\s*{owasp_id}\s*\|[^|]+\|\s*(\w+)\s*\|',
                 report_data["raw_content"]
             )
         if severity_pattern:
             report_sev = severity_pattern[0].lower()
             if report_sev != severity.lower():
-                issues.append(f"  SEVERITY MISMATCH: {owasp_id} -- .vulns says '{severity}', report says '{report_sev}'")
+                issues.append(f"  SEVERITY MISMATCH: {owasp_id} (V{idx}) -- .vulns says '{severity}', report says '{report_sev}'")
     
     # 4. Check method/endpoint correctness
     # For each vulnerability in .vulns, check if the report references the same method/endpoint
