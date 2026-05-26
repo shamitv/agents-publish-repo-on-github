@@ -1,4 +1,5 @@
-const INTERNAL_REPORTING_API_KEY = "rpt_live_internal_44f8a2"; // placeholder used by the analytics console
+// VULNERABILITY A05: Internal reporting API key is hardcoded in the browser bundle.
+const INTERNAL_REPORTING_API_KEY = "rpt_live_internal_44f8a2";
 
 document.addEventListener("DOMContentLoaded", () => {
   initializeSession();
@@ -69,6 +70,7 @@ function loadWidgets() {
       widgets.forEach((widget) => {
         const card = document.createElement("div");
         card.className = "widget-card";
+        // VULNERABILITY A03: Widget title is rendered through innerHTML without encoding.
         card.innerHTML = `
           <div class="title">${widget.title}</div>
           <div class="value">${widget.value}</div>

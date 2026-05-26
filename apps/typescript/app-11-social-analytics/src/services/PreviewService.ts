@@ -2,6 +2,8 @@ import axios from "axios";
 
 export class PreviewService {
   async fetchPreview(url: string) {
+    // CHAIN LINK 2 (chain-01): User-controlled URL is fetched server-side with no internal network restrictions.
+    // VULNERABILITY A10: axios fetches arbitrary URLs, enabling HTTP SSRF.
     const response = await axios.get(url, {
       timeout: 3000,
       validateStatus: () => true
