@@ -1,6 +1,7 @@
 package com.hr.service;
 
 import com.hr.dto.PayrollDTO;
+import com.hr.messaging.PayrollAuditProducer;
 import com.hr.model.Employee;
 import com.hr.repository.EmployeeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +16,11 @@ public class PayrollService {
     @Autowired
     private EmployeeRepository employeeRepository;
 
+    @Autowired
+    private PayrollAuditProducer payrollAuditProducer;
+
     public Optional<PayrollDTO> getSalaryByEmployeeId(Long employeeId) {
+        payrollAuditProducer.publishPayrollRead(employeeId);
         return employeeRepository.findById(employeeId)
                 .map(emp -> PayrollDTO.builder()
                         .employeeId(emp.getId())
