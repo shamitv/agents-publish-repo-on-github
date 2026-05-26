@@ -9,7 +9,7 @@ This document serves as the wrapper plan for upgrading 8 selected benchmark appl
 The goal of this phase is to scale the target applications from simple in-memory/SQLite monoliths to multi-container, modular environments. This upgrade:
 1. **Models Real-World Complexity**: Implements polyglot persistence, event-driven task queues, fuzzy search services, and dynamic business rule calculations.
 2. **Evaluates Advanced Security Scenarios**: Tests the ability of AI detection agents to trace exploit chains across distributed services (e.g. databases, event consumers, cache backends).
-3. **Enforces Tipping Prevention**: Removes code-level comments that mark vulnerabilities, ensuring agents must rely purely on code understanding.
+3. **Maintains Benchmark Metadata Compliance**: Preserves the annotation, README, `.vulns`, and decoy requirements defined in the repository `AGENTS.md` contribution spec.
 
 ---
 
@@ -34,9 +34,12 @@ Below is the index of the 8 selected applications, their architectural upgrades,
 
 Every upgraded application must adhere to the following standards:
 
-### Code Comment Restrictions (Strict Agent Tipping Prevention)
-- **No Source Code Comments**: No source file in `src/` may contain explicit markers (such as `// VULNERABILITY` or `// CHAIN LINK`).
-- **Metadata Localization**: Vulnerability metadata and exploit descriptions are strictly localized to the `.vulns` JSON manifest and the `scenarios.md` reference file inside the application directory.
+### Benchmark Metadata Compliance
+- **Source Annotations Required**: Standalone vulnerabilities must retain source comments in the form `// VULNERABILITY <OWASP_ID>: <brief description>`.
+- **Chain Link Annotations Required**: Every chain component must retain a source comment in the form `// CHAIN LINK <N> (chain-<ID>): <description>`.
+- **Manifest Source of Truth**: `.vulns` remains the machine-readable ground-truth manifest for standalone vulnerabilities, chained attacks, and decoys.
+- **README Chain Section Required**: Each app `README.md` must keep the `Chained Vulnerability Scenario` section required by `AGENTS.md`, including the chain table and attack narrative.
+- **Supplemental Scenarios Only**: `scenarios.md` may add extra internal narrative, but it must not replace required README or `.vulns` content.
 
 ### Docker Compose Orchestration
 - All upgraded applications must be configured as a multi-container suite inside a `docker-compose.yml` file.
