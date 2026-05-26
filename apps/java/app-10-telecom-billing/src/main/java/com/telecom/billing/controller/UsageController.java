@@ -20,6 +20,7 @@ public class UsageController {
             @RequestParam Long customerId,
             @RequestParam String startDate,
             @RequestParam String endDate) {
+        // VULNERABILITY A03: Native SQL is built with user-controlled date values.
         String sql = "SELECT * FROM usage_records WHERE customer_id = " + customerId +
                      " AND recorded_at >= '" + startDate + "' AND recorded_at <= '" + endDate + "'";
         Query query = entityManager.createNativeQuery(sql, UsageRecord.class);
