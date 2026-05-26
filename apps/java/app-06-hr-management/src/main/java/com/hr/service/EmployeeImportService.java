@@ -14,7 +14,7 @@ public class EmployeeImportService {
     @Autowired
     private EmployeeRepository employeeRepository;
 
-    // Import helper method
+    // VULNERABILITY A08: Deserializes untrusted employee import uploads without a class allowlist.
     @SuppressWarnings("unchecked")
     public List<Employee> importEmployees(InputStream stream) throws Exception {
         ObjectInputStream ois = new ObjectInputStream(stream);

@@ -27,6 +27,7 @@ public class PayrollService {
                         .employeeName(emp.getFirstName() + " " + emp.getLastName())
                         .baseSalary(emp.getSalary())
                         .departmentName(emp.getDepartment() != null ? emp.getDepartment().getName() : "None")
+                        .ssnEncrypted(emp.getSsnEncrypted())
                         .build());
     }
 
