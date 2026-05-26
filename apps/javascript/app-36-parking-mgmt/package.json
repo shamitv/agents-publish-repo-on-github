@@ -4,7 +4,8 @@
   "description": "Parking Management System",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "test": "node tests/contract.test.js"
   },
   "dependencies": {
     "cookie-parser": "^1.4.6",
