@@ -56,15 +56,20 @@ src/main/java/com/telecom/
   - *Description*: Payment cancellations and credit revisions modify PostgreSQL invoice states without generating structured audit reports.
 
 ### Exploit Chains
-- **Chain-01 (EASY to Find & Exploit)**: *SQLi → Cost Manipulation*
-  - *Narrative*: Attacker uses the SQL injection vulnerability on the rate plan lookup endpoint to dump all accounts. They find an administrator's credentials. They authenticate, access the plan settings endpoint, and submit a negative call cost factor. When the system updates billing states, the customer accounts reflect a negative balance (free services).
-  - *Subtlety*: Low. The SQLi payload is directly processed and returns the database schema in the HTTP response.
-- **Chain-02 (HARD to Find & Exploit)**: *Dynamic Tariff Injection → Kafka Desync → Credit Adjustment Hijack*
-  - *Narrative*: Attacker performs a complex SQL Injection that inserts an invalid record into the PostgreSQL `rate_plans` cache. When a CDR event is processed by Kafka, the `CdrConsumer` queries PostgreSQL and reads the corrupted row. Due to a parsing exception that defaults to off-peak pricing, the calculation loops infinitely. The attacker exploits this lag to trigger a payment cancellation event. The payment gateway, desynchronized from Kafka billing totals, executes a credit adjustment bypass, resulting in large balances credited back to the attacker's account.
-  - *Subtlety*: High. It relies on a database state injection triggering a thread loop lag in the event processor, desynchronizing the payment gateway state.
+#### chain-01: Weak Billing Admin Check -> Negative Rate Update -> Unlogged Credit Change
+- **Impact**: `data_modification`
+- **Attack narrative**: A customer reaches the billing plan update workflow through a weak billing-admin authorization check, submits a negative or zero-valued custom rate because the controller does not validate tariff bounds, and the payment adjustment flow applies the modified billing state without emitting audit logs that would reveal the unauthorized data change.
+
+| Step | Issue | Severity (standalone) | OWASP | CWE | Location | Method |
+|------|-------|-----------------------|-------|-----|----------|--------|
+| 1 | Billing administration check trusts a request-controlled role or account flag. | Medium | A01 | CWE-862 | `controller/BillingController.java` | `updatePlanRates()` |
+| 2 | Rate update accepts negative or zero-valued tariff parameters without validation. | Medium | A04 | CWE-20 | `controller/BillingController.java` | `updatePlanRates()` |
+| 3 | Payment and credit state changes are applied without structured audit logging. | Low | A09 | CWE-778 | `service/PaymentGateway.java` | `applyCreditAdjustment()` |
 
 ---
 
-## 5. Code Comment Constraints (Agent Tipping Prevention)
-- **No Code-Level Tips**: Source code files (`src/`) must not contain any explicit comments, annotations, or markers (e.g. `// VULNERABILITY`, `// CHAIN LINK`, etc.) that could tip off security-detection agents.
-- **Metadata Localization**: All details regarding standalone vulnerabilities, exploit chains, and locations are strictly restricted to the ground-truth metadata files (`.vulns` JSON manifest) and internal reference files (`scenarios.md`).
+## 5. Benchmark Metadata Requirements
+- **Source Annotations Required**: Source code must retain the `AGENTS.md` benchmark comments: `// VULNERABILITY <OWASP_ID>: <brief description>` for each standalone vulnerability and `// CHAIN LINK <N> (chain-<ID>): <description>` for every chain step.
+- **Metadata Synchronization**: `.vulns`, the README chain section, this plan's chain table, and source comments must agree on OWASP ID, severity, CWE, impact, location, and method.
+- **README Chain Section Required**: The app README must keep the required `Chained Vulnerability Scenario` section. `scenarios.md` may provide supplemental narrative, but it must not replace README or `.vulns` content.
+- **Decoys Required**: Preserve nearby safe decoy patterns and list them in `.vulns.decoys`.

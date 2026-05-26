@@ -64,15 +64,19 @@ src/main/java/com/hr/
   - *Description*: The Kafka event auditor logs incoming comments or addresses from new employees. It prints them directly via a vulnerable Log4j 2.14 framework using raw string concatenation, making the listener container vulnerable to Log4Shell RCE.
 
 ### Exploit Chains
-- **Chain-01 (EASY to Find & Exploit)**: *IDOR → Weak Decryption → Data Leak*
-  - *Narrative*: Attacker uses the IDOR vulnerability to dump all employee records from PostgreSQL. They find the encrypted SSN fields and decrypt them using the hardcoded key visible in the compiled class or configuration source code.
-  - *Subtlety*: Low. The cryptographic method is standard XOR, and the class uses basic, easily detectable keys.
-- **Chain-02 (HARD to Find & Exploit)**: *Audit Stream Manipulation → Asynchronous Log4j RCE → DB Control*
-  - *Narrative*: The attacker triggers an onboarding request with a custom payload containing JNDI lookup expressions (e.g. `${jndi:ldap://...}`). Because the REST endpoint validates characters, the attacker utilizes a state confusion technique: they send out-of-order Kafka events directly to bypass REST filters. The event is consumed asynchronously by the `AuditEventListener` running Log4j. Log4Shell executes inside the consumer worker, allowing the attacker to gain command shell access inside the internal network and write changes to the main PostgreSQL database instance.
-  - *Subtlety*: High. It requires exploiting asynchronous queue ingestion and bypassing input checks via direct event streams to execute Log4Shell on a background thread.
+#### chain-01: Employee IDOR -> Weak SSN Decryption
+- **Impact**: `db_exfiltration`
+- **Attack narrative**: An authenticated low-privilege employee enumerates employee profile IDs through the profile lookup IDOR, collects encrypted SSN fields from PostgreSQL-backed responses, and decrypts them with the weak XOR routine and hardcoded key in the crypto service.
+
+| Step | Issue | Severity (standalone) | OWASP | CWE | Location | Method |
+|------|-------|-----------------------|-------|-----|----------|--------|
+| 1 | Profile endpoint returns employee records by ID without department or admin authorization checks. | Medium | A01 | CWE-639 | `controller/EmployeeController.java` | `getEmployeeProfile()` |
+| 2 | SSNs are protected with reversible XOR encryption and a hardcoded short key. | Medium | A02 | CWE-327 | `service/CryptoService.java` | `decryptSSN()` |
 
 ---
 
-## 5. Code Comment Constraints (Agent Tipping Prevention)
-- **No Code-Level Tips**: Source code files (`src/`) must not contain any explicit comments, annotations, or markers (e.g. `// VULNERABILITY`, `// CHAIN LINK`, etc.) that could tip off security-detection agents.
-- **Metadata Localization**: All details regarding standalone vulnerabilities, exploit chains, and locations are strictly restricted to the ground-truth metadata files (`.vulns` JSON manifest) and internal reference files (`scenarios.md`).
+## 5. Benchmark Metadata Requirements
+- **Source Annotations Required**: Source code must retain the `AGENTS.md` benchmark comments: `// VULNERABILITY <OWASP_ID>: <brief description>` for each standalone vulnerability and `// CHAIN LINK <N> (chain-<ID>): <description>` for every chain step.
+- **Metadata Synchronization**: `.vulns`, the README chain section, this plan's chain table, and source comments must agree on OWASP ID, severity, CWE, impact, location, and method.
+- **README Chain Section Required**: The app README must keep the required `Chained Vulnerability Scenario` section. `scenarios.md` may provide supplemental narrative, but it must not replace README or `.vulns` content.
+- **Decoys Required**: Preserve nearby safe decoy patterns and list them in `.vulns.decoys`.

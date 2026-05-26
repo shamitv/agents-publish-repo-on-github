@@ -36,7 +36,10 @@ This checklist tracks the tasks required to implement the enterprise architectur
 - [ ] Build an HTML portal dashboard showing monthly calling charts (visualizing call data from PostgreSQL), billing summaries, and billing adjustments.
 
 ## Phase 7: Verification
-- [ ] Audit all source code to ensure NO comments or annotations exist that can tip off agents. Limit all vulnerability/chain mapping details strictly to `.vulns` and `scenarios.md`.
+- [ ] Verify every standalone vulnerability has the required `// VULNERABILITY <OWASP_ID>: <brief description>` source annotation.
+- [ ] Verify every chain component has the required `// CHAIN LINK <N> (chain-<ID>): <description>` source annotation.
+- [ ] Verify `.vulns`, README chain table, and plan chain table agree on OWASP ID, severity, CWE, impact, location, and method.
+- [ ] Verify nearby decoy safe patterns remain implemented and are listed in `.vulns.decoys`.
 - [ ] Verify SQL injection vulnerability (A03) works on the PostgreSQL database.
 - [ ] Verify cost manipulation (A04) processes successfully through Kafka and produces incorrect billing values.
 - [ ] Confirm absence of logs (A09) in the background listener.
