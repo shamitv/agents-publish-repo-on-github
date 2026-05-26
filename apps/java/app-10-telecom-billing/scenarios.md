@@ -1,15 +1,15 @@
 # Chained Vulnerability Scenario — Telecom Billing Platform
 
-## Chain: "SQL Injection → Payment Fraud → No Audit Trail"
+Supplemental notes only. Ground truth vulnerability data is maintained in [.vulns](.vulns), and the required human-readable chain is in [README.md](README.md).
 
-An external attacker exploits a chain of three weaknesses to defraud the telecom platform by stealing invoice data, replaying payments, and covering their tracks.
+## Chain: "Weak Billing Admin Auth → Unvalidated Custom Rate → Missing Audit Logs"
 
 | Step | Issue | Severity (standalone) | OWASP | Location |
-|------|-------|----------------------|-------|----------|
-| 1 | SQL injection in usage lookup allows exfiltrating details of other customers' invoices. | Medium | A03 | `UsageController.java` → `getUsageByDateRange()` |
-| 2 | Payment endpoint lacks concurrency / replay / rate-limiting controls, allowing payment fraud. | Medium | A04 | `PaymentService.java` → `processPayment()` |
-| 3 | Admin balance adjustments are not audit logged. | Low | A09 | `AdminController.java` → `adjustBalance()` |
+|------|-------|-----------------------|-------|----------|
+| 1 | Pricing endpoint trusts `CUSTOMER` users as billing admins | Medium | A01 | `AdminController.java` → `updatePlanRate()` |
+| 2 | Negative or arbitrary custom rates are accepted and persisted | Medium | A04 | `AdminController.java` → `updatePlanRate()` |
+| 3 | Rate changes bypass the available audit event producer | Low | A09 | `AdminController.java` → `updatePlanRate()` |
 
-**Attack narrative**: The attacker exploits the SQL injection vulnerability in the usage search endpoint to leak invoice details for multiple customers. Using this information, the attacker submits forged or replayed payment confirmations via the non-idempotent payment endpoint. Finally, the attacker utilizes the unlogged admin balance adjustment endpoint to modify balances and complete the fraud without detection.
+**Attack narrative**: A normal customer calls the plan-rate endpoint with a negative rate, the value is persisted without validation, and no audit event is emitted for the billing mutation.
 
-**Combined Impact**: Unauthorized data modification — attacker manipulates billing records and balances without detection.
+**Combined Impact**: Unauthorized data modification of stored telecom billing plan rates.
