@@ -58,15 +58,20 @@ src/
   - *Description*: De-serializes course outlines using `pickle.loads()` without restricting classes.
 
 ### Exploit Chains
-- **Chain-01 (EASY to Find & Exploit)**: *Config Leak → Session Forgery → Pickle RCE*
-  - *Narrative*: Attacker queries the unauthenticated debug config endpoint to leak the Flask secret key. They forge an admin session cookie. Armed with the admin session, they post a malicious pickle payload to the course import API, resulting in code execution.
-  - *Subtlety*: Low. The config leak is cleartext, and the pickle deserialization triggers directly on the endpoint thread.
-- **Chain-02 (HARD to Find & Exploit)**: *Pickle Deserialization RCE → Kafka State Hijack → IDOR Exfiltration*
-  - *Narrative*: The Pickle RCE payload is modified to execute asynchronously inside the background `ImportListener` Kafka consumer thread. Rather than executing a shell command immediately, the RCE code hijacks the running Python process inside the worker container and alters the shared Redis session cache. This session cache modification tricks the main Flask API into treating the attacker's student session as an administrator. The attacker then exploits the IDOR vulnerability to bulk-retrieve all quiz submission details from MongoDB.
-  - *Subtlety*: High. The exploit chain spans multiple processes, utilizing asynchronous serialization flows to pivot and target internal session state.
+#### chain-01: Config Leak -> Session Forgery -> Quiz Submission Exfiltration
+- **Impact**: `db_exfiltration`
+- **Attack narrative**: An attacker reads the unauthenticated debug configuration response to recover the Flask session signing secret, forges an instructor/admin session accepted by the auth helper, and then uses the quiz submission IDOR to retrieve other students' MongoDB submission documents in bulk.
+
+| Step | Issue | Severity (standalone) | OWASP | CWE | Location | Method |
+|------|-------|-----------------------|-------|-----|----------|--------|
+| 1 | Debug configuration endpoint exposes secrets and backing service credentials without authentication. | Low | A05 | CWE-200 | `src/blueprints/auth.py` | `debug_config()` |
+| 2 | Session trust logic accepts forged instructor/admin cookies signed with the leaked secret. | Medium | A02 | CWE-347 | `src/blueprints/auth.py` | `current_user()` |
+| 3 | Quiz submission lookup returns records by ID without verifying student ownership. | Medium | A01 | CWE-639 | `src/controllers/quizzes.py` | `get_submission()` |
 
 ---
 
-## 5. Code Comment Constraints (Agent Tipping Prevention)
-- **No Code-Level Tips**: Source code files (`src/`) must not contain any explicit comments, annotations, or markers (e.g. `// VULNERABILITY`, `// CHAIN LINK`, etc.) that could tip off security-detection agents.
-- **Metadata Localization**: All details regarding standalone vulnerabilities, exploit chains, and locations are strictly restricted to the ground-truth metadata files (`.vulns` JSON manifest) and internal reference files (`scenarios.md`).
+## 5. Benchmark Metadata Requirements
+- **Source Annotations Required**: Source code must retain the `AGENTS.md` benchmark comments: `// VULNERABILITY <OWASP_ID>: <brief description>` for each standalone vulnerability and `// CHAIN LINK <N> (chain-<ID>): <description>` for every chain step.
+- **Metadata Synchronization**: `.vulns`, the README chain section, this plan's chain table, and source comments must agree on OWASP ID, severity, CWE, impact, location, and method.
+- **README Chain Section Required**: The app README must keep the required `Chained Vulnerability Scenario` section. `scenarios.md` may provide supplemental narrative, but it must not replace README or `.vulns` content.
+- **Decoys Required**: Preserve nearby safe decoy patterns and list them in `.vulns.decoys`.

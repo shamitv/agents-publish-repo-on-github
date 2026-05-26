@@ -40,5 +40,8 @@ This checklist tracks the tasks required to implement the enterprise architectur
 
 ## Phase 7: Verification
 - [ ] Verify Pickle deserialization RCE (A08) works against the background Kafka import consumer.
-- [ ] Audit all source code to ensure NO comments or annotations exist that can tip off agents. Limit all vulnerability/chain mapping details strictly to `.vulns` and `scenarios.md`.
+- [ ] Verify every standalone vulnerability has the required `// VULNERABILITY <OWASP_ID>: <brief description>` source annotation.
+- [ ] Verify every chain component has the required `// CHAIN LINK <N> (chain-<ID>): <description>` source annotation.
+- [ ] Verify `.vulns`, README chain table, and plan chain table agree on OWASP ID, severity, CWE, impact, location, and method.
+- [ ] Verify nearby decoy safe patterns remain implemented and are listed in `.vulns.decoys`.
 - [ ] Verify IDOR vulnerability (A01) bypasses session checks in the modularized quiz controller.

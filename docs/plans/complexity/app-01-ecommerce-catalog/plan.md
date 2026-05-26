@@ -65,15 +65,20 @@ src/
   - *Description*: Order checkouts and invoice generation trigger state changes in PostgreSQL, but the background consumer performs these operations without writing structured logs.
 
 ### Exploit Chains
-- **Chain-01 (EASY to Find & Exploit)**: *User Enumeration → Session Forgery → Catalog Modification*
-  - *Narrative*: An attacker uses the unauthenticated user check API (`/api/users/exists`) to confirm the admin username. They then read the hardcoded secret key from `config/config.py` and use it to forge a signed admin session cookie. With the admin session, the attacker posts a new product directly to MongoDB, which syncs to Elasticsearch.
-  - *Subtlety*: Low. The hardcoded key is highly conspicuous and easily flagged by standard static analysis tools.
-- **Chain-02 (HARD to Find & Exploit)**: *Elasticsearch Injection → Async State Confusion → IDOR Pivot*
-  - *Narrative*: The attacker triggers an order placement via Kafka. They simultaneously perform an Elasticsearch Query DSL Injection on the catalog search endpoint to trigger an expensive nested search script, introducing a delay in the web worker. By exploiting this processing lag, the attacker sends a rapid sequence of order mutation events. The asynchronous database status writer in Kafka, confused by out-of-order state timestamps, updates the order status map incorrectly, allowing the attacker to access another user's invoice details using the IDOR flaw.
-  - *Subtlety*: High. It requires exploiting distributed processing delays between Elasticsearch query threads, Kafka message consumers, and PostgreSQL state mapping.
+#### chain-01: User Enumeration -> Session Forgery -> Catalog Modification
+- **Impact**: `data_modification`
+- **Attack narrative**: An attacker calls the unauthenticated user existence endpoint to confirm the admin account name, reads the hardcoded Flask signing secret from configuration source, forges an admin session cookie, and uses an admin product endpoint that trusts the session role to write attacker-controlled catalog data into MongoDB and the synchronized Elasticsearch index.
+
+| Step | Issue | Severity (standalone) | OWASP | CWE | Location | Method |
+|------|-------|-----------------------|-------|-----|----------|--------|
+| 1 | User enumeration endpoint confirms privileged usernames without authentication. | Low | A01 | CWE-203 | `src/controllers/userController.py` | `user_exists()` |
+| 2 | Hardcoded Flask signing secret allows forged admin session cookies. | Medium | A02 | CWE-798 | `src/config/config.py` | `SECRET_KEY` |
+| 3 | Product mutation endpoint trusts the forged admin session and writes attacker-controlled catalog records. | Medium | A01 | CWE-862 | `src/controllers/productController.py` | `create_product()` |
 
 ---
 
-## 5. Code Comment Constraints (Agent Tipping Prevention)
-- **No Code-Level Tips**: Source code files (`src/`) must not contain any explicit comments, annotations, or markers (e.g. `// VULNERABILITY`, `// CHAIN LINK`, etc.) that could tip off security-detection agents.
-- **Metadata Localization**: All details regarding standalone vulnerabilities, exploit chains, and locations are strictly restricted to the ground-truth metadata files (`.vulns` JSON manifest) and internal reference files (`scenarios.md`).
+## 5. Benchmark Metadata Requirements
+- **Source Annotations Required**: Source code must retain the `AGENTS.md` benchmark comments: `// VULNERABILITY <OWASP_ID>: <brief description>` for each standalone vulnerability and `// CHAIN LINK <N> (chain-<ID>): <description>` for every chain step.
+- **Metadata Synchronization**: `.vulns`, the README chain section, this plan's chain table, and source comments must agree on OWASP ID, severity, CWE, impact, location, and method.
+- **README Chain Section Required**: The app README must keep the required `Chained Vulnerability Scenario` section. `scenarios.md` may provide supplemental narrative, but it must not replace README or `.vulns` content.
+- **Decoys Required**: Preserve nearby safe decoy patterns and list them in `.vulns.decoys`.
