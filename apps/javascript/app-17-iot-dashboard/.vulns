@@ -5,184 +5,95 @@
   "framework": "express",
   "vulnerabilities": [
     {
-      "owasp_id": "A02",
-      "category": "Cryptographic Failures",
-      "location": "src/index.js",
-      "method": "initDb",
-      "line_range": "47-56",
-      "description": "Device secret access keys are stored in plaintext in the database instead of being hashed or encrypted.",
-      "severity": "medium",
-      "cwe": "CWE-312"
-    },
-    {
       "owasp_id": "A05",
       "category": "Security Misconfiguration",
-      "location": "src/index.js",
-      "method": "POST /api/devices/command",
-      "line_range": "131-163",
-      "description": "Detailed configuration details (such as API secret keys) and stack traces are returned to the user on execution failure.",
+      "location": "src/services/DeviceService.js",
+      "method": "commandError",
+      "line_range": "25-36",
+      "description": "Verbose command errors return stack traces plus internal telemetry URL and access token.",
       "severity": "medium",
       "cwe": "CWE-209"
     },
     {
       "owasp_id": "A10",
-      "category": "Server-Side Request Forgery (SSRF)",
-      "location": "src/index.js",
-      "method": "POST /api/devices/refresh",
-      "line_range": "166-182",
-      "description": "The device status refresh handler calls external URLs using axios without validating if the IP is internal, allowing SSRF.",
+      "category": "Server-Side Request Forgery",
+      "location": "src/services/RefreshService.js",
+      "method": "refreshStatus",
+      "line_range": "4-8",
+      "description": "Device refresh fetches caller-controlled status URLs with axios and no internal network restrictions.",
       "severity": "high",
       "cwe": "CWE-918"
+    },
+    {
+      "owasp_id": "A02",
+      "category": "Cryptographic Failures",
+      "location": "src/db/InMemoryStore.js",
+      "method": "constructor",
+      "line_range": "10-14",
+      "description": "Device access tokens are stored as plaintext fields.",
+      "severity": "medium",
+      "cwe": "CWE-312"
+    },
+    {
+      "owasp_id": "A02",
+      "category": "Cryptographic Failures",
+      "location": "src/services/TelemetryService.js",
+      "method": "internalTelemetry",
+      "line_range": "7-17",
+      "description": "Internal telemetry returns plaintext device tokens once the leaked telemetry token is supplied.",
+      "severity": "medium",
+      "cwe": "CWE-312"
     }
   ],
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "Diagnostic Trace Leak \u2192 SSRF Internal Network Pivoting",
-      "attack_scenario": "An attacker sends a TRIGGER-ERROR command to `/api/devices/command` to force a server exception, which leaks the telemetry API credentials: `INTERNAL-SECRET-TELEMETRY-TOKEN-2026`. The attacker then makes a POST request to `/api/devices/refresh` with `statusUrl: 'http://localhost:8017/api/internal/telemetry?token=INTERNAL-SECRET-TELEMETRY-TOKEN-2026'`, leveraging the SSRF vulnerability to bypass authentication and exfiltrate internal system telemetry.",
+      "chain_name": "Debug Config Leak \u2192 HTTP SSRF \u2192 Plaintext Device Token Exposure \u2192 Lateral Movement",
+      "attack_scenario": "An authenticated user triggers a command error that leaks the internal telemetry URL and token, then uses the refresh SSRF endpoint to call telemetry and retrieve plaintext device tokens.",
       "impact": "lateral_movement",
       "components": [
         {
           "step": 1,
           "owasp_id": "A05",
-          "description": "Verbose stack trace leaks internal telemetry server token.",
-          "location": "src/index.js",
-          "method": "POST /api/devices/command",
+          "description": "Command failure response leaks internal telemetry URL and access token.",
+          "location": "src/services/DeviceService.js",
+          "method": "commandError",
           "severity": "medium",
-          "cwe": "CWE-209",
-          "required_evidence": [
-            "src/index.js",
-            "POST /api/devices/command"
-          ],
-          "negative_evidence": []
+          "cwe": "CWE-209"
         },
         {
           "step": 2,
           "owasp_id": "A10",
-          "description": "Status update proxy fetches internal endpoints without IP filtering.",
-          "location": "src/index.js",
-          "method": "POST /api/devices/refresh",
+          "description": "Device refresh fetches the attacker-supplied internal telemetry URL server-side.",
+          "location": "src/services/RefreshService.js",
+          "method": "refreshStatus",
           "severity": "medium",
-          "cwe": "CWE-918",
-          "required_evidence": [
-            "src/index.js",
-            "POST /api/devices/refresh"
-          ],
-          "negative_evidence": []
-        }
-      ],
-      "difficulty": "hard",
-      "subtlety_tags": [
-        "cross_file",
-        "stateful_flow",
-        "implicit_trust",
-        "realistic_decoy"
-      ],
-      "chain_prerequisites": [
-        "attacker has or can create a low privilege account",
-        "attacker can combine request input with stored application state"
-      ],
-      "negative_evidence": [
-        "src/referenceGuards.js",
-        "sameOwner",
-        "allowedCallback"
-      ],
-      "vulnerability_family": "ssrf",
-      "required_evidence": [
-        "src/index.js",
-        "POST /api/devices/command",
-        "POST /api/devices/refresh"
-      ]
-    },
-    {
-      "chain_id": "chain-02",
-      "chain_name": "Subtle Ssrf Pivot To Crypto",
-      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
-      "impact": "lateral_movement",
-      "difficulty": "hard",
-      "subtlety_tags": [
-        "cross_file",
-        "stateful_flow",
-        "implicit_trust",
-        "realistic_decoy",
-        "secondary_chain"
-      ],
-      "required_evidence": [
-        "src/index.js",
-        "POST /api/devices/refresh",
-        "POST /api/devices/command",
-        "initDb"
-      ],
-      "chain_prerequisites": [
-        "attacker has or can create a low privilege account",
-        "attacker can combine request input with stored application state"
-      ],
-      "negative_evidence": [
-        "src/referenceGuards.js",
-        "sameOwner",
-        "allowedCallback"
-      ],
-      "vulnerability_family": "ssrf",
-      "components": [
-        {
-          "step": 1,
-          "owasp_id": "A10",
-          "description": "The device status refresh handler calls external URLs using axios without validating if the IP is internal, allowing SSRF.",
-          "location": "src/index.js",
-          "method": "POST /api/devices/refresh",
-          "severity": "high",
-          "cwe": "CWE-918",
-          "required_evidence": [
-            "src/index.js",
-            "POST /api/devices/refresh"
-          ],
-          "negative_evidence": []
-        },
-        {
-          "step": 2,
-          "owasp_id": "A05",
-          "description": "Detailed configuration details (such as API secret keys) and stack traces are returned to the user on execution failure.",
-          "location": "src/index.js",
-          "method": "POST /api/devices/command",
-          "severity": "medium",
-          "cwe": "CWE-209",
-          "required_evidence": [
-            "src/index.js",
-            "POST /api/devices/command"
-          ],
-          "negative_evidence": []
+          "cwe": "CWE-918"
         },
         {
           "step": 3,
           "owasp_id": "A02",
-          "description": "Device secret access keys are stored in plaintext in the database instead of being hashed or encrypted.",
-          "location": "src/index.js",
-          "method": "initDb",
+          "description": "Internal telemetry returns device records with plaintext device tokens.",
+          "location": "src/services/TelemetryService.js",
+          "method": "internalTelemetry",
           "severity": "medium",
-          "cwe": "CWE-312",
-          "required_evidence": [
-            "src/index.js",
-            "initDb"
-          ],
-          "negative_evidence": []
+          "cwe": "CWE-312"
         }
       ]
     }
   ],
   "decoys": [
     {
-      "location": "src/index.js",
-      "description": "Proper input validation on device command payload sizes in POST /api/devices/command."
+      "location": "src/controllers/DeviceController.js",
+      "description": "Device command payload validates command type and length before execution."
     },
     {
-      "location": "src/index.js",
-      "description": "Proper parameterized query logic in GET /api/devices/:id to fetch device details safely."
+      "location": "src/services/DeviceService.js",
+      "description": "Public device detail response omits the deviceSecret field."
+    },
+    {
+      "location": "src/referenceGuards.js",
+      "description": "Reference callback allowlist guard demonstrates safe URL validation."
     }
-  ],
-  "benchmark_profile": {
-    "version": "v0.9",
-    "target_difficulty": "hard",
-    "upgrade_style": "in-place mixed difficulty ladder",
-    "decoy_file": "src/referenceGuards.js"
-  }
+  ]
 }

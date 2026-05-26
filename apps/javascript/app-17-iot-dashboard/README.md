@@ -1,63 +1,73 @@
 # IoT Device Dashboard
 
 ## Overview
-A JavaScript Express application representing an IoT management dashboard where users can view connected device profiles, execute commands, and fetch live status updates.
+A JavaScript Express IoT dashboard for user login, device command execution, device status refresh, and internal telemetry diagnostics.
 
 ## Business Domain
-Smart Home & IoT Devices
+Smart home and IoT device fleet management.
 
 ## Tech Stack
-- JavaScript (Node.js)
-- Express
-- SQLite (in-memory)
-- Axios
+| Layer | Technology |
+|-------|------------|
+| Backend | Node.js, Express, JavaScript |
+| Database / Cache | In-memory repositories and session cache, PostgreSQL and Redis in Docker Compose |
+| Search / Events | Device search client, in-process event producer/consumer, Elasticsearch and Redpanda in Docker Compose |
+| HTTP Client | Axios |
+| Containerisation | Docker, Docker Compose |
 
 ## Features
-
-For chained vulnerability scenarios, see [scenarios.md](scenarios.md).
 - User registration and login
-- Execute device commands (vulnerable to verbose configuration/token leak in errors)
-- Fetch device profiles by ID (Decoy: parameterized SQL)
-- Refresh device telemetry (vulnerable to SSRF via custom status URLs)
-- Device secret configuration (vulnerable to plaintext storage in DB)
+- Execute commands against IoT devices
+- View public device profiles by ID
+- Refresh device status from custom URLs
+- Internal telemetry endpoint for device diagnostics
+- Device search indexing hook and event publisher
 
 ## Security Benchmarking
-The vulnerabilities in this application are intentional. Refer to [.vulns](file:///d:/work/secure-code-hunt/apps/javascript/app-17-iot-dashboard/.vulns) for the complete list of vulnerability targets.
+The vulnerabilities in this application are intentional. Refer to `.vulns` for the complete machine-readable vulnerability manifest.
 
 ---
 
+## Chained Vulnerability Scenario
+
+### Chain: "Debug Config Leak → HTTP SSRF → Plaintext Device Token Exposure → Lateral Movement"
+
+An authenticated user triggers a command error that leaks an internal telemetry URL and token, then uses the device refresh SSRF to reach that internal telemetry endpoint and retrieve plaintext device tokens.
+
+| Step | Issue | Severity (standalone) | OWASP | Location |
+|------|-------|-----------------------|-------|----------|
+| 1 | Verbose command errors return internal telemetry URL and access token | Medium | A05 | `src/services/DeviceService.js` → `commandError()` |
+| 2 | Device refresh fetches caller-controlled URLs server-side | Medium | A10 | `src/services/RefreshService.js` → `refreshStatus()` |
+| 3 | Internal telemetry returns plaintext device tokens | Medium | A02 | `src/services/TelemetryService.js` → `internalTelemetry()` |
+
+**Attack narrative**: The attacker submits a command containing `TRIGGER-ERROR`, extracts `telemetry_server_url` and `telemetry_access_key` from the verbose response, then submits that internal telemetry URL to `/api/devices/refresh`. The server performs the internal HTTP request and returns device secrets from telemetry.
+
+**Combined Impact**: The attacker pivots from the public dashboard into internal telemetry and obtains device tokens, enabling lateral movement.
+
+---
 
 ## API Endpoints
-
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST   | `/api/auth/register` | None | Register new account |
-| POST   | `/api/auth/login` | None | Authenticate session |
-| POST   | `/api/auth/logout` | Session | Clear session |
-| POST   | `/api/devices/command` | Session | Run commands (vulnerable to diagnostics info exposure) |
-| POST   | `/api/devices/refresh` | Session | Query custom status URLs (vulnerable to SSRF) |
-| GET    | `/api/devices/:id` | Session | View device profile (Decoy: parameterized SQL) |
-| GET    | `/api/internal/telemetry` | Token | Internal diagnostic endpoint (SSRF Target) |
+| POST | `/api/auth/register` | None | Register new account |
+| POST | `/api/auth/login` | None | Authenticate session |
+| POST | `/api/auth/logout` | Session | Clear session |
+| GET | `/api/health` | None | Container health check |
+| POST | `/api/devices/command` | Session | Run commands |
+| POST | `/api/devices/refresh` | Session | Query custom status URLs |
+| GET | `/api/devices/:id` | Session | View public device profile |
+| GET | `/api/internal/telemetry` | Token | Internal telemetry endpoint |
 
 ## Running Locally
-
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-2. Start the application:
-   ```bash
-   npm start
-   ```
-3. The server runs on port `8017`.
+```bash
+cd apps/javascript/app-17-iot-dashboard
+npm install
+npm start
+# API served at http://localhost:8017
+```
 
 ## Running via Docker
-
-1. Build the image:
-   ```bash
-   docker build -t app-17-iot-dashboard .
-   ```
-2. Run the container:
-   ```bash
-   docker run -p 8017:8017 app-17-iot-dashboard
-   ```
+```bash
+docker compose up --build
+# API served at http://localhost:8017
+```
