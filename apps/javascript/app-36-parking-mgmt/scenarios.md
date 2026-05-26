@@ -1,21 +1,15 @@
-# Chained Vulnerability Scenarios — Parking Mgmt
+# Chained Vulnerability Scenarios — Parking Management
 
-## Chain: "SQL Injection Data Mining → Zero-Fee Booking Exploitation"
+Supplemental notes only. Ground truth vulnerability data is maintained in [.vulns](.vulns), and the required human-readable chain is in [README.md](README.md).
+
+## Chain: "Elasticsearch Query Injection → Client-Controlled Pricing → Missing Audit Logs"
 
 | Step | Issue | Severity (standalone) | OWASP | Location |
 |------|-------|-----------------------|-------|----------|
-| 1 | SQL injection on spot search | High | A03 | `src/index.js` → `GET /api/spots/search` |
-| 2 | Cost rates trusted directly from client parameters | Medium | A04 | `src/index.js` → `POST /api/bookings/book` |
+| 1 | Raw user input is embedded in Elasticsearch `query_string` syntax | Medium | A03 | `ParkingSearchClient.js` → `searchByQueryString()` |
+| 2 | Client-supplied booking total is trusted | Medium | A04 | `BookingService.js` → `book()` |
+| 3 | Booking cancellation is saved without an audit event | Low | A09 | `BookingService.js` → `cancel()` |
 
+**Attack narrative**: The attacker broadens spot search with query-string syntax, creates a zero-cost booking, then cancels bookings without an audit event.
 
-**Attack narrative**: 1. The attacker searches spots via `/api/spots/search?q=Standard' UNION SELECT 1,id,spot_number,price_rate FROM spots --`.
-2. The server processes the query and returns the list of premium spot IDs.
-3. The attacker requests a booking to `/api/bookings/book` submitting a payload with `total_cost: 0.0`.
-4. The server records the transaction as successful, granting free access.
-5. The attacker cancels past reservations at `/api/bookings/1/cancel` without leaving an audit log trail.
-
-**Combined Impact**: `data_modification` — Attacker bypasses payment gates to book reservation assets.
-
----
-
-_This file is for internal reference. Ground truth vulnerability data is maintained in [.vulns](.vulns)._
+**Combined Impact**: Unauthorized data modification of parking bookings and cancellation state.
