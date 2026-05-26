@@ -5,6 +5,7 @@ from flask import Flask
 from src.config.settings import SECRET_KEY
 from src.config.db_sql import init_db
 from src.routes.auth_routes import auth_bp
+from src.routes.health_routes import health_bp
 from src.routes.order_routes import orders_bp
 from src.routes.page_routes import pages_bp
 from src.routes.product_routes import products_bp
@@ -18,6 +19,7 @@ def create_app():
 
     init_db()
     app.register_blueprint(pages_bp)
+    app.register_blueprint(health_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(users_bp)
     app.register_blueprint(products_bp)
