@@ -63,15 +63,19 @@ src/
   - *Description*: Import endpoint queries feed settings from a user-supplied URL. It fails to validate internal hostname resolutions, enabling connections to internal Docker containers.
 
 ### Exploit Chains
-- **Chain-01 (EASY to Find & Exploit)**: *Config Leak → SSRF*
-  - *Narrative*: Attacker fetches the unauthenticated `/api/debug/env` endpoint to read internal container names and ports. They then make an SSRF call to `/api/feed/import`, supplying an internal URI to access internal microservice details or metadata endpoints.
-  - *Subtlety*: Low. The config leak is cleartext, and the SSRF executes synchronously.
-- **Chain-02 (HARD to Find & Exploit)**: *SSRF Index Alteration → Elasticsearch Injection → SQLi Pivot*
-  - *Narrative*: Attacker uses the SSRF vulnerability to send POST requests directly to the internal Elasticsearch instance at `http://elasticsearch:9200`. The payload modifies the comment index mappings. When the `AnalyticsConsumer` queries Elasticsearch via the search dashboard, the modified index injects a query string payload. This string is then passed to the PostgreSQL repository layer where it is concatenated, causing a SQL injection that exfiltrates administrative account hashes.
-  - *Subtlety*: High. The attack spans from SSRF to Elasticsearch index modification, leading to a SQL injection pivot when the database reads values out of the modified search index.
+#### chain-01: Debug Environment Leak -> Internal HTTP SSRF
+- **Impact**: `lateral_movement`
+- **Attack narrative**: An attacker reads the unauthenticated debug environment endpoint to discover internal Docker service names, ports, and credentials, then submits one of those internal HTTP URLs to the feed import SSRF so the application server fetches internal-only search or service endpoints from the trusted network.
+
+| Step | Issue | Severity (standalone) | OWASP | CWE | Location | Method |
+|------|-------|-----------------------|-------|-----|----------|--------|
+| 1 | Debug environment route exposes internal service hostnames, ports, and credentials without authentication. | Low | A05 | CWE-200 | `src/controllers/configController.ts` | `getEnv()` |
+| 2 | Feed importer fetches attacker-supplied HTTP URLs without hostname or private-network validation. | Medium | A10 | CWE-918 | `src/services/SyncManager.ts` | `importFeed()` |
 
 ---
 
-## 5. Code Comment Constraints (Agent Tipping Prevention)
-- **No Code-Level Tips**: Source code files (`src/`) must not contain any explicit comments, annotations, or markers (e.g. `// VULNERABILITY`, `// CHAIN LINK`, etc.) that could tip off security-detection agents.
-- **Metadata Localization**: All details regarding standalone vulnerabilities, exploit chains, and locations are strictly restricted to the ground-truth metadata files (`.vulns` JSON manifest) and internal reference files (`scenarios.md`).
+## 5. Benchmark Metadata Requirements
+- **Source Annotations Required**: Source code must retain the `AGENTS.md` benchmark comments: `// VULNERABILITY <OWASP_ID>: <brief description>` for each standalone vulnerability and `// CHAIN LINK <N> (chain-<ID>): <description>` for every chain step.
+- **Metadata Synchronization**: `.vulns`, the README chain section, this plan's chain table, and source comments must agree on OWASP ID, severity, CWE, impact, location, and method.
+- **README Chain Section Required**: The app README must keep the required `Chained Vulnerability Scenario` section. `scenarios.md` may provide supplemental narrative, but it must not replace README or `.vulns` content.
+- **Decoys Required**: Preserve nearby safe decoy patterns and list them in `.vulns.decoys`.

@@ -59,15 +59,19 @@ src/
   - *Description*: Session cookie definitions omit the `httpOnly` flag, permitting cookie reading via client-side scripts.
 
 ### Exploit Chains
-- **Chain-01 (EASY to Find & Exploit)**: *JWT Forgery → IDOR Patient Notes*
-  - *Narrative*: Attacker creates a forged JWT configured with the `none` algorithm and doctor permissions. They submit this token to authenticate and call `/api/patients/notes/:id` to retrieve another patient's medical details from MongoDB.
-  - *Subtlety*: Low. Accept-none JWT vulnerabilities are easily flagged by security scanners.
-- **Chain-02 (HARD to Find & Exploit)**: *Session Hijack → Kafka State Race → Prescription Injection*
-  - *Narrative*: Attacker exploits the missing `httpOnly` cookie flag via a cross-site script to extract the patient's session token. They then hijack the session. To inject a prescription, they trigger multiple rapid booking requests to the appointment API via Kafka. Due to race conditions in the `ScheduleValidator` that processes booking logs asynchronously, the server updates state variables in Redis in an incorrect sequence. This state mismatch is read by the `PrescriptionConsumer` thread, allowing the attacker to issue unauthorized prescriptions under a different patient's account.
-  - *Subtlety*: High. It requires exploiting out-of-order execution states in the Kafka consumer thread to overwrite Redis state variables, bypassing prescription authorization checks.
+#### chain-01: Weak JWT Validation -> Patient Notes IDOR
+- **Impact**: `db_exfiltration`
+- **Attack narrative**: An attacker forges a JWT accepted by the weak token verifier, assigns themselves doctor or patient privileges in the token claims, and calls the patient notes endpoint with another patient's note ID to retrieve MongoDB clinical records because ownership is not checked.
+
+| Step | Issue | Severity (standalone) | OWASP | CWE | Location | Method |
+|------|-------|-----------------------|-------|-----|----------|--------|
+| 1 | JWT verifier accepts weakly signed or `none` algorithm tokens. | Medium | A02 | CWE-347 | `src/services/AuthService.ts` | `verifyToken()` |
+| 2 | Patient notes endpoint retrieves documents by ID without verifying patient ownership. | Medium | A01 | CWE-639 | `src/controllers/patientController.ts` | `getPatientNotes()` |
 
 ---
 
-## 5. Code Comment Constraints (Agent Tipping Prevention)
-- **No Code-Level Tips**: Source code files (`src/`) must not contain any explicit comments, annotations, or markers (e.g. `// VULNERABILITY`, `// CHAIN LINK`, etc.) that could tip off security-detection agents.
-- **Metadata Localization**: All details regarding standalone vulnerabilities, exploit chains, and locations are strictly restricted to the ground-truth metadata files (`.vulns` JSON manifest) and internal reference files (`scenarios.md`).
+## 5. Benchmark Metadata Requirements
+- **Source Annotations Required**: Source code must retain the `AGENTS.md` benchmark comments: `// VULNERABILITY <OWASP_ID>: <brief description>` for each standalone vulnerability and `// CHAIN LINK <N> (chain-<ID>): <description>` for every chain step.
+- **Metadata Synchronization**: `.vulns`, the README chain section, this plan's chain table, and source comments must agree on OWASP ID, severity, CWE, impact, location, and method.
+- **README Chain Section Required**: The app README must keep the required `Chained Vulnerability Scenario` section. `scenarios.md` may provide supplemental narrative, but it must not replace README or `.vulns` content.
+- **Decoys Required**: Preserve nearby safe decoy patterns and list them in `.vulns.decoys`.
