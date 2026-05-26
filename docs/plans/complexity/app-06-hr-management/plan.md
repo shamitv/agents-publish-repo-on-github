@@ -1,62 +1,57 @@
-# Complexity Upgrade Plan: app-06-hr-management
+# Complexity Upgrade Plan: app-06-hr-management (Enterprise Architecture)
 
-This document details the architectural plan to upgrade the Enterprise HR Management System from an in-memory Spring Boot setup to a distributed multi-container environment.
+This document details the architectural plan to upgrade the Enterprise HR Management System to a modular, multi-database Java application incorporating Elasticsearch and Apache Kafka.
 
 ## 1. Overview
-The current Spring Boot application uses an in-memory database (such as H2) for employee and contract data. We will upgrade the application to use a PostgreSQL database for persistence, Redis to cache employee records, and RabbitMQ for asynchronous contract generation and payroll tasks.
+The H2-backed Spring Boot system will be upgraded to a real enterprise-tier layout:
+- **Relational Storage**: PostgreSQL for employee, user, and department records.
+- **Search Service**: Elasticsearch for fuzzy search indexing on employee profiles and audit logs.
+- **Message Broker**: Apache Kafka for asynchronous employee lifecycle events.
+- **Onboarding Workflow**: Implement a state machine (Draft → Verified → Background Checked → Active).
+- **Modular Codebase**: Split code into distinct packages: `controller`, `service`, `repository`, `dto`, `listener`, and `config`.
+- **Enterprise UI**: An admin dashboard displaying onboarding pipelines, audit trails fetched from Elasticsearch, and employee search interfaces.
 
 ---
 
 ## 2. Component Design
 
-### A. Database (PostgreSQL)
+### A. Database Layer (PostgreSQL)
 - **Engine**: PostgreSQL 15 (Alpine)
-- **Role**: Store persistent tables for `employees`, `users`, `departments`, and `payroll_records`.
-- **Migration**: Database schema creation and initial seeding will be managed via Spring Boot Liquibase/Flyway migrations or raw SQL execution on startup.
-- **Connection**: Managed via Spring Boot Data JPA with a HikariCP connection pool.
+- **Role**: Store ACID-compliant employee and onboarding tables.
+- **Connection**: Managed via HikariCP connection pool with Spring Data JPA.
 
-### B. Cache (Redis)
-- **Engine**: Redis 7 (Alpine)
-- **Role**: Cache employee profile queries to reduce DB hits for recurrent lookups.
-- **Key Schema**:
-  - Profile cache: `employee:profile:<id>`
-  - Department listings: `department:employees:<dept_id>`
+### B. Search Service (Elasticsearch)
+- **Engine**: Elasticsearch 8 (Alpine)
+- **Role**: Index employee data for fast search and aggregation, and index audit log entries.
+- **Sync**: Spring Boot JPA `@PostPersist` and `@PostUpdate` lifecycle hooks publish updates to Elasticsearch.
 
-### C. Messaging Queue (RabbitMQ)
-- **Engine**: RabbitMQ 3 (Alpine)
-- **Role**: Asynchronous payroll calculation and contract generation.
+### C. Message Broker (Apache Kafka)
+- **Engine**: Apache Kafka + ZooKeeper
+- **Role**: Distribute HR events asynchronously.
 - **Work Flow**:
-  1. Admin requests payroll generation for a department via API.
-  2. Spring Boot controller publishes a payroll task JSON to RabbitMQ `hr.payroll` queue.
-  3. A background `@RabbitListener` worker consumes the message, runs the calculations, writes results to PostgreSQL, and invalidates the cached employee payroll status in Redis.
+  1. HR admin triggers onboarding status changes.
+  2. Spring Boot app publishes an event containing employee details to the `employee-lifecycle` topic.
+  3. The `AuditEventListener` consumes the event, format-logs the payload via Logback/Log4j, and writes the index record to Elasticsearch.
 
 ---
 
-## 3. Docker Compose Setup
-
-Services definition:
-- `db`: PostgreSQL container with named volume `hr_db_data`.
-- `redis`: Redis server container.
-- `rabbitmq`: RabbitMQ message broker.
-- `web`: Spring Boot jar-packed application container (port 8006).
-
-### Environment Configuration (`.env`)
-```env
-SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/hr_management
-SPRING_DATASOURCE_USERNAME=postgres
-SPRING_DATASOURCE_PASSWORD=cyberpunk_hr_pass
-SPRING_REDIS_HOST=redis
-SPRING_REDIS_PORT=6379
-SPRING_RABBITMQ_HOST=rabbitmq
-SPRING_RABBITMQ_PORT=5672
+## 3. Modular Code Structure
+```
+src/main/java/com/hr/
+├── config/             # Spring Security, Kafka, and Elasticsearch configs
+├── controller/         # REST APIs (EmployeeController, AuthController)
+├── dto/                # Request and Response payloads
+├── model/              # JPA Entities (Employee, User, OnboardingState)
+├── repository/         # Spring Data JPA repositories
+├── service/            # Workflow engine and audit log handlers
+└── listener/           # Kafka @KafkaListener event consumers
 ```
 
 ---
 
 ## 4. Impact on Planted Vulnerabilities
-We must maintain vulnerability fidelity:
-- **VULN-01 (A01 - IDOR)**: Employee details are fetched by `id`. The Redis caching layer for `employee:profile:<id>` must cache the deserialized profile directly without verifying the requesting HR manager's authority, keeping the IDOR exploitable from the cache.
-- **VULN-02 (A02 - Cryptographic Failures)**: Weak XOR encryption or hardcoded symmetric keys used to encrypt employee tax details (SSNs) must remain in the code. The encrypted data will be saved to the new PostgreSQL database, demonstrating how weak encryption impacts persistent databases.
-- **VULN-03 (A08 - Software and Data Integrity Failures)**: The object deserialization endpoint receives raw Java serialized objects. The vulnerability remains in the Spring Boot endpoint, allowing attackers to exploit standard gadgets (e.g. CommonsCollections) to achieve remote code execution in the container.
-- **Chain-01 (Weak Crypto → IDOR → Employee Record Leak)**: Attacker decrypts encrypted tax identifiers, iterates employee records via IDOR, and extracts the database records.
-- **Chain-02 (State Confusion Pivot to IDOR)**: Attacker combines state changes in background payroll task queues to bypass authorization or extract records.
+- **VULN-01 (A01 - IDOR)**: The employee controller (`controller/EmployeeController.java`) exposes profile retrieval. The service layer reads from the PostgreSQL database or the Redis cache. Ownership validation check is omitted, allowing any authenticated user to fetch other employee records.
+- **VULN-02 (A02 - Cryptographic Failures)**: SSNs are encrypted with a weak crypto utility before persistence. The encrypted strings will be saved in PostgreSQL and indexed in Elasticsearch in their weak form.
+- **VULN-03 (A08 - Software and Data Integrity Failures / Log4j RCE)**: When the `AuditEventListener` consumes an onboarding event, it logs the user-supplied details (such as address or comments) using an unescaped format string in a vulnerable logger package (e.g. Log4j 2.14). This exposes the background Kafka worker thread to RCE via lookup strings (Log4Shell).
+- **Chain-01 (Weak Crypto → IDOR → Employee Record Leak)**: Attacker decrypts IDs and extracts SSNs via the unauthenticated/unvalidated lookup endpoints.
+- **Chain-02 (State Confusion Pivot to IDOR)**: State machine transitions for onboarding are updated asynchronously. Attacker exploits state conditions in the Kafka event loop to view records during transition states.

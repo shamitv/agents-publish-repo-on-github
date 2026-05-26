@@ -1,37 +1,47 @@
 # Todo List: app-01-ecommerce-catalog Complexity Upgrade
 
-This checklist tracks the tasks required to implement the full-stack architecture for the E-Commerce Product Catalog API.
+This checklist tracks the tasks required to implement the enterprise full-stack architecture for the E-Commerce Product Catalog API.
 
 ## Phase 1: Scaffold & Dependencies
 - [ ] Add dependency packages to `requirements.txt`:
   - `psycopg2-binary` (PostgreSQL client)
-  - `redis` (Redis client)
-  - `pika` (RabbitMQ/AMQP client)
-- [ ] Create database migration schema in `db/init.sql` (defining `users`, `products`, `orders`).
-- [ ] Define initial seed data in `db/seed.sql` with mock catalog and users.
+  - `pymongo` (MongoDB client)
+  - `elasticsearch` (Elasticsearch client)
+  - `kafka-python` (Kafka AMQP/event client)
+- [ ] Initialize modular directories under `src/`: `config/`, `models/`, `services/`, `controllers/`, `routes/`, `consumers/`.
 
-## Phase 2: Configuration & Environment
-- [ ] Update `app.py` to read connection parameters from environment variables (host, port, credentials).
-- [ ] Create a template `.env.example` file.
-- [ ] Create `docker-compose.yml` defining `web`, `db`, `redis`, and `rabbitmq` services.
-- [ ] Update the app's `Dockerfile` to install new dependencies and handle delay-starts using a wait script.
+## Phase 2: Docker Compose Orchestration
+- [ ] Create `docker-compose.yml` specifying:
+  - `web` (LMS server + consumer thread workers)
+  - `db` (PostgreSQL 15)
+  - `mongodb` (MongoDB 6)
+  - `elasticsearch` (Elasticsearch 8)
+  - `zookeeper` (ZooKeeper helper)
+  - `kafka` (Kafka broker)
+- [ ] Configure wait scripts to ensure database, elastic, and broker ports are fully open.
 
-## Phase 3: PostgreSQL Migration
-- [ ] Rewrite database helper class in `app.py` from SQLite `sqlite3` to PostgreSQL `psycopg2`.
-- [ ] Verify parameterized user registration and login queries function correctly on PostgreSQL (Secure Decoys).
+## Phase 3: Polyglot Database Migration
+- [ ] Implement database client connections in `src/config/`:
+  - `db_postgres.py` for PostgreSQL connections.
+  - `db_mongo.py` for MongoDB connections.
+- [ ] Migrate order schemas to PostgreSQL.
+- [ ] Migrate product specifications catalog to MongoDB.
 
-## Phase 4: Redis Caching
-- [ ] Implement a Redis connection helper.
-- [ ] Wrap `list_products()` search results in Redis caching logic.
-- [ ] Ensure that cache invalidation triggers on `POST /api/products` (adding a product).
+## Phase 4: Elasticsearch Indexing
+- [ ] Implement product sync listener to populate Elasticsearch documents.
+- [ ] Implement product search controller in `src/controllers/productController.py` utilizing the Elasticsearch client.
+- [ ] Keep search string concatenation in the Elasticsearch Query DSL string to maintain the injection vulnerability (A03).
 
-## Phase 5: RabbitMQ Async Processing
-- [ ] Write worker thread initialization code inside Flask application startup.
-- [ ] Refactor `POST /api/orders` to publish to AMQP exchange instead of writing state synchronously.
-- [ ] Implement the AMQP queue consumer in a separate worker loop or thread that deducts stock and completes orders.
+## Phase 5: Kafka Event Streaming
+- [ ] Configure Kafka Producer for ordering events in `src/config/kafka_client.py`.
+- [ ] Refactor order checkout to publish to the `orders` topic.
+- [ ] Implement `src/consumers/inventory_consumer.py` to process inventory updates.
+- [ ] Implement `src/consumers/billing_consumer.py` to generate invoices.
 
-## Phase 6: Vulnerability & Integration Verification
-- [ ] Verify SQL injection vulnerability on product search (A03) works on PostgreSQL syntax.
-- [ ] Verify IDOR vulnerability on order details (A01) works and is not blocked by caching.
-- [ ] Validate session forgery (Chain-01) works with Flask session signing.
-- [ ] Run the complete integration tests using Docker Compose.
+## Phase 6: Enterprise UI Implementation
+- [ ] Build a multi-view HTML dashboard in `src/public/` displaying product search, faceted filters, order tracking, and live processing statistics.
+
+## Phase 7: Verification
+- [ ] Verify Elasticsearch Injection vulnerability (A03) successfully extracts documents or alters search scope.
+- [ ] Verify IDOR vulnerability (A01) bypasses session checks in the modularized order controller.
+- [ ] Confirm absence of logs (A09) in Kafka consumer files.

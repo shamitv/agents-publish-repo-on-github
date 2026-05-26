@@ -1,63 +1,51 @@
-# Complexity Upgrade Plan: app-05-learning-mgmt
+# Complexity Upgrade Plan: app-05-learning-mgmt (Enterprise Architecture)
 
-This document details the architectural plan to upgrade the Online Learning Management System from a SQLite-backed API to a distributed multi-container architecture.
+This document details the architectural plan to upgrade the Online Learning Management System to a multi-database, event-driven enterprise application.
 
 ## 1. Overview
-The current app-05 application runs entirely inside a single container using SQLite. The upgraded version will migrate to PostgreSQL for data persistence, Redis for session and submission status caching, and RabbitMQ for asynchronous quiz grading and course import workloads.
+The current Flask application will be restructured into a professional, decoupled MVC codebase:
+- **Polyglot Storage**: PostgreSQL for student profiles, course metadata, and enrollments; MongoDB for dynamic quiz questions and flexible submission answers.
+- **Event Streaming**: Apache Kafka for quiz grading streams and course import tasks.
+- **Modular Codebase**: Implement Flask Blueprints to separate auth, course management, and quiz/grading controllers.
+- **Complex Business Logic**: Prerequisite course completion validations, auto-grading logic rules, and submission retry rate limiting.
+- **Enterprise UI**: Portal dashboard split into Student View (gradebook, active courses) and Instructor View (quiz builder, grading queue console).
 
 ---
 
 ## 2. Component Design
 
-### A. Database (PostgreSQL)
-- **Engine**: PostgreSQL 15 (Alpine)
-- **Role**: Store schema tables for `users` (students, instructors), `courses`, `enrollments`, `quizzes`, and `submissions`.
-- **Connection**: Managed via `psycopg2-binary` connection pooling.
+### A. Database Layer (PostgreSQL & MongoDB)
+- **PostgreSQL**: Stores relational structures (`users`, `courses`, `enrollments`).
+- **MongoDB**: Stores schema-less quiz configurations (which support multiple question types: multiple-choice, free-text, code snippets) and student submission arrays.
 
-### B. Cache (Redis)
-- **Engine**: Redis 7 (Alpine)
-- **Role**: Cache student quiz scores and session validation flags to minimize DB roundtrips.
-- **Key Schema**:
-  - Session verification: `session:active:<user_id>`
-  - Submission cache: `submission:score:<submission_id>` (cleared when grading is updated).
-
-### C. Messaging Queue (RabbitMQ)
-- **Engine**: RabbitMQ 3 (Alpine)
-- **Role**: Handle heavy backend processing workloads:
-  - **Quiz Grading**: Asynchronously calculate scores for student submissions and update DB status from `grading` to `graded`.
-  - **Course Imports**: Asynchronously process large ZIP/PICKLE packages uploaded by instructors.
-- **Queues**:
-  - `quiz.grading`
-  - `course.import`
+### B. Event Streaming (Apache Kafka)
+- **Engine**: Apache Kafka
+- **Role**: Handles background quiz grading workflows and async course imports.
+- **Work Flow**:
+  1. Student posts quiz response array to `/api/quizzes/submit`.
+  2. The submission controller enqueues a `quiz-submitted` event to the `grading` Kafka topic.
+  3. A background Kafka consumer (`GradingListener`) reads the event, pulls the correct answer keys from MongoDB, scores the submission, records the grade in PostgreSQL, and invalidates the cached gradebook in Redis.
 
 ---
 
-## 3. Docker Compose Setup
-
-Services definition:
-- `db`: PostgreSQL database server.
-- `redis`: Redis server.
-- `rabbitmq`: RabbitMQ message broker.
-- `web`: Flask LMS API server (port 8005).
-
-### Environment Configuration (`.env`)
-```env
-DB_HOST=db
-DB_PORT=5432
-DB_NAME=learning_mgmt
-DB_USER=postgres
-DB_PASSWORD=cyberpunk_lms_pass
-REDIS_HOST=redis
-REDIS_PORT=6379
-RABBITMQ_HOST=rabbitmq
+## 3. Modular Code Structure
+```
+src/
+├── blueprints/         # Flask blueprints (auth.py, courses.py, quizzes.py)
+├── config/             # DB connection helpers and Kafka clients
+├── controllers/        # Blueprints request-response controllers
+├── services/           # GradingService, CourseService, PrereqValidator
+├── models/             # Relational schemas and Mongo models
+├── workers/            # Kafka event listeners (GradingListener)
+├── static/             # Complex JavaScript-based dashboards
+└── main.py             # App initialization and worker threading
 ```
 
 ---
 
 ## 4. Impact on Planted Vulnerabilities
-We must maintain vulnerability fidelity:
-- **VULN-01 (A01 - IDOR)**: The submission retrieval endpoint (`get_submission`) looks up the submission in the PostgreSQL database. The Redis cache for submissions (`submission:score:<submission_id>`) will store the raw score payload without checking requesting user credentials, maintaining IDOR exploitability from cache.
-- **VULN-02 (A05 - Security Misconfiguration)**: The `/api/debug/config` endpoint will now exposure PostgreSQL, Redis, and RabbitMQ environment details (credentials, hosts) along with the Flask secret key, making the configuration leak even more critical.
-- **VULN-03 (A08 - Software and Data Integrity Failures)**: The course import endpoint receives pickled base64 data. With RabbitMQ introduced, the course import task will be published to `course.import`. The background worker will consume the task and invoke `pickle.loads()`. The RCE will occur on the consumer worker rather than the main Flask process, representing a realistic worker compromise.
-- **Chain-01 (Config Leak → Session Forgery → Pickle RCE)**: Attacker reads key from `/api/debug/config`, signs an admin session, uploads the payload. The background worker executes the exploit and drops a reverse shell or exfiltrates data from the PostgreSQL instance.
-- **Chain-02 (State Confusion Pivot to IDOR)**: Attacker exploits the delay in async grading queue to access submissions or manipulate scores before they transition state.
+- **VULN-01 (A01 - IDOR)**: The quiz grading service retrieves student submission records from MongoDB. The quiz controller (`controllers/quizController.py`) fails to check if the authenticated user's ID matches the submission owner's ID, exposing MongoDB document contents.
+- **VULN-02 (A05 - Security Misconfiguration)**: The debug configuration endpoint is moved to a dedicated helper route. It leaks full system profiles including Kafka brokers, PostgreSQL connections, MongoDB URIs, and Flask secrets.
+- **VULN-03 (A08 - Software and Data Integrity Failures)**: The course import service receives base64 encoded pickle data representing course outlines. This import task is enqueued to the `course-imports` Kafka topic. The `ImportListener` consumer pulls the message and runs `pickle.loads()`, causing RCE on the backend Kafka worker.
+- **Chain-01 (Config Leak → Session Forgery → Pickle RCE)**: Attacker reads configuration via debug endpoint, signs an admin session, uploads the payload, and exploits the background Kafka consumer worker.
+- **Chain-02 (State Confusion Pivot to IDOR)**: Attacker manipulates prerequisite validation states inside MongoDB through race conditions in the enrollment queue, bypassing access blocks.

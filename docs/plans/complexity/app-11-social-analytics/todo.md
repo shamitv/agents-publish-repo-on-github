@@ -1,34 +1,46 @@
 # Todo List: app-11-social-analytics Complexity Upgrade
 
-This checklist tracks the tasks required to implement the full-stack architecture for the Social Media Analytics Dashboard.
+This checklist tracks the tasks required to implement the enterprise architecture for the Social Media Analytics Dashboard.
 
 ## Phase 1: Scaffold & Dependencies
-- [ ] Add packages to `package.json`:
-  - `pg` and `@types/pg` (PostgreSQL client)
-  - `redis` (Redis client)
-  - `amqplib` and `@types/amqplib` (RabbitMQ/AMQP client)
-- [ ] Create PostgreSQL initialization file `db/init.sql` (defining `users`, `dashboards`, `metrics`).
+- [ ] Add npm packages to `package.json`:
+  - `pg` and `@types/pg`
+  - `redis`
+  - `elasticsearch`
+  - `kafkajs` (Kafka JS client)
+  - `ws` and `@types/ws` (WebSocket support)
+- [ ] Create modular TS directory layout under `src/`: `config`, `controllers`, `routes`, `services`, `repositories`, `consumers`.
 
-## Phase 2: Configuration & Environment
-- [ ] Update Express app configuration to load settings from `.env`.
-- [ ] Create a template `.env.example` file.
-- [ ] Create `docker-compose.yml` defining `web`, `db`, `redis`, and `rabbitmq` services.
-- [ ] Configure startup order to ensure PostgreSQL and RabbitMQ are fully available before the web server starts.
+## Phase 2: Docker Compose Setup
+- [ ] Create `docker-compose.yml` specifying:
+  - `web` (TypeScript app + Websocket server)
+  - `db` (PostgreSQL 15)
+  - `elasticsearch` (Elasticsearch 8)
+  - `redis` (Redis 7)
+  - `zookeeper`
+  - `kafka`
+- [ ] Configure startup delay parameters for the `web` service.
 
-## Phase 3: PostgreSQL Migration
-- [ ] Rewrite database access code to use `pg.Pool` connection pool.
-- [ ] Maintain raw string interpolation in search queries to keep the SQLi vulnerability active.
+## Phase 3: Polyglot Database Migration
+- [ ] Implement DB connection singletons under `src/config/`.
+- [ ] Write SQL schema migrations for standard tables and a partitioned `analytics_events` table.
+- [ ] Seed tables with mock analytics profiles.
 
-## Phase 4: Redis Caching
-- [ ] Set up Redis client connection in Express startup.
-- [ ] Wrap dashboard stats computation endpoint in a Redis cache check (read-through caching).
+## Phase 4: Elasticsearch Search Integration
+- [ ] Initialize Elasticsearch index mapping in `src/config/elastic_client.ts`.
+- [ ] Write SyncManager service to stream new metrics from database to Elasticsearch.
+- [ ] Implement search controllers utilizing the Elasticsearch client.
 
-## Phase 5: RabbitMQ Async Processing
-- [ ] Refactor webhook endpoint to enqueue metrics payloads into RabbitMQ.
-- [ ] Implement a worker process (or concurrent consumer thread) in TypeScript using `amqplib` to process metrics, save to PostgreSQL, and flush expired Redis keys.
+## Phase 5: Kafka Event Streaming & WebSockets
+- [ ] Configure `kafkajs` client and producer.
+- [ ] Refactor metrics ingestion endpoint to publish metrics events to Kafka.
+- [ ] Implement `src/consumers/analytics_consumer.ts` to consume events, write database partitions, update Elasticsearch, and push updates to WebSocket clients.
 
-## Phase 6: Vulnerability & Integration Verification
-- [ ] Verify SQL injection vulnerability (A03) works on the PostgreSQL database.
-- [ ] Verify SSRF (A10) operates correctly and can target Redis and RabbitMQ internal hosts.
-- [ ] Confirm configuration leak (A05) reveals the new PostgreSQL and RabbitMQ secrets.
+## Phase 6: Enterprise UI Implementation
+- [ ] Build a WebSocket-connected HTML dashboard displaying dynamic charts, live updates, and a search panel connected to Elasticsearch.
+
+## Phase 7: Verification
+- [ ] Verify SQL injection (A03) works on the PostgreSQL database.
+- [ ] Verify SSRF (A10) operates and can target Redis, Elasticsearch, and Kafka hosts.
+- [ ] Confirm configuration leak (A05) reveals all new database and broker credentials.
 - [ ] Run the complete integration tests using Docker Compose.

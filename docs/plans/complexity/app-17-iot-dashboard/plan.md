@@ -1,61 +1,55 @@
-# Complexity Upgrade Plan: app-17-iot-dashboard
+# Complexity Upgrade Plan: app-17-iot-dashboard (Enterprise Architecture)
 
-This document details the architectural plan to upgrade the IoT Device Dashboard from a SQLite-backed setup to a multi-container Express/JavaScript environment.
+This document details the architectural plan to upgrade the IoT Device Dashboard to a multi-database, event-driven JavaScript application.
 
 ## 1. Overview
-The current app-17 JavaScript application runs Express with local SQLite database operations. We will upgrade the application to use PostgreSQL for device configuration data, Redis for active device telemetry caching, and RabbitMQ to queue device status update events.
+The current monolithic JavaScript app will be split into a decoupled, modular MVC architecture:
+- **Polyglot & Timeseries Storage**: PostgreSQL for device configuration; TimescaleDB or partitioned PostgreSQL tables for streaming telemetry counters.
+- **Search & Logs Service**: OpenSearch / Elasticsearch for device audit trails and diagnostics search.
+- **Event Streaming**: Apache Kafka for streaming high-frequency device telemetry data.
+- **Modular Codebase**: Split code into distinct packages: `routes/`, `controllers/`, `services/`, `consumers/`, `config/`.
+- **Enterprise UI**: Portal console displaying live telemetry metrics (via Line charts and WebSockets), device status logs, and a diagnostics query page.
 
 ---
 
 ## 2. Component Design
 
-### A. Database (PostgreSQL)
-- **Engine**: PostgreSQL 15 (Alpine)
-- **Role**: Store persistent tables for `devices`, `users`, `commands`, and `alert_logs`.
-- **Migration**: Setup database connection pooling via the `pg` npm package and execute `init.sql` on startup.
+### A. Database Layer (PostgreSQL & TimescaleDB)
+- **PostgreSQL**: Stores persistent tables (`users`, `devices`, `commands`).
+- **Timeseries Table**: A partitioned table `telemetry_streams` logs sensor counts (`device_id`, `temperature`, `humidity`, `timestamp`).
 
-### B. Cache (Redis)
-- **Engine**: Redis 7 (Alpine)
-- **Role**: Cache high-frequency device telemetry (e.g. current temperature, CPU load) to avoid overload on the database.
-- **Key Schema**:
-  - Live Telemetry: `device:telemetry:live:<device_id>` (expires in 1 minute).
+### B. Search & Logs Service (OpenSearch)
+- **Engine**: OpenSearch 2 / Elasticsearch 8
+- **Role**: Index device logs, registration actions, and error reports for diagnostic lookup.
+- **Sync**: Background synchronization logs events directly to OpenSearch.
 
-### C. Messaging Queue (RabbitMQ)
-- **Engine**: RabbitMQ 3 (Alpine)
-- **Role**: Buffer incoming telemetry report streams and queue outgoing device commands.
+### C. Event Streaming (Apache Kafka)
+- **Engine**: Apache Kafka
+- **Role**: Stream and process incoming sensor updates.
 - **Work Flow**:
-  1. IoT devices post status updates to the `/api/devices/telemetry` endpoint.
-  2. Express endpoint enqueues the reports into the `telemetry.reports` queue in RabbitMQ.
-  3. A background task consumer processes the queue, saves aggregated metrics to PostgreSQL, and updates the live cache in Redis.
+  1. IoT devices post sensor metrics to `/api/telemetry/log`.
+  2. The controller publishes the metrics to the `iot-telemetry` topic.
+  3. The `TelemetryConsumer` listens to the topic, writes records to the TimescaleDB partition, pushes telemetry updates to live WebSockets, and index alert triggers in OpenSearch.
 
 ---
 
-## 3. Docker Compose Setup
-
-Services definition:
-- `db`: PostgreSQL database server.
-- `redis`: Redis cache server.
-- `rabbitmq`: RabbitMQ broker.
-- `web`: IoT Express application (port 8017).
-
-### Environment Configuration (`.env`)
-```env
-DB_HOST=db
-DB_PORT=5432
-DB_NAME=iot_dashboard
-DB_USER=postgres
-DB_PASSWORD=cyberpunk_iot_pass
-REDIS_HOST=redis
-REDIS_PORT=6379
-RABBITMQ_HOST=rabbitmq
+## 3. Modular Code Structure
+```
+src/
+├── config/             # DB, Kafka, Redis, and OpenSearch clients
+├── controllers/        # Express controllers (DeviceController, TelemetryController)
+├── routes/             # Route mapping declarations
+├── services/           # CommandEngine, AlertManager
+├── consumers/          # Kafka event listeners (TelemetryConsumer)
+├── public/             # WebSocket-enabled admin telemetry console
+└── server.js           # Server runner and WebSocket setups
 ```
 
 ---
 
 ## 4. Impact on Planted Vulnerabilities
-We must maintain vulnerability fidelity:
-- **VULN-01 (A02 - Cryptographic Failures)**: Plaintext API tokens are stored in the database. Moving to PostgreSQL means these secrets will be queryable directly in PostgreSQL tables, demonstrating how cleartext credentials can expose database links.
-- **VULN-02 (A05 - Security Misconfiguration)**: The debug endpoint `/api/debug/system` dumps runtime configurations. In the upgraded setup, this will expose all environment variables, leaking PostgreSQL and RabbitMQ passwords and hosts.
-- **VULN-03 (A10 - Server-Side Request Forgery)**: The firmware update function `/api/devices/update` requests files from a user-supplied URL. With RabbitMQ and Redis present in the Docker network, this SSRF becomes highly dangerous, allowing attackers to query the RabbitMQ API (`http://rabbitmq:15672`) or connect to the Redis port inside the network.
-- **Chain-01 (API Key Leak → SSRF → Internal Pivot)**: Attacker reads plaintext device credentials, uses the SSRF firmware update endpoint to pivot requests internally, and alters RabbitMQ queues or Redis values.
-- **Chain-02 (State Confusion Pivot to IDOR)**: Attacker exploits background command-queue states to read other device configurations.
+- **VULN-01 (A02 - Cryptographic Failures)**: Plaintext API tokens are saved in PostgreSQL. Access control flaws in search endpoints allow unauthorized users to query these plaintext credentials.
+- **VULN-02 (A05 - Security Misconfiguration)**: The debug endpoint `/api/debug/system` remains active. It leaks settings for PostgreSQL, Redis, Kafka, and OpenSearch.
+- **VULN-03 (A10 - Server-Side Request Forgery)**: The firmware update function `/api/devices/update` requests files from a user-supplied URL. With OpenSearch and Kafka inside the network, this SSRF becomes highly dangerous, allowing attackers to query the OpenSearch index API (`http://opensearch:9200`) or manipulate Kafka broker settings.
+- **Chain-01 (API Key Leak → SSRF → Internal Pivot)**: Attacker reads plaintext device credentials, uses the SSRF firmware update endpoint to pivot requests internally, and alters OpenSearch data or Kafka streams.
+- **Chain-02 (State Confusion Pivot to IDOR)**: Attacker leverages Kafka message queue delays to bypass command-queue state checks and read other device configurations.

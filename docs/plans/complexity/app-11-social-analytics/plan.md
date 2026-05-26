@@ -1,61 +1,56 @@
-# Complexity Upgrade Plan: app-11-social-analytics
+# Complexity Upgrade Plan: app-11-social-analytics (Enterprise Architecture)
 
-This document details the architectural plan to upgrade the Social Media Analytics Dashboard from a local SQLite setup to a distributed Express and TypeScript environment.
+This document details the architectural plan to upgrade the Social Media Analytics Dashboard to an event-driven, multi-database TypeScript application.
 
 ## 1. Overview
-The current app-11 TypeScript application runs Express with a local SQLite database file. We will upgrade the architecture to use PostgreSQL for data persistence, Redis for caching analytics graphs and query results, and RabbitMQ to process incoming social analytics events from external webhooks.
+The application will be restructured into a modular, clean-architecture codebase:
+- **Polyglot & Timeseries Storage**: PostgreSQL for account details and dashboard setups; TimescaleDB or partitioned PostgreSQL tables for high-frequency social media metrics.
+- **Search Service**: Elasticsearch for fuzzy searches on feed comments and user posts.
+- **Event Streaming**: Apache Kafka for processing real-time social metrics events.
+- **Modular Codebase**: Implement a TypeScript-structured directory: `routes/`, `controllers/`, `services/`, `repositories/`, `consumers/`.
+- **Enterprise UI**: Portal dashboard displaying real-time analytics graphs, metric tracking logs, and a social feed search panel utilizing Websockets.
 
 ---
 
 ## 2. Component Design
 
-### A. Database (PostgreSQL)
-- **Engine**: PostgreSQL 15 (Alpine)
-- **Role**: Store user profiles, registered analytics dashboards, and timeseries feed event counts.
-- **Migration**: Setup database connection pooling via the `pg` npm package and execute `init.sql` on startup.
+### A. Database Layer (PostgreSQL & Timeseries Partitions)
+- **PostgreSQL**: Stores accounts and dashboard details.
+- **Timeseries Table**: A partitioned table `analytics_events` logs feed activities (`likes`, `comments`, `shares`, `timestamp`).
 
-### B. Cache (Redis)
-- **Engine**: Redis 7 (Alpine)
-- **Role**: Cache aggregated dashboard data (e.g. daily active user graph statistics) which are resource-intensive to recalculate.
-- **Key Schema**:
-  - Dashboard stats: `social:dashboard:stats:<dashboard_id>:<date_range>`
+### B. Search Service (Elasticsearch)
+- **Engine**: Elasticsearch 8
+- **Role**: Index social feed comments to allow search and sentiment analysis.
+- **Sync**: A sync daemon reads new metrics from the timeseries table and writes them to the Elasticsearch comments index.
 
-### C. Messaging Queue (RabbitMQ)
-- **Engine**: RabbitMQ 3 (Alpine)
-- **Role**: Buffer incoming social media webhook metrics.
+### C. Event Streaming (Apache Kafka)
+- **Engine**: Apache Kafka
+- **Role**: Process high-volume analytics inputs.
 - **Work Flow**:
-  1. External feed webhook posts new metrics payload (e.g., likes, retweets) to `/api/webhooks/feed`.
-  2. The Express controller accepts the request and publishes the payload to RabbitMQ `feed.metrics` queue.
-  3. A background consumer script (started concurrently) consumes the message, updates the totals in PostgreSQL, and invalidates the cached stats in Redis.
+  1. Social webhooks send events to the `/api/metrics/ingest` endpoint.
+  2. The controller publishes the raw JSON to the `social-events` topic.
+  3. The `AnalyticsConsumer` consumes events, writes them to the Timeseries table, indexes comments in Elasticsearch, and triggers live updates via Websockets.
 
 ---
 
-## 3. Docker Compose Setup
-
-Services definition:
-- `db`: PostgreSQL database.
-- `redis`: Redis server.
-- `rabbitmq`: RabbitMQ message broker.
-- `web`: Express API server (port 8011).
-
-### Environment Configuration (`.env`)
-```env
-DB_HOST=db
-DB_PORT=5432
-DB_NAME=social_analytics
-DB_USER=postgres
-DB_PASSWORD=cyberpunk_social_pass
-REDIS_HOST=redis
-REDIS_PORT=6379
-RABBITMQ_HOST=rabbitmq
+## 3. Modular Code Structure
+```
+src/
+├── config/             # DB, Kafka, Redis, and Elasticsearch clients
+├── controllers/        # Express controllers (DashboardController)
+├── routes/             # Router declarations mapping endpoints to controllers
+├── services/           # AnalyticsEngine, SyncManager
+├── repositories/       # Data-access objects wrapping PostgreSQL and Elastic queries
+├── consumers/          # Kafka event listeners (AnalyticsConsumer)
+├── public/             # HTML/JS dashboard UI using Chart.js and WebSockets
+└── server.ts           # App entrypoint and WebSocket server
 ```
 
 ---
 
 ## 4. Impact on Planted Vulnerabilities
-We must maintain vulnerability fidelity:
-- **VULN-01 (A03 - SQL Injection)**: The endpoint `/api/dashboards/search` interpolates query strings directly into the SQL command. We will rewrite this in the new `pg` package driver using string concatenation instead of parameterized parameters, exposing the app to PostgreSQL SQLi vectors. Caching must be bypassed for search queries.
-- **VULN-02 (A05 - Security Misconfiguration)**: The unauthenticated `/api/debug/env` endpoint leaks environment configurations. This will now leak sensitive PostgreSQL credentials, Redis endpoint, and RabbitMQ settings.
-- **VULN-03 (A10 - Server-Side Request Forgery)**: The feed integration endpoint `/api/feed/import` fetches configurations from a user-supplied URL. This vulnerability is enhanced because the attacker can use the SSRF to interact with internal Docker containers (e.g., calling the RabbitMQ management API at `http://rabbitmq:15672` or reading keys directly from Redis).
-- **Chain-01 (Debug Leak → SSRF → Webhook Hijack)**: The attacker leaks credentials via `/api/debug/env`, uses the SSRF to interact with internal RabbitMQ queues or Redis keys, and intercepts or alters incoming analytics streams.
-- **Chain-02 (State Confusion Pivot to SSRF)**: Attacker manipulates webhook status states inside the database asynchronously to bypass SSRF filters.
+- **VULN-01 (A03 - SQL Injection)**: The endpoint `/api/dashboards/search` remains vulnerable. The repository layer executes raw SQL string interpolation, exposing PostgreSQL-specific SQLi vulnerabilities.
+- **VULN-02 (A05 - Security Misconfiguration)**: The `/api/debug/env` config dump endpoint remains active. It leaks credentials for PostgreSQL, Redis, Elasticsearch, and Kafka.
+- **VULN-03 (A10 - Server-Side Request Forgery)**: The feed integration endpoint `/api/feed/import` takes user-supplied URLs. With Kafka, Elasticsearch, and Redis inside the private network, the attacker can use the SSRF to interact with internal components (e.g. accessing Elasticsearch REST API at `http://elasticsearch:9200` to dump search indices).
+- **Chain-01 (Debug Leak → SSRF → Internal Pivot)**: Attacker reads database and broker configurations, uses the SSRF to pivot and modify Elasticsearch indices or alter Kafka settings.
+- **Chain-02 (State Confusion Pivot to SSRF)**: Attacker exploits background state delays in Kafka consumer pipelines to bypass validation checks.

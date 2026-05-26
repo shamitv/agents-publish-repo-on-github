@@ -1,35 +1,45 @@
 # Todo List: app-17-iot-dashboard Complexity Upgrade
 
-This checklist tracks the tasks required to implement the full-stack architecture for the IoT Device Dashboard.
+This checklist tracks the tasks required to implement the enterprise architecture for the IoT Device Dashboard.
 
 ## Phase 1: Scaffold & Dependencies
-- [ ] Add packages to `package.json`:
+- [ ] Add npm packages to `package.json`:
   - `pg`
   - `redis`
-  - `amqplib`
-- [ ] Create PostgreSQL initialization schema `db/init.sql` (defining `users`, `devices`, `commands`).
+  - `@opensearch-project/opensearch` (OpenSearch client)
+  - `kafkajs`
+  - `ws` (WebSockets)
+- [ ] Initialize modular codebase structure under `src/`: `config`, `controllers`, `routes`, `services`, `consumers`.
 
-## Phase 2: Configuration & Environment
-- [ ] Update Express app configuration to load settings from `.env`.
-- [ ] Create a template `.env.example` file.
-- [ ] Create `docker-compose.yml` defining `web`, `db`, `redis`, and `rabbitmq` services.
-- [ ] Update application Dockerfile to run wait scripts before starting.
+## Phase 2: Docker Compose Setup
+- [ ] Create `docker-compose.yml` specifying:
+  - `web` (Express app + WebSocket hub)
+  - `db` (PostgreSQL 15)
+  - `opensearch` (OpenSearch 2)
+  - `redis` (Redis 7)
+  - `zookeeper`
+  - `kafka`
+- [ ] Setup wait scripts for database, elastic, and broker services.
 
-## Phase 3: PostgreSQL Migration
-- [ ] Replace SQLite code in `index.js` with `pg.Pool` connection pool.
-- [ ] Verify parameterized user registration functions correctly.
+## Phase 3: Polyglot Database Migration
+- [ ] Setup DB connection pools under `src/config/`.
+- [ ] Write SQL schema migrations for standard tables and a partitioned `telemetry_streams` table.
+- [ ] Seed tables with mock devices.
 
-## Phase 4: Redis Caching
-- [ ] Set up Redis client connection in Express startup.
-- [ ] Wrap device status lookup in a Redis cache check (read-through caching).
-- [ ] Verify live telemetry updates expire and rewrite properly.
+## Phase 4: OpenSearch Log Integration
+- [ ] Initialize OpenSearch client and log index configuration in `src/config/opensearch.js`.
+- [ ] Write logger service to write audit events to OpenSearch.
 
-## Phase 5: RabbitMQ Async Processing
-- [ ] Configure RabbitMQ connection channel for telemetry status queues.
-- [ ] Implement a telemetry consumer daemon that updates PostgreSQL and clears Redis cache.
+## Phase 5: Kafka Event Streaming & WebSockets
+- [ ] Configure `kafkajs` client and producer.
+- [ ] Refactor telemetry API to emit events to Kafka.
+- [ ] Implement `src/consumers/TelemetryConsumer.js` to process events, update database partitions, push metrics to WebSockets, and log alerts to OpenSearch.
 
-## Phase 6: Vulnerability & Integration Verification
+## Phase 6: Enterprise UI Implementation
+- [ ] Build a WebSockets-enabled HTML panel displaying live telemetry charts, diagnostic query panel (connected to OpenSearch), and command consoles.
+
+## Phase 7: Verification
 - [ ] Verify plaintext device credentials leak (A02) displays PostgreSQL database values correctly.
-- [ ] Verify SSRF (A10) operates and can target Redis and RabbitMQ hosts.
-- [ ] Confirm configuration leak (A05) reveals the new PostgreSQL and RabbitMQ credentials.
+- [ ] Verify SSRF (A10) operates and can target Redis, OpenSearch, and Kafka hosts.
+- [ ] Confirm configuration leak (A05) reveals the new database and broker credentials.
 - [ ] Run the complete integration tests using Docker Compose.

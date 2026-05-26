@@ -1,35 +1,51 @@
 # Todo List: app-36-parking-mgmt Complexity Upgrade
 
-This checklist tracks the tasks required to implement the full-stack architecture for the Parking Management System.
+This checklist tracks the tasks required to implement the enterprise architecture for the Parking Management System.
 
 ## Phase 1: Scaffold & Dependencies
-- [ ] Add packages to `package.json`:
+- [ ] Add npm packages to `package.json`:
   - `pg`
+  - `mongodb`
   - `redis`
-  - `amqplib`
-- [ ] Create PostgreSQL initialization schema `db/init.sql` (defining `users`, `spots`, `reservations`).
+  - `elasticsearch`
+  - `kafkajs`
+- [ ] Initialize modular codebase structure under `src/`: `config`, `controllers`, `routes`, `services`, `consumers`.
 
-## Phase 2: Configuration & Environment
-- [ ] Update Express app configuration to load settings from `.env`.
-- [ ] Create a template `.env.example` file.
-- [ ] Create `docker-compose.yml` defining `web`, `db`, `redis`, and `rabbitmq` services.
-- [ ] Update application Dockerfile to run wait scripts before starting.
+## Phase 2: Docker Compose Setup
+- [ ] Create `docker-compose.yml` specifying:
+  - `web` (Express app + background listeners)
+  - `db` (PostgreSQL 15)
+  - `mongodb` (MongoDB 6)
+  - `elasticsearch` (Elasticsearch 8)
+  - `redis` (Redis 7)
+  - `zookeeper`
+  - `kafka`
+- [ ] Setup wait scripts for all database and broker services.
 
-## Phase 3: PostgreSQL Migration
-- [ ] Replace SQLite code in `index.js` with `pg.Pool` connection pool.
-- [ ] Maintain raw string interpolation in search queries to keep the SQLi vulnerability active.
+## Phase 3: Polyglot Database Migration
+- [ ] Setup DB connection pools under `src/config/`.
+- [ ] Write SQL schema migrations for PostgreSQL tables (`users`, `reservations`, `payments`).
+- [ ] Setup MongoDB client configuration for parking lot layouts and dynamic rules.
 
-## Phase 4: Redis Caching
-- [ ] Set up Redis client connection in Express startup.
-- [ ] Wrap spot availability rates lookup in a Redis cache check (read-through caching).
-- [ ] Verify live rates updates expire and rewrite properly.
+## Phase 4: Business Logic & Rules
+- [ ] Implement `src/services/DynamicPricing.js` computing fees based on occupancy density, hour range, and membership status.
 
-## Phase 5: RabbitMQ Async Processing
-- [ ] Configure RabbitMQ connection channel for reservation booking queues.
-- [ ] Implement a booking consumer daemon that updates PostgreSQL and clears Redis cache.
+## Phase 5: Elasticsearch Search Integration
+- [ ] Initialize Elasticsearch index mapping in `src/config/elastic_client.js`.
+- [ ] Write sync task to index parking spot lists into Elasticsearch.
+- [ ] Implement search controllers utilizing the Elasticsearch client.
+- [ ] Keep search string concatenation in the Elasticsearch Query DSL string to maintain the injection vulnerability (A03).
 
-## Phase 6: Vulnerability & Integration Verification
-- [ ] Verify SQL injection vulnerability (A03) works on the PostgreSQL database.
-- [ ] Verify cost manipulation (A04) processes successfully through RabbitMQ and produces incorrect billing states.
+## Phase 6: Kafka Event Streaming
+- [ ] Configure `kafkajs` client and producer.
+- [ ] Refactor booking checkout API to publish booking events to Kafka.
+- [ ] Implement `src/consumers/BookingConsumer.js` to process reservation events, run pricing math, update database tables, and clear Redis cache.
+
+## Phase 7: Enterprise UI Implementation
+- [ ] Build an interactive parking slot layout dashboard displaying vacancy updates, dynamic rate changes, and a spot search search panel.
+
+## Phase 8: Verification
+- [ ] Verify Elasticsearch Injection vulnerability (A03) works on the search API.
+- [ ] Verify cost manipulation (A04) processes successfully through Kafka and produces incorrect billing states.
 - [ ] Confirm absence of logs (A09) in the background listener.
 - [ ] Run the complete integration tests using Docker Compose.
