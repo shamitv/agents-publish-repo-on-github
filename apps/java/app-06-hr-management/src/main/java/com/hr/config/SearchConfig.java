@@ -12,8 +12,8 @@ public class SearchConfig {
     @Bean
     public RestTemplate searchRestTemplate(RestTemplateBuilder builder) {
         return builder
-                .connectTimeout(Duration.ofSeconds(2))
-                .readTimeout(Duration.ofSeconds(2))
+                .setConnectTimeout(Duration.ofSeconds(2))
+                .setReadTimeout(Duration.ofSeconds(2))
                 .build();
     }
 }
