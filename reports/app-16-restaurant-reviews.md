@@ -1,84 +1,112 @@
-# Audit Report: app-16 — Restaurant Review Platform
+# Security Report: app-16 — Restaurant Review Platform
 
-**Language:** JavaScript (Express)  
-**Business Domain:** Food / Reviews  
-**Date:** 2026-05-24
+**Language:** Javascript (Express)
+**Directory:** `apps/javascript/app-16-restaurant-reviews`
+
+---
+
+## Application Information
+- **App ID:** app-16
+- **Name:** Restaurant Review Platform
+- **Language:** Javascript
+- **Framework:** Express
+
+## Vulnerability Summary
+
+The following vulnerability list represents the ground truth security issues identified for this application:
+
+| ID | OWASP | Category | Severity | Location | CWE |
+|---|---|---|---|---|---|
+| V1 | A01 | Broken Access Control | Medium | src/index.js | CWE-639 |
+| V2 | A03 | Injection | High | src/index.js | CWE-89 |
+| V3 | A07 | Identification and Authentication Failures | Medium | src/index.js | CWE-330 |
 
 ---
 
 ## Standalone Vulnerabilities
 
-### VULN-01: A03 — Injection (SQLi)
+### VULN-01: A01 — Broken Access Control
 
-**Severity:** High  
-**Location:** `src/index.js:162-175` — `GET /api/restaurants/search`  
-**Lines:**
-```javascript
-// VULNERABILITY A03: SQL Injection in restaurant search endpoint
-```
+- **Severity:** Medium
+- **Location:** `src/index.js`:153-176 (method: `POST /api/reviews/:id/edit`)
+- **CWE:** [CWE-639](https://cwe.mitre.org/data/definitions/639.html)
 
-**Difficulty: EASY**
+#### Description
+The review editing endpoint does not verify whether the authenticated user is the owner of the review or has admin privileges, allowing arbitrary review modification.
 
-- Search query `q` concatenated directly into raw SQL
-- No parameterization or sanitization
-- UNION-based injection can dump arbitrary tables
+### VULN-02: A03 — Injection
 
-### VULN-02: A01 — Broken Access Control (IDOR)
+- **Severity:** High
+- **Location:** `src/index.js`:129-141 (method: `GET /api/restaurants/search`)
+- **CWE:** [CWE-89](https://cwe.mitre.org/data/definitions/89.html)
 
-**Severity:** Medium  
-**Location:** `src/index.js:193-214` — `POST /api/reviews/:id/edit`  
-**Lines:**
-```javascript
-// VULNERABILITY A01: Broken Access Control (IDOR) on review edit
-```
+#### Description
+User input in search parameter is concatenated directly into SQL query statement, exposing the database to SQL injection.
 
-**Difficulty: EASY**
+### VULN-03: A07 — Identification and Authentication Failures
 
-- Review edit endpoint does not verify ownership
-- Any authenticated user can edit any review
-- Can modify review text and rating
+- **Severity:** Medium
+- **Location:** `src/index.js`:96-112 (method: `POST /api/auth/login`)
+- **CWE:** [CWE-330](https://cwe.mitre.org/data/definitions/330.html)
 
-### VULN-03: A07 — Identification and Authentication Failures (Weak Session Tokens)
+#### Description
+Session keys are generated using non-cryptographic Math.random() function, making session IDs predictable and prone to hijacking.
 
-**Severity:** Medium  
-**Location:** `src/index.js:123-143` — `POST /api/auth/login`  
-**Lines:**
-```javascript
-// VULNERABILITY A07: Predictable session token generation via Math.random()
-```
-
-**Difficulty: EASY**
-
-- Session IDs generated using `Math.random()` which is not cryptographically secure
-- Predictable and brute-forceable
-- Allows session hijacking
 
 ---
 
-## Chained Attack: chain-01
+## Chained Attack Scenarios
 
-**Chain Name:** Predictable Session → IDOR Review Sabotage  
-**Combined Impact:** Data Modification  
-**Overall Chain Difficulty: MEDIUM**
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-### Link 1: Predictable Session Token (A07 — Medium)
+### CHAIN-01: Predictable Session Hijacking → IDOR Review Sabotage
 
-**Difficulty: EASY**
+- **Combined Impact:** `data_modification`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy`
 
-- Session IDs generated via `Math.random().toString(36)` — predictable
-- Attacker can enumerate or predict active session IDs
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-### Link 2: IDOR Review Edit (A01 — Medium)
+#### Attack Narrative
+An attacker predicts the session cookie values of an active customer or food critic generated via Math.random(). They hijack the target critic's session, call `/api/reviews/1/edit` to hijack or modify high-rating review comments to sabotage the restaurant status, achieving unauthorized data modification.
 
-**Difficulty: EASY**
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Weak session token generation via predictable random number generator. | Medium | A07 | CWE-330 | src/index.js | `POST /api/auth/login` |
+| 2 | Review editing allows users authenticated with hijacked session to overwrite reviews without owner check. | Medium | A01 | CWE-639 | src/index.js | `POST /api/reviews/:id/edit` |
 
-- Review edit endpoint lacks ownership check
-- Hijacked session can modify any review's text and rating
+### CHAIN-02: Subtle Auth Session Pivot To Idor
+
+- **Combined Impact:** `data_modification`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy` `secondary_chain`
+
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
+
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
+
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Session keys are generated using non-cryptographic Math.random() function, making session IDs predictable and prone to hijacking. | Medium | A07 | CWE-330 | src/index.js | `POST /api/auth/login` |
+| 2 | User input in search parameter is concatenated directly into SQL query statement, exposing the database to SQL injection. | High | A03 | CWE-89 | src/index.js | `GET /api/restaurants/search` |
+| 3 | The review editing endpoint does not verify whether the authenticated user is the owner of the review or has admin privileges, allowing arbitrary review modification. | Medium | A01 | CWE-639 | src/index.js | `POST /api/reviews/:id/edit` |
+
 
 ---
 
-## Summary
+## Decoys (False-Positive Candidates)
 
-App-16 is a JavaScript Express restaurant review platform with SQL injection in restaurant search, IDOR allowing arbitrary review edits, and predictable `Math.random()`-based session tokens. Chain: Predictable session hijacking → IDOR review modification → data manipulation.
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
 
-**Overall Difficulty Score:** 2/5 (Easy)
+| Location | Description |
+|---|---|
+| src/index.js | Proper Bcrypt hashing for password storage and credentials validation during login. |
+| src/index.js | Proper role restriction on GET /api/admin/dashboard ensuring only ADMIN can access. |
+| src/index.js | Proper parameterized query for individual restaurant profiles in GET /api/restaurants/:id. |

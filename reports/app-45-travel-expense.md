@@ -1,117 +1,111 @@
-# Security Report: app-45-travel-expense
+# Security Report: app-45 — Corporate Travel & Expense System
 
-## Application Information
-
-- **App ID**: app-45
-- **App Name**: Travel & Expense Management
-- **Language**: JavaScript
-- **Framework**: Express
-- **Source**: `apps/javascript/app-45-travel-expense/`
+**Language:** Javascript (Express)
+**Directory:** `apps/javascript/app-45-travel-expense`
 
 ---
+
+## Application Information
+- **App ID:** app-45
+- **Name:** Corporate Travel & Expense System
+- **Language:** Javascript
+- **Framework:** Express
 
 ## Vulnerability Summary
 
+The following vulnerability list represents the ground truth security issues identified for this application:
+
 | ID | OWASP | Category | Severity | Location | CWE |
 |---|---|---|---|---|---|
-| V1 | A01 | Broken Access Control | Medium | `src/index.js` → `GET /api/expenses/:id` (lines 156-170) | CWE-639 |
-| V2 | A09 | Security Logging and Monitoring Failures | Low | `src/index.js` → `POST /api/admin/approvals/force-approve` (lines 192-206) | CWE-778 |
-| V3 | A10 | Server-Side Request Forgery (SSRF) | High | `src/index.js` → `GET /api/receipts/process` (lines 173-189) | CWE-918 |
-
-### V1: IDOR on Expense Details
-
-**OWASP Category**: A01 — Broken Access Control
-
-**Description**: Viewing expense records by ID lacks verification of user ownership, allowing any authenticated employee to retrieve details of another employee's expense reports.
-
-**Endpoint**: `GET /api/expenses/:id`
-
-**CWE**: CWE-639 (Authorization Bypass Through User-Controlled Key)
-
-**Impact**: Medium — Any authenticated employee can enumerate expense IDs to view sensitive financial data, receipt images, and approval history of other employees.
-
-**Detection**: Look for absence of ownership checks where the `:id` parameter is used without verifying `req.user.userId` against the expense record's employee ID.
+| V1 | A01 | Broken Access Control | Medium | src/index.js | CWE-639 |
+| V2 | A03 | Injection | High | src/index.js | CWE-89 |
+| V3 | A07 | Identification and Authentication Failures | Medium | src/index.js | CWE-328 |
 
 ---
 
-### V2: Missing Audit Log on Force Approval
+## Standalone Vulnerabilities
 
-**OWASP Category**: A09 — Security Logging and Monitoring Failures
+### VULN-01: A01 — Broken Access Control
 
-**Description**: Forced approval of expense reports can be triggered without security logging or audit trail, leaving admin privilege escalation unrecorded.
+- **Severity:** Medium
+- **Location:** `src/index.js`:161-176 (method: `GET /api/expenses/:id`)
+- **CWE:** [CWE-639](https://cwe.mitre.org/data/definitions/639.html)
 
-**Endpoint**: `POST /api/admin/approvals/force-approve`
+#### Description
+Viewing specific expense report by ID lacks validation of user ownership, allowing any authenticated user to retrieve details of another employee's expenses.
 
-**CWE**: CWE-778 (Insufficient Logging)
+### VULN-02: A03 — Injection
 
-**Impact**: Low — Unauthorized or malicious approval of expense reports cannot be traced to the responsible administrator.
+- **Severity:** High
+- **Location:** `src/index.js`:178-192 (method: `GET /api/expenses/search`)
+- **CWE:** [CWE-89](https://cwe.mitre.org/data/definitions/89.html)
 
-**Detection**: Check the force approval handler for any logging, audit trail, or notification mechanism before/after performing the approval operation.
+#### Description
+The search query parameter is directly concatenated into SQL query string, leaving the database vulnerable to SQL injection attacks.
+
+### VULN-03: A07 — Identification and Authentication Failures
+
+- **Severity:** Medium
+- **Location:** `src/index.js`:112-134 (method: `POST /api/auth/login`)
+- **CWE:** [CWE-328](https://cwe.mitre.org/data/definitions/328.html)
+
+#### Description
+User credentials are saved and verified using unsalted MD5 hashes, allowing database-compromised passwords to be cracked offline via precomputed tables.
+
 
 ---
 
-### V3: SSRF via Receipt Processing
+## Chained Attack Scenarios
 
-**OWASP Category**: A10 — Server-Side Request Forgery (SSRF)
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-**Description**: The receipt processing proxy makes HTTP calls using axios on user-supplied URL inputs with no address block restriction, enabling SSRF.
+### CHAIN-01: Expense Search SQLi → Unsalted MD5 administrator credentials extraction → Corporate Expenses Exfiltration via IDOR
 
-**Endpoint**: `GET /api/receipts/process`
+- **Combined Impact:** `db_exfiltration`
+- **Difficulty:** Expert
+- **Subtlety Tags:** `cross_file` `state_confusion` `parser_or_config_reasoning` `implicit_trust` `realistic_decoy`
 
-**CWE**: CWE-918 (Server-Side Request Forgery)
+#### Prerequisites
+- attacker can influence a multi-step workflow
+- attacker can observe or reuse application state across requests
 
-**Impact**: High — An attacker can make the server send crafted HTTP requests to internal network services, bypassing firewalls and accessing internal APIs or cloud metadata endpoints.
+#### Attack Narrative
+An attacker logs in as a low-privilege customer and uses SQL Injection on the `/api/expenses/search?q=xyz' UNION SELECT 1,username,password_hash,role,5.0,'USD' FROM users --` endpoint to dump the user credentials. The attacker retrieves the unsalted MD5 password hash `97b9f87efd939e99eb015560b43ffbb4` for user `admin_accountant`. They decrypt this hash offline to recover the password ('accountantSecure2026!') and log in. Once authenticated as an administrator, they use IDOR on `/api/expenses/:id` to retrieve and exfiltrate all employee expense records.
 
-**Detection**: Look for an endpoint that accepts a user-controlled URL parameter and passes it directly to `axios.get()` or `fetch()` without any allowlist, denylist, or hostname validation.
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Union-based SQL injection on expense search exposes all user table credentials. | Medium | A03 | CWE-89 | src/index.js | `GET /api/expenses/search` |
+| 2 | Unsalted MD5 password storage allows offline recovery of the administrator password. | Medium | A07 | CWE-328 | src/index.js | `POST /api/auth/login` |
 
----
+### CHAIN-02: Subtle Auth Session Pivot To Idor
 
-## Chained Attack Scenario
+- **Combined Impact:** `db_exfiltration`
+- **Difficulty:** Expert
+- **Subtlety Tags:** `cross_file` `state_confusion` `parser_or_config_reasoning` `implicit_trust` `realistic_decoy` `secondary_chain`
 
-### Chain: "IDOR Expense Mining → SSRF Internal Receipt Processing Pivot"
+#### Prerequisites
+- attacker can influence a multi-step workflow
+- attacker can observe or reuse application state across requests
 
-**Impact**: `lateral_movement`
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
 
-**Overview**: An attacker uses IDOR to mine sensitive expense data from colleagues, then leverages SSRF to pivot to internal receipt processing services.
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | User credentials are saved and verified using unsalted MD5 hashes, allowing database-compromised passwords to be cracked offline via precomputed tables. | Medium | A07 | CWE-328 | src/index.js | `POST /api/auth/login` |
+| 2 | The search query parameter is directly concatenated into SQL query string, leaving the database vulnerable to SQL injection attacks. | High | A03 | CWE-89 | src/index.js | `GET /api/expenses/search` |
+| 3 | Viewing specific expense report by ID lacks validation of user ownership, allowing any authenticated user to retrieve details of another employee's expenses. | Medium | A01 | CWE-639 | src/index.js | `GET /api/expenses/:id` |
 
-**Components**:
-
-| Step | Issue | Severity | OWASP | CWE | Location |
-|---|---|---|---|---|---|
-| 1 | Expenses endpoint permits IDOR details mining of other employees | Medium | A01 | CWE-639 | `GET /api/expenses/:id` |
-| 2 | Receipt processing proxy makes external requests with no IP filtering | Medium | A10 | CWE-918 | `GET /api/receipts/process` |
-
-**Attack Narrative**:
-1. The attacker logs in and calls `GET /api/expenses/1` through IDOR to mine sensitive expense records and receipt metadata from other employees.
-2. The attacker then uses the receipt processing proxy at `GET /api/receipts/process` with a crafted URL targeting `http://localhost:8085/internal/receipts/admin`, bypassing network segmentation to access internal receipt processing services.
-3. By combining IDOR data mining with SSRF pivoting, the attacker exfiltrates the complete expense database.
-
-**Combined Impact**: Lateral movement — An attacker can pivot from a public expense lookup endpoint to access internal receipt processing services by chaining IDOR with SSRF.
 
 ---
 
 ## Decoys (False-Positive Candidates)
 
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
+
 | Location | Description |
 |---|---|
-| `src/index.js` | Proper user scoping constraints in `GET /api/expenses` limiting output to own records only |
-| `src/index.js` | Proper parameterized query logic in `POST /api/expenses/submit` to record new expenses safely |
-
----
-
-## Detection Commands
-
-```bash
-# Find IDOR on expense details
-grep -n "expenses.*:id\|findOne\|findById" apps/javascript/app-45-travel-expense/src/index.js
-
-# Find missing audit logs on force approval
-grep -n "force-approve\|approv\|log\|audit" apps/javascript/app-45-travel-expense/src/index.js
-
-# Find SSRF vulnerable receipt processing
-grep -n "axios\.get\|axios\.post\|fetch\|receiptUrl" apps/javascript/app-45-travel-expense/src/index.js
-```
-
----
-
-*Report generated from `.vulns` manifest for app-45-travel-expense*
+| src/index.js | Proper user scoping constraints in GET /api/expenses limits active query results only to the authenticated user's own expenses unless they have the ADMIN role. |
+| src/index.js | Proper parameterized query design in POST /api/expenses to insert new expense records safely. |

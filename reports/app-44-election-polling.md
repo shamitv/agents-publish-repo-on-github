@@ -1,117 +1,111 @@
-# Security Report: app-44-election-polling
+# Security Report: app-44 — Election Polling System
 
-## Application Information
-
-- **App ID**: app-44
-- **App Name**: Election Polling System
-- **Language**: JavaScript
-- **Framework**: Express
-- **Source**: `apps/javascript/app-44-election-polling/`
+**Language:** Javascript (Express)
+**Directory:** `apps/javascript/app-44-election-polling`
 
 ---
+
+## Application Information
+- **App ID:** app-44
+- **Name:** Election Polling System
+- **Language:** Javascript
+- **Framework:** Express
 
 ## Vulnerability Summary
 
+The following vulnerability list represents the ground truth security issues identified for this application:
+
 | ID | OWASP | Category | Severity | Location | CWE |
 |---|---|---|---|---|---|
-| V1 | A02 | Cryptographic Failures | Medium | `src/index.js` → `GET /api/candidates` (lines 136-146) | CWE-312 |
-| V2 | A04 | Insecure Design | Medium | `src/index.js` → `POST /api/vote/cast` (lines 149-178) | CWE-362 |
-| V3 | A09 | Security Logging and Monitoring Failures | Low | `src/index.js` → `POST /api/admin/polls/close` (lines 181-190) | CWE-778 |
-
-### V1: Plaintext Ballot Storage
-
-**OWASP Category**: A02 — Cryptographic Failures
-
-**Description**: Voter selections (ballots) are stored in plaintext format in the database and exposed directly to the public API, violating voter anonymity.
-
-**Endpoint**: `GET /api/candidates`
-
-**CWE**: CWE-312 (Cleartext Storage of Sensitive Information)
-
-**Impact**: Medium — Anyone who accesses the candidates API response can read the raw `ballots` or `votes` array, linking individual voters to their selections.
-
-**Detection**: Look for the candidates endpoint returning raw ballot data (e.g., `vote`, `ballot`, `selection` fields) without anonymization, aggregation, or encryption.
+| V1 | A02 | Cryptographic Failures | Medium | src/index.js | CWE-312 |
+| V2 | A04 | Insecure Design | Medium | src/index.js | CWE-362 |
+| V3 | A09 | Security Logging and Monitoring Failures | Low | src/index.js | CWE-778 |
 
 ---
 
-### V2: Race Condition on Vote Casting
+## Standalone Vulnerabilities
 
-**OWASP Category**: A04 — Insecure Design
+### VULN-01: A02 — Cryptographic Failures
 
-**Description**: The vote casting logic uses asynchronous processing delays without database transactions or locks, enabling users to submit multiple votes concurrently.
+- **Severity:** Medium
+- **Location:** `src/index.js`:136-146 (method: `GET /api/candidates`)
+- **CWE:** [CWE-312](https://cwe.mitre.org/data/definitions/312.html)
 
-**Endpoint**: `POST /api/vote/cast`
+#### Description
+Voter selections (ballots) are stored in plaintext format in the database and exposed directly to the public API, violating voter anonymity.
 
-**CWE**: CWE-362 (Concurrent Execution Using Shared Resource with Improper Synchronization)
+### VULN-02: A04 — Insecure Design
 
-**Impact**: Medium — An attacker can send multiple rapid concurrent requests to the vote casting endpoint, casting more votes than their account allows (double-voting).
+- **Severity:** Medium
+- **Location:** `src/index.js`:149-178 (method: `POST /api/vote/cast`)
+- **CWE:** [CWE-362](https://cwe.mitre.org/data/definitions/362.html)
 
-**Detection**: Look for asynchronous operations (e.g., `setTimeout`, `async/await` with no locking) between reading the current vote count and writing the updated count, with no database transaction or row lock.
+#### Description
+The vote casting logic uses asynchronous processing delays without database transactions or locks, enabling users to submit multiple votes concurrently.
+
+### VULN-03: A09 — Security Logging and Monitoring Failures
+
+- **Severity:** Low
+- **Location:** `src/index.js`:181-190 (method: `POST /api/admin/polls/close`)
+- **CWE:** [CWE-778](https://cwe.mitre.org/data/definitions/778.html)
+
+#### Description
+Critical administrative commands such as closing election polls are performed without security logs or audit trails, leaving system state modifications unrecorded.
+
 
 ---
 
-### V3: Missing Audit Log on Poll Closure
+## Chained Attack Scenarios
 
-**OWASP Category**: A09 — Security Logging and Monitoring Failures
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-**Description**: Critical administrative commands such as closing election polls are performed without security logs or audit trails, leaving system state modifications unrecorded.
+### CHAIN-01: Predictable Voter Ballot Retrieval → Concurrent Vote Casting
 
-**Endpoint**: `POST /api/admin/polls/close`
+- **Combined Impact:** `data_modification`
+- **Difficulty:** Expert
+- **Subtlety Tags:** `cross_file` `state_confusion` `parser_or_config_reasoning` `implicit_trust` `realistic_decoy`
 
-**CWE**: CWE-778 (Insufficient Logging)
+#### Prerequisites
+- attacker can influence a multi-step workflow
+- attacker can observe or reuse application state across requests
 
-**Impact**: Low — Malicious or premature closing of election polls cannot be traced to the responsible administrator.
+#### Attack Narrative
+An attacker queries `/api/candidates` to read all cast voter ballots in plaintext (`A02`). Finding active user accounts who have not yet voted, the attacker sends concurrent, parallel HTTP requests to `/api/vote/cast` exploiting the race condition (`A04`) to submit multiple unauthorized votes under those users' identities, achieving data manipulation without logging triggers (`A09`).
 
-**Detection**: Check the poll closure handler for any logging, audit trail, or notification mechanism before/after changing the poll state.
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Exposing plaintext database ballots compromises voter selection details. | Medium | A02 | CWE-312 | src/index.js | `GET /api/candidates` |
+| 2 | Casting votes has an asynchronous timing window enabling race-based double-voting. | Medium | A04 | CWE-362 | src/index.js | `POST /api/vote/cast` |
 
----
+### CHAIN-02: Subtle State Confusion Pivot To Crypto
 
-## Chained Attack Scenario
+- **Combined Impact:** `data_modification`
+- **Difficulty:** Expert
+- **Subtlety Tags:** `cross_file` `state_confusion` `parser_or_config_reasoning` `implicit_trust` `realistic_decoy` `secondary_chain`
 
-### Chain: "Predictable Voter Ballot Retrieval → Concurrent Vote Casting"
+#### Prerequisites
+- attacker can influence a multi-step workflow
+- attacker can observe or reuse application state across requests
 
-**Impact**: `data_modification`
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
 
-**Overview**: An attacker reads all cast voter ballots in plaintext, then exploits a race condition to submit multiple unauthorized votes under other users' identities.
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Critical administrative commands such as closing election polls are performed without security logs or audit trails, leaving system state modifications unrecorded. | Low | A09 | CWE-778 | src/index.js | `POST /api/admin/polls/close` |
+| 2 | The vote casting logic uses asynchronous processing delays without database transactions or locks, enabling users to submit multiple votes concurrently. | Medium | A04 | CWE-362 | src/index.js | `POST /api/vote/cast` |
+| 3 | Voter selections (ballots) are stored in plaintext format in the database and exposed directly to the public API, violating voter anonymity. | Medium | A02 | CWE-312 | src/index.js | `GET /api/candidates` |
 
-**Components**:
-
-| Step | Issue | Severity | OWASP | CWE | Location |
-|---|---|---|---|---|---|
-| 1 | Exposing plaintext database ballots compromises voter selection details | Medium | A02 | CWE-312 | `GET /api/candidates` |
-| 2 | Casting votes has an asynchronous timing window enabling race-based double-voting | Medium | A04 | CWE-362 | `POST /api/vote/cast` |
-
-**Attack Narrative**:
-1. The attacker queries `GET /api/candidates` to read all cast voter ballots in plaintext, identifying active voter accounts that have not yet voted.
-2. The attacker sends concurrent, parallel HTTP requests to `POST /api/vote/cast` with those voters' credentials, exploiting the race condition to submit multiple unauthorized votes under those users' identities.
-3. Because poll closure at `POST /api/admin/polls/close` generates no audit logs, the attacker can close the polls early without detection once their fraudulent votes are cast.
-
-**Combined Impact**: Data modification — An attacker can submit fraudulent votes and prematurely close polls without detection.
 
 ---
 
 ## Decoys (False-Positive Candidates)
 
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
+
 | Location | Description |
 |---|---|
-| `src/index.js` | Proper security auditing logs printed during candidate registration in `POST /api/admin/candidates` |
-| `src/index.js` | Proper Bcrypt hashing for password storage and validation |
-
----
-
-## Detection Commands
-
-```bash
-# Find plaintext ballot exposure
-grep -n "ballot\|vote\|selection\|candidates" apps/javascript/app-44-election-polling/src/index.js
-
-# Find race condition in vote casting
-grep -n "setTimeout\|async\|await\|lock\|transaction" apps/javascript/app-44-election-polling/src/index.js
-
-# Find missing audit logs on poll closure
-grep -n "close\|poll\|log\|audit" apps/javascript/app-44-election-polling/src/index.js
-```
-
----
-
-*Report generated from `.vulns` manifest for app-44-election-polling*
+| src/index.js | Proper security auditing logs printed during candidate registration in POST /api/admin/candidates. |
+| src/index.js | Proper Bcrypt hashing for password storage and validation. |

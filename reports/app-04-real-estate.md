@@ -1,110 +1,112 @@
-# Audit Report: app-04 — Real Estate Listing Platform
+# Security Report: app-04 — Real Estate Listing Platform
 
-**Language:** Python (Flask)  
-**Business Domain:** Real Estate / Property Listings  
-**Date:** 2026-05-24
+**Language:** Python (Flask)
+**Directory:** `apps/python/app-04-real-estate`
+
+---
+
+## Application Information
+- **App ID:** app-04
+- **Name:** Real Estate Listing Platform
+- **Language:** Python
+- **Framework:** Flask
+
+## Vulnerability Summary
+
+The following vulnerability list represents the ground truth security issues identified for this application:
+
+| ID | OWASP | Category | Severity | Location | CWE |
+|---|---|---|---|---|---|
+| V1 | A03 | Injection | High | app.py | CWE-78 |
+| V2 | A05 | Security Misconfiguration | Medium | app.py | CWE-1188 |
+| V3 | A10 | Server-Side Request Forgery | High | app.py | CWE-918 |
 
 ---
 
 ## Standalone Vulnerabilities
 
-### VULN-01: A03 — OS Command Injection (RCE)
+### VULN-01: A03 — Injection
 
-**Severity:** High  
-**Location:** `app.py:168-186` — `analyze_listing()`  
-**Lines:**
-```python
-cmd = f"echo 'Metadata inspection for property description filename: {filename}'"
-p = subprocess.Popen(cmd, shell=True, ...)
-```
+- **Severity:** High
+- **Location:** `app.py`:130-155 (method: `process_image_metadata`)
+- **CWE:** [CWE-78](https://cwe.mitre.org/data/definitions/78.html)
 
-**Difficulty: EASY**
-
-- Comment at line 167: "OWASP VULNERABILITY A03: OS Command Injection via Subprocess shell=True"
-- `shell=True` flag is explicitly set — a known dangerous pattern
-- `cmd_executed` field in response shows the full command, including injected payloads
-- The `filename` parameter is user-controlled with zero sanitization
+#### Description
+OS Command Injection. The image analyzer tool uses subprocess.Popen with shell=True to execute a command containing an unvalidated property file path or image metadata name, permitting arbitrary shell execution
 
 ### VULN-02: A05 — Security Misconfiguration
 
-**Severity:** Medium  
-**Location:** `app.py:11` — Flask config  
-**Lines:** `app.config['SECRET_KEY'] = 'dev'` and `app.run(..., debug=True)`
+- **Severity:** Medium
+- **Location:** `app.py`:12-25 (method: `app_config`)
+- **CWE:** [CWE-1188](https://cwe.mitre.org/data/definitions/1188.html)
 
-**Difficulty: EASY**
+#### Description
+Security Misconfiguration. Flask debug mode is explicitly set to True in production run configs, and it utilizes a default widely known secret key (secret_key=dev), permitting session tampering and remote debugger access
 
-- Comment at line 9-10: "OWASP VULNERABILITY A05: Security Misconfiguration"
-- Secret key is `'dev'` — trivially guessable, enables Flask session tampering
-- `debug=True` at line 265 enables the Werkzeug debugger with remote code execution capability
-- Both are immediately visible at the top and bottom of the file
+### VULN-03: A10 — Server-Side Request Forgery
 
-### VULN-03: A10 — Server-Side Request Forgery (SSRF)
+- **Severity:** High
+- **Location:** `app.py`:165-190 (method: `import_external_image`)
+- **CWE:** [CWE-918](https://cwe.mitre.org/data/definitions/918.html)
 
-**Severity:** High  
-**Location:** `app.py:189-212` — `import_external_image()`  
-**Lines:** `res = requests.get(target_url, timeout=4)` with no URL validation
+#### Description
+Server-Side Request Forgery (SSRF). The remote image import endpoint fetches image resources from user-provided URLs using requests.get without validating, restricting, or sanitizing internal local network IPs
 
-**Difficulty: EASY**
-
-- Comment at line 188: "OWASP VULNERABILITY A10: Server-Side Request Forgery (SSRF)"
-- `requests.get()` called directly on user-supplied URL
-- No allowlist, no IP restriction, no DNS sandboxing
-- Error messages return exception details aiding reconnaissance
 
 ---
 
-## Chained Attack: chain-01
+## Chained Attack Scenarios
 
-**Chain Name:** Debug Environment Exposure → SSRF Internal Recon → OS Command Injection RCE  
-**Combined Impact:** Lateral Movement  
-**Overall Chain Difficulty: EASY**
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-### Link 1: Debug Environment Info Leak (A05 — Low)
+### CHAIN-01: Debug Environment Exposure → SSRF Internal Recon → OS Command Injection RCE
 
-**Location:** `app.py:219-222` — `debug_env()`  
-**Difficulty: EASY**
+- **Combined Impact:** `lateral_movement`
+- **Difficulty:** Medium
+- **Subtlety Tags:** `cross_file` `direct_data_flow` `realistic_decoy`
 
-- `CHAIN LINK 1 (chain-01)` comment at lines 215-218 explicitly explains the purpose
-- Unauthenticated endpoint returns ALL environment variables and current working directory
-- Reveals internal file paths, service URLs, and potential credentials
+#### Prerequisites
+- attacker can reach the public request path
+- attacker can control one request parameter or body field
 
-### Link 2: SSRF to Probe Internal Services (A10 — High)
+#### Attack Narrative
+Attacker reads internal environment variables via the exposed debug endpoint to discover service topology, then uses SSRF to probe internal endpoints and gather further context, then injects shell commands into the analyze endpoint to achieve RCE and exfiltrate data.
 
-**Location:** `app.py:189-212` — `import_external_image()`  
-**Difficulty: EASY**
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | GET /api/debug/env returns full process environment variables and working directory without authentication | Low | A05 | CWE-215 | app.py | `debug_env` |
+| 2 | SSRF endpoint fetches arbitrary URLs with no IP-space restriction, enabling internal network mapping | High | A10 | CWE-918 | app.py | `import_external_image` |
+| 3 | OS command injection via shell=True subprocess with user-controlled filename — executes arbitrary system commands | High | A03 | CWE-78 | app.py | `analyze_listing` |
 
-- Same as VULN-03
-- Armed with environment info from Link 1, attacker can probe internal services
-- Returns `bytes_fetched`, `content_type`, `status_code` — confirms reachable services
+### CHAIN-02: Subtle Ssrf Pivot To Injection
 
-### Link 3: OS Command Injection RCE (A03 — High)
+- **Combined Impact:** `lateral_movement`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy` `secondary_chain`
 
-**Location:** `app.py:168-186` — `analyze_listing()`  
-**Difficulty: EASY**
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-- Same as VULN-01
-- After mapping internal topology, attacker executes arbitrary commands
-- `cmd_executed` in response confirms the injection worked
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
+
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Server-Side Request Forgery (SSRF). The remote image import endpoint fetches image resources from user-provided URLs using requests.get without validating, restricting, or sanitizing internal local network IPs | High | A10 | CWE-918 | app.py | `import_external_image` |
+| 2 | Security Misconfiguration. Flask debug mode is explicitly set to True in production run configs, and it utilizes a default widely known secret key (secret_key=dev), permitting session tampering and remote debugger access | Medium | A05 | CWE-1188 | app.py | `app_config` |
+| 3 | OS Command Injection. The image analyzer tool uses subprocess.Popen with shell=True to execute a command containing an unvalidated property file path or image metadata name, permitting arbitrary shell execution | High | A03 | CWE-78 | app.py | `process_image_metadata` |
+
 
 ---
 
-## Hints in Code (Beyond Explicit Annotations)
+## Decoys (False-Positive Candidates)
 
-| Hint | Location | Description | Usefulness |
-|------|----------|-------------|------------|
-| `shell=True` flag | Line 177 | Explicit dangerous subprocess flag | **High** — obvious RCE indicator |
-| `cmd_executed` in response | Line 180 | Returns full command with injected payloads | **High** — confirms exploitation |
-| `SECRET_KEY = 'dev'` | Line 11 | Known default secret key | **High** — enables session forging |
-| `debug=True` in run config | Line 265 | Enables remote Werkzeug debugger | **High** — RCE via debugger console |
-| `requests.get(target_url)` raw call | Line 201 | User-controlled URL fetched server-side | **High** — SSRF indicator |
-| Error messages with exception details | Lines 211-212 | Returns str(ex) with full traceback | **Medium** — aids recon |
-| `os.environ.items()` dump | Line 221 | Returns ALL environment variables | **High** — credential leakage |
-| `@app.route('/api/debug/env')` naming | Line 219 | "debug" in path signals non-production | **Medium** — obvious dev endpoint |
-| Decoy: parameterized SQL | Lines 92-93, 129 | Proper queries on some endpoints | **Low** — contrasts with command injection |
-| Decoy: role check on messages | Lines 243-244 | Auth gate on one endpoint | **Low** — makes missing auth on others noticeable |
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
 
-## Summary
-
-App-04 has all vulnerabilities at **EASY** difficulty. The command injection is particularly obvious with `shell=True` and the `cmd_executed` response field. The `debug=True` with `SECRET_KEY='dev'` combination enables full session forging. The chain progresses logically: read environment → probe internal services → execute commands. All three vulns are explicitly annotated with `OWASP VULNERABILITY` comments.
-
-**Overall Difficulty Score:** 1/5 (Easy — all indicators are explicit and clearly visible)
+| Location | Description |
+|---|---|
+| app.py | Standard session authorization check before uploading property directories — secure auth decoy |
+| app.py | Decoy secure parameterized SQL queries for standard listing searches — secure search decoy |

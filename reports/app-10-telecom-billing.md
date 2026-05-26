@@ -1,90 +1,112 @@
-# Audit Report: app-10 — Telecom Billing Platform
+# Security Report: app-10 — Telecom Billing Platform
 
-**Language:** Java (Spring Boot)  
-**Business Domain:** Telecom / Billing  
-**Date:** 2026-05-24
+**Language:** Java (Spring-boot)
+**Directory:** `apps/java/app-10-telecom-billing`
+
+---
+
+## Application Information
+- **App ID:** app-10
+- **Name:** Telecom Billing Platform
+- **Language:** Java
+- **Framework:** Spring-boot
+
+## Vulnerability Summary
+
+The following vulnerability list represents the ground truth security issues identified for this application:
+
+| ID | OWASP | Category | Severity | Location | CWE |
+|---|---|---|---|---|---|
+| V1 | A03 | Injection | High | src/main/java/com/telecom/billing/controller/UsageController.java | CWE-89 |
+| V2 | A04 | Insecure Design | Medium | src/main/java/com/telecom/billing/service/PaymentService.java | CWE-799 |
+| V3 | A09 | Security Logging and Monitoring Failures | Low | src/main/java/com/telecom/billing/controller/AdminController.java | CWE-778 |
 
 ---
 
 ## Standalone Vulnerabilities
 
-### VULN-01: A03 — Injection (SQL Injection)
+### VULN-01: A03 — Injection
 
-**Severity:** High  
-**Location:** `UsageController.java:20-31` — `getUsageByDateRange()`  
-**Lines:**
-```java
-// VULNERABILITY A03: Usage search SQL query constructed using string concatenation with user-supplied date values
-```
+- **Severity:** High
+- **Location:** `src/main/java/com/telecom/billing/controller/UsageController.java`:20-31 (method: `getUsageByDateRange`)
+- **CWE:** [CWE-89](https://cwe.mitre.org/data/definitions/89.html)
 
-**Difficulty: EASY**
+#### Description
+Usage search SQL query constructed using string concatenation with user-supplied date values
 
-- Comment explicitly marks it as `VULNERABILITY A03`
-- Date values concatenated directly into SQL
-- Enables data exfiltration from other customers' invoices
+### VULN-02: A04 — Insecure Design
 
-### VULN-02: A04 — Insecure Design (No Rate Limiting)
+- **Severity:** Medium
+- **Location:** `src/main/java/com/telecom/billing/service/PaymentService.java`:21-36 (method: `processPayment`)
+- **CWE:** [CWE-799](https://cwe.mitre.org/data/definitions/799.html)
 
-**Severity:** Medium  
-**Location:** `PaymentService.java:21-36` — `processPayment()`  
-**Lines:**
-```java
-// VULNERABILITY A04: No rate limiting or idempotency check on payment processing
-```
+#### Description
+No rate limiting or idempotency check on the payment processing service
 
-**Difficulty: EASY**
+### VULN-03: A09 — Security Logging and Monitoring Failures
 
-- Comment explicitly marks it as `VULNERABILITY A04`
-- No idempotency key or rate limiting
-- Allows replay attacks and payment fraud
+- **Severity:** Low
+- **Location:** `src/main/java/com/telecom/billing/controller/AdminController.java`:21-32 (method: `adjustBalance`)
+- **CWE:** [CWE-778](https://cwe.mitre.org/data/definitions/778.html)
 
-### VULN-03: A09 — Logging Failures (No Audit Trail)
+#### Description
+Admin balance adjustment endpoint lacks audit logging, allowing undetectable database modification
 
-**Severity:** Low  
-**Location:** `AdminController.java:21-32` — `adjustBalance()`  
-**Lines:**
-```java
-// VULNERABILITY A09: Admin balance adjustment endpoint lacks audit logging
-```
-
-**Difficulty: EASY**
-
-- Comment explicitly marks it as `VULNERABILITY A09`
-- Balance modifications are not logged
-- Undetectable database manipulation
 
 ---
 
-## Chained Attack: chain-01
+## Chained Attack Scenarios
 
-**Chain Name:** SQL Injection → Payment Fraud → No Audit Trail  
-**Combined Impact:** Data Modification  
-**Overall Chain Difficulty: MEDIUM**
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-### Link 1: SQLi Invoice Leak (A03 — Medium)
+### CHAIN-01: SQL Injection → Payment Fraud → No Audit Trail
 
-**Difficulty: EASY**
+- **Combined Impact:** `data_modification`
+- **Difficulty:** Medium
+- **Subtlety Tags:** `cross_file` `direct_data_flow` `realistic_decoy`
 
-- SQLi in usage search leaks invoice and customer details
+#### Prerequisites
+- attacker can reach the public request path
+- attacker can control one request parameter or body field
 
-### Link 2: Payment Replay (A04 — Medium)
+#### Attack Narrative
+Attacker exploits SQL injection in usage search to leak invoice details, submits multiple forged or replayed payment confirmations via the non-idempotent payment endpoint, and utilizes unlogged admin balance adjustments to complete fraud.
 
-**Difficulty: EASY**
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | SQL injection in usage lookup allows exfiltrating details of other customers' invoices. | Medium | A03 | CWE-89 | src/main/java/com/telecom/billing/controller/UsageController.java | `getUsageByDateRange` |
+| 2 | Payment endpoint lacks concurrency / replay / rate-limiting controls, allowing payment fraud. | Medium | A04 | CWE-799 | src/main/java/com/telecom/billing/service/PaymentService.java | `processPayment` |
+| 3 | Admin balance adjustments are not audit logged. | Low | A09 | CWE-778 | src/main/java/com/telecom/billing/controller/AdminController.java | `adjustBalance` |
 
-- Payment endpoint lacks idempotency controls
-- Forged/replayed payment confirmations
+### CHAIN-02: Subtle State Confusion Pivot To Injection
 
-### Link 3: Unlogged Admin Adjustments (A09 — Low)
+- **Combined Impact:** `data_modification`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy` `secondary_chain`
 
-**Difficulty: EASY**
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-- Balance adjustments leave no audit trail
-- Fraudulent transactions undetectable
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
+
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Admin balance adjustment endpoint lacks audit logging, allowing undetectable database modification | Low | A09 | CWE-778 | src/main/java/com/telecom/billing/controller/AdminController.java | `adjustBalance` |
+| 2 | No rate limiting or idempotency check on the payment processing service | Medium | A04 | CWE-799 | src/main/java/com/telecom/billing/service/PaymentService.java | `processPayment` |
+| 3 | Usage search SQL query constructed using string concatenation with user-supplied date values | High | A03 | CWE-89 | src/main/java/com/telecom/billing/controller/UsageController.java | `getUsageByDateRange` |
+
 
 ---
 
-## Summary
+## Decoys (False-Positive Candidates)
 
-App-10 is a Spring Boot telecom billing platform with SQLi, missing payment idempotency, and no audit logging on balance adjustments. Chain: SQLi leak invoices → replay payments → undetected fraud.
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
 
-**Overall Difficulty Score:** 2/5 (Easy-Medium)
+| Location | Description |
+|---|---|
+| src/main/java/com/telecom/billing/config/SecurityConfig.java | Strong hashing (BCrypt) used for customer passwords |
+| src/main/java/com/telecom/billing/controller/CustomerController.java | getCustomer validates Principal name matches resource owner before returning profile details |

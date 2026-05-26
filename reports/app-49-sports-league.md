@@ -1,89 +1,112 @@
-# Audit Report: app-49 — Sports League Management
+# Security Report: app-49 — Sports League Management
 
-**Language:** Python (Flask)  
-**Business Domain:** Sports / League Management  
-**Date:** 2026-05-24
+**Language:** Python (Flask)
+**Directory:** `apps/python/app-49-sports-league`
+
+---
+
+## Application Information
+- **App ID:** app-49
+- **Name:** Sports League Management
+- **Language:** Python
+- **Framework:** Flask
+
+## Vulnerability Summary
+
+The following vulnerability list represents the ground truth security issues identified for this application:
+
+| ID | OWASP | Category | Severity | Location | CWE |
+|---|---|---|---|---|---|
+| V1 | A01 | Broken Access Control | Medium | app.py | CWE-639 |
+| V2 | A03 | Injection | High | app.py | CWE-89 |
+| V3 | A05 | Security Misconfiguration | Low | app.py | CWE-200 |
 
 ---
 
 ## Standalone Vulnerabilities
 
-### VULN-01: A01 — Broken Access Control (IDOR on Player Profiles)
+### VULN-01: A01 — Broken Access Control
 
-**Severity:** Medium  
-**Location:** `app.py:173-187` — `get_player()`  
-**Lines:**
-```python
-# VULNERABILITY A01: No role or ownership check on player profile endpoint.
-```
+- **Severity:** Medium
+- **Location:** `app.py`:173-187 (method: `get_player`)
+- **CWE:** [CWE-639](https://cwe.mitre.org/data/definitions/639.html)
 
-**Difficulty: EASY**
+#### Description
+The player profile details endpoint does not verify user roles or ownership, exposing sensitive salary and contract data to any authenticated user.
 
-- Comment explicitly marks it as `VULNERABILITY A01`
-- Any authenticated user can view any player's salary and contract data
-- No role or ownership validation
+### VULN-02: A03 — Injection
 
-### VULN-02: A03 — Injection (SQL Injection)
+- **Severity:** High
+- **Location:** `app.py`:153-171 (method: `search_players`)
+- **CWE:** [CWE-89](https://cwe.mitre.org/data/definitions/89.html)
 
-**Severity:** High  
-**Location:** `app.py:153-171` — `search_players()`  
-**Lines:**
-```python
-# VULNERABILITY A03: User input concatenated into raw SQL query.
-```
+#### Description
+The player search endpoint directly concatenates user input into raw SQL query statements, permitting SQL injection.
 
-**Difficulty: EASY**
+### VULN-03: A05 — Security Misconfiguration
 
-- Comment explicitly marks it as `VULNERABILITY A03`
-- Direct concatenation enables UNION-based extraction
-- Can dump all database records
+- **Severity:** Low
+- **Location:** `app.py`:121-136 (method: `export_standings`)
+- **CWE:** [CWE-200](https://cwe.mitre.org/data/definitions/200.html)
 
-### VULN-03: A05 — Security Misconfiguration (Schema Leak in Headers)
+#### Description
+The standings export endpoint exposes internal database schema structure and raw executed SQL query commands in response headers.
 
-**Severity:** Low  
-**Location:** `app.py:121-136` — `export_standings()`  
-**Lines:**
-```python
-# VULNERABILITY A05: Raw SQL query commands exposed in response headers.
-```
-
-**Difficulty: EASY**
-
-- Comment explicitly marks it as `VULNERABILITY A05`
-- Response headers include internal SQL query text
-- Reveals table schema and column names
 
 ---
 
-## Chained Attack: chain-01
+## Chained Attack Scenarios
 
-**Chain Name:** SQLi Player Dump → IDOR Contract Access → Score Manipulation  
-**Combined Impact:** Data Modification  
-**Overall Chain Difficulty: MEDIUM**
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-### Link 1: SQL Injection for Record Enumeration (A03 — Medium)
+### CHAIN-01: SQLi Player Dump → IDOR Contract Access → Score Manipulation
 
-**Difficulty: EASY**
+- **Combined Impact:** `data_modification`
+- **Difficulty:** Expert
+- **Subtlety Tags:** `cross_file` `state_confusion` `parser_or_config_reasoning` `implicit_trust` `realistic_decoy`
 
-- SQLi in player search leaks player IDs and team manager info
+#### Prerequisites
+- attacker can influence a multi-step workflow
+- attacker can observe or reuse application state across requests
 
-### Link 2: IDOR on Player Details (A01 — Low)
+#### Attack Narrative
+An attacker uses SQL injection on the search endpoint to discover internal player IDs and team managers. They then exploit the IDOR vulnerability on the player profile endpoint to extract contract data. Finally, exploiting the missing authorization on the game score endpoint, they update game results to manipulate overall league standings.
 
-**Difficulty: EASY**
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | SQL injection in player search leaks database table schema details and record IDs. | Medium | A03 | CWE-89 | app.py | `search_players` |
+| 2 | IDOR on player detail leaks sensitive contract/salary information. | Low | A01 | CWE-639 | app.py | `get_player` |
+| 3 | Missing function-level access control on the game score update endpoint allows any authenticated user to change scores. | Medium | A01 | CWE-285 | app.py | `update_score` |
 
-- Extracted player IDs used to view salary/contract data
+### CHAIN-02: Subtle Injection Pivot To Idor
 
-### Link 3: Score Manipulation via Missing Access Control (A01 — Medium)
+- **Combined Impact:** `data_modification`
+- **Difficulty:** Expert
+- **Subtlety Tags:** `cross_file` `state_confusion` `parser_or_config_reasoning` `implicit_trust` `realistic_decoy` `secondary_chain`
 
-**Difficulty: EASY**
+#### Prerequisites
+- attacker can influence a multi-step workflow
+- attacker can observe or reuse application state across requests
 
-- Game score update endpoint lacks authorization
-- Any authenticated user can modify league standings
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
+
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | The standings export endpoint exposes internal database schema structure and raw executed SQL query commands in response headers. | Low | A05 | CWE-200 | app.py | `export_standings` |
+| 2 | The player search endpoint directly concatenates user input into raw SQL query statements, permitting SQL injection. | High | A03 | CWE-89 | app.py | `search_players` |
+| 3 | The player profile details endpoint does not verify user roles or ownership, exposing sensitive salary and contract data to any authenticated user. | Medium | A01 | CWE-639 | app.py | `get_player` |
+
 
 ---
 
-## Summary
+## Decoys (False-Positive Candidates)
 
-App-49 is a Flask sports league manager with SQLi, IDOR on player profiles, schema leaks in response headers, and missing access control on score updates. Chain: SQLi to enumerate → exploit IDOR → manipulate game scores.
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
 
-**Overall Difficulty Score:** 1/5 (Easy)
+| Location | Description |
+|---|---|
+| app.py | Proper role-based authorization check on team creation endpoint (/api/teams) restricting access to users with COMMISSIONER role. |
+| app.py | Proper parameterized SQL queries for retrieving standings by team name. |

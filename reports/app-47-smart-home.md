@@ -1,89 +1,112 @@
-# Audit Report: app-47 — Smart Home Device Manager
+# Security Report: app-47 — Smart Home Device Manager
 
-**Language:** Python (FastAPI)  
-**Business Domain:** IoT / Smart Home  
-**Date:** 2026-05-24
+**Language:** Python (Fastapi)
+**Directory:** `apps/python/app-47-smart-home`
+
+---
+
+## Application Information
+- **App ID:** app-47
+- **Name:** Smart Home Device Manager
+- **Language:** Python
+- **Framework:** Fastapi
+
+## Vulnerability Summary
+
+The following vulnerability list represents the ground truth security issues identified for this application:
+
+| ID | OWASP | Category | Severity | Location | CWE |
+|---|---|---|---|---|---|
+| V1 | A05 | Security Misconfiguration | High | app.py | CWE-200 |
+| V2 | A08 | Software and Data Integrity Failures | High | app.py | CWE-494 |
+| V3 | A10 | Server-Side Request Forgery | Medium | app.py | CWE-918 |
 
 ---
 
 ## Standalone Vulnerabilities
 
-### VULN-01: A05 — Security Misconfiguration (Debug Endpoint Leaks)
+### VULN-01: A05 — Security Misconfiguration
 
-**Severity:** High  
-**Location:** `app.py:110-118` — `debug_devices()`  
-**Lines:**
-```python
-# VULNERABILITY A05: Unauthenticated debug endpoint leaks all device tokens.
-```
+- **Severity:** High
+- **Location:** `app.py`:110-118 (method: `debug_devices`)
+- **CWE:** [CWE-200](https://cwe.mitre.org/data/definitions/200.html)
 
-**Difficulty: EASY**
+#### Description
+An unauthenticated debug endpoint (/api/debug/devices) is exposed, leaking details of all registered devices along with their private access API tokens.
 
-- Comment explicitly marks it as `VULNERABILITY A05`
-- No authentication required to access `/api/debug/devices`
-- Leaks device IDs, names, and private API tokens
+### VULN-02: A08 — Software and Data Integrity Failures
 
-### VULN-02: A08 — Integrity Failures (Unsigned Firmware Injection)
+- **Severity:** High
+- **Location:** `app.py`:132-163 (method: `update_firmware`)
+- **CWE:** [CWE-494](https://cwe.mitre.org/data/definitions/494.html)
 
-**Severity:** High  
-**Location:** `app.py:132-163` — `update_firmware()`  
-**Lines:**
-```python
-# VULNERABILITY A08: Firmware endpoint downloads from URL without checking signature or hash.
-```
-
-**Difficulty: EASY**
-
-- Comment explicitly marks it as `VULNERABILITY A08`
-- Accepts any URL for firmware download
-- No cryptographic signature verification
-- No hash check before installation
+#### Description
+The firmware update endpoint accepts any URL and downloads the firmware binary without checking signatures, hashes, or origin authority.
 
 ### VULN-03: A10 — Server-Side Request Forgery
 
-**Severity:** Medium  
-**Location:** `app.py:120-130` — `fetch_sensor_data()`  
-**Lines:**
-```python
-# VULNERABILITY A10: SSRF via user-controlled sensor data URL.
-```
+- **Severity:** Medium
+- **Location:** `app.py`:120-130 (method: `fetch_sensor_data`)
+- **CWE:** [CWE-918](https://cwe.mitre.org/data/definitions/918.html)
 
-**Difficulty: EASY**
+#### Description
+The sensor data proxy endpoint processes user-provided URLs without validating if they point to private network addresses or internal hosts, allowing SSRF.
 
-- Comment explicitly marks it as `VULNERABILITY A10`
-- User-supplied URL is fetched via `requests.get(url)` with no validation
-- Can probe internal network
 
 ---
 
-## Chained Attack: chain-01
+## Chained Attack Scenarios
 
-**Chain Name:** Debug Token Leak → SSRF Internal Recon → Unsigned Firmware Injection  
-**Combined Impact:** Lateral Movement  
-**Overall Chain Difficulty: MEDIUM**
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-### Link 1: Debug Endpoint Leaks Device Tokens (A05 — Medium)
+### CHAIN-01: Debug Token Leak → SSRF Internal Recon → Unsigned Firmware Injection
 
-**Difficulty: EASY**
+- **Combined Impact:** `lateral_movement`
+- **Difficulty:** Expert
+- **Subtlety Tags:** `cross_file` `state_confusion` `parser_or_config_reasoning` `implicit_trust` `realistic_decoy`
 
-- Unauthenticated endpoint leaks device tokens
+#### Prerequisites
+- attacker can influence a multi-step workflow
+- attacker can observe or reuse application state across requests
 
-### Link 2: SSRF for Internal Recon (A10 — Medium)
+#### Attack Narrative
+An attacker queries the public /api/debug/devices debug endpoint to leak private device tokens. They then use the SSRF vulnerability in the sensor proxy endpoint to scan internal port ranges and locate private network hosts. Finally, the attacker uses the firmware update endpoint to point a device to a malicious unsigned binary stored on an internal host, achieving persistent compromise of the smart device.
 
-**Difficulty: EASY**
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Debug endpoint leaks device tokens. | Medium | A05 | CWE-200 | app.py | `debug_devices` |
+| 2 | SSRF in sensor data proxy allows internal service scanning. | Medium | A10 | CWE-918 | app.py | `fetch_sensor_data` |
+| 3 | Firmware update accepts arbitrary unsigned firmware binaries. | Medium | A08 | CWE-494 | app.py | `update_firmware` |
 
-- SSRF probes internal network to find hosts/services
+### CHAIN-02: Subtle Ssrf Pivot To Auth Session
 
-### Link 3: Unsigned Firmware Injection (A08 — Medium)
+- **Combined Impact:** `lateral_movement`
+- **Difficulty:** Expert
+- **Subtlety Tags:** `cross_file` `state_confusion` `parser_or_config_reasoning` `implicit_trust` `realistic_decoy` `secondary_chain`
 
-**Difficulty: EASY**
+#### Prerequisites
+- attacker can influence a multi-step workflow
+- attacker can observe or reuse application state across requests
 
-- Malicious firmware loaded via SSRF-discovered internal host
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
+
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | The sensor data proxy endpoint processes user-provided URLs without validating if they point to private network addresses or internal hosts, allowing SSRF. | Medium | A10 | CWE-918 | app.py | `fetch_sensor_data` |
+| 2 | The firmware update endpoint accepts any URL and downloads the firmware binary without checking signatures, hashes, or origin authority. | High | A08 | CWE-494 | app.py | `update_firmware` |
+| 3 | An unauthenticated debug endpoint (/api/debug/devices) is exposed, leaking details of all registered devices along with their private access API tokens. | High | A05 | CWE-200 | app.py | `debug_devices` |
+
 
 ---
 
-## Summary
+## Decoys (False-Positive Candidates)
 
-App-47 is a FastAPI IoT manager with an unauthenticated debug endpoint, SSRF in sensor proxy, and unsigned firmware updates. Chain: leak tokens → probe internals → deploy malicious firmware.
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
 
-**Overall Difficulty Score:** 1/5 (Easy)
+| Location | Description |
+|---|---|
+| app.py | Proper validation of the X-Device-Token header against registered device tokens in /api/devices/{device_id}/command, preventing command injection or spoofing. |
+| app.py | Rate-limited status polling on /api/devices/{device_id}/status using an in-memory timestamp store to enforce a request cooldown period. |

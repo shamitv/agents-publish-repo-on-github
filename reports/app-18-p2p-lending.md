@@ -1,85 +1,111 @@
-# Audit Report: app-18 — Peer-to-Peer Lending Platform
+# Security Report: app-18 — Peer-to-Peer Lending Platform
 
-**Language:** JavaScript (Express)  
-**Business Domain:** Finance / Lending  
-**Date:** 2026-05-24
+**Language:** Javascript (Express)
+**Directory:** `apps/javascript/app-18-p2p-lending`
+
+---
+
+## Application Information
+- **App ID:** app-18
+- **Name:** Peer-to-Peer Lending Platform
+- **Language:** Javascript
+- **Framework:** Express
+
+## Vulnerability Summary
+
+The following vulnerability list represents the ground truth security issues identified for this application:
+
+| ID | OWASP | Category | Severity | Location | CWE |
+|---|---|---|---|---|---|
+| V1 | A01 | Broken Access Control | Medium | src/index.js | CWE-639 |
+| V2 | A02 | Cryptographic Failures | Medium | src/index.js | CWE-312 |
+| V3 | A04 | Insecure Design | Medium | src/index.js | CWE-20 |
 
 ---
 
 ## Standalone Vulnerabilities
 
-### VULN-01: A02 — Cryptographic Failures (Plaintext Passwords)
+### VULN-01: A01 — Broken Access Control
 
-**Severity:** Medium  
-**Location:** `src/index.js:38-51` — `initDb`, `src/index.js:88-101` — `POST /api/auth/register`  
-**Lines:**
-```javascript
-// VULNERABILITY A02: Storing user passwords in plaintext (no hashing)
-```
+- **Severity:** Medium
+- **Location:** `src/index.js`:131-147 (method: `GET /api/contracts/:id`)
+- **CWE:** [CWE-639](https://cwe.mitre.org/data/definitions/639.html)
 
-**Difficulty: EASY**
+#### Description
+Viewing loan contract agreements by ID lacks checking user ownership, allowing any authenticated borrower to view details of any other borrower's loan agreement.
 
-- All user passwords stored and transmitted in plaintext
-- No hashing at all — direct string comparison in login
-- Admin password `lenderSecure2026!` stored in plaintext
+### VULN-02: A02 — Cryptographic Failures
 
-### VULN-02: A01 — Broken Access Control (IDOR)
+- **Severity:** Medium
+- **Location:** `src/index.js`:38-51 (method: `initDb`)
+- **CWE:** [CWE-312](https://cwe.mitre.org/data/definitions/312.html)
 
-**Severity:** Medium  
-**Location:** `src/index.js:141-156` — `GET /api/contracts/:id`  
-**Lines:**
-```javascript
-// VULNERABILITY A01: Broken Access Control (IDOR) on loan contracts
-```
+#### Description
+User account passwords are saved in plaintext format in the database, risking exposure in data dumps.
 
-**Difficulty: EASY**
+### VULN-03: A04 — Insecure Design
 
-- Contract retrieval endpoint does not verify ownership
-- Any authenticated user can read any borrower's loan contract
-- Exposes loan amounts, interest rates, and status
+- **Severity:** Medium
+- **Location:** `src/index.js`:150-176 (method: `POST /api/loans/apply`)
+- **CWE:** [CWE-20](https://cwe.mitre.org/data/definitions/20.html)
 
-### VULN-03: A04 — Insecure Design (Negative Interest Rate)
+#### Description
+The loan application endpoint fails to validate interest rates, allowing negative or zero interest loan generation to bypass standard interest accrual rules.
 
-**Severity:** Medium  
-**Location:** `src/index.js:158-183` — `POST /api/loans/apply`  
-**Lines:**
-```javascript
-// VULNERABILITY A04: Insecure Design - Negative Interest Rate / Zero Rate Bypass
-```
-
-**Difficulty: EASY**
-
-- Loan application endpoint does not validate interest rates
-- Negative or zero interest rates accepted
-- Allows borrower to take loans that accrue negative interest (money back)
 
 ---
 
-## Chained Attack: chain-01
+## Chained Attack Scenarios
 
-**Chain Name:** Debug Credential Leak → IDOR Contract Harvesting  
-**Combined Impact:** DB Exfiltration  
-**Overall Chain Difficulty: EASY**
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-### Link 1: Plaintext Credential Leak (A02 — Medium)
+### CHAIN-01: Plaintext Credential Leak → IDOR Loan Data Harvesting
 
-**Difficulty: EASY**
+- **Combined Impact:** `db_exfiltration`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy`
 
-- `GET /api/debug/users` returns all users with plaintext passwords
-- No authentication required
-- Attacker obtains admin credentials `lenderSecure2026!`
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-### Link 2: IDOR Contract Read (A01 — Medium)
+#### Attack Narrative
+An attacker reads plaintext credentials from a debug configuration or database leak at `/api/debug/users` to get admin passwords (`lenderSecure2026!`). Authenticating with the admin credentials, the attacker invokes the loan details endpoint `/api/contracts/1` and extracts private borrower financial contract details via IDOR.
 
-**Difficulty: EASY**
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Plaintext credentials leak from user profile queries. | Medium | A02 | CWE-312 | src/index.js | `initDb` |
+| 2 | Contracts endpoint permits IDOR fetching of arbitrary records. | Medium | A01 | CWE-639 | src/index.js | `GET /api/contracts/:id` |
 
-- Authenticated as admin, attacker calls `GET /api/contracts/1`, `GET /api/contracts/2`, etc.
-- Exfiltrates all loan contract details (amounts, interest rates, statuses)
+### CHAIN-02: Subtle State Confusion Pivot To Idor
+
+- **Combined Impact:** `db_exfiltration`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy` `secondary_chain`
+
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
+
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
+
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | The loan application endpoint fails to validate interest rates, allowing negative or zero interest loan generation to bypass standard interest accrual rules. | Medium | A04 | CWE-20 | src/index.js | `POST /api/loans/apply` |
+| 2 | User account passwords are saved in plaintext format in the database, risking exposure in data dumps. | Medium | A02 | CWE-312 | src/index.js | `initDb` |
+| 3 | Viewing loan contract agreements by ID lacks checking user ownership, allowing any authenticated borrower to view details of any other borrower's loan agreement. | Medium | A01 | CWE-639 | src/index.js | `GET /api/contracts/:id` |
+
 
 ---
 
-## Summary
+## Decoys (False-Positive Candidates)
 
-App-18 is a JavaScript Express P2P lending platform with plaintext password storage, IDOR on contract details, and missing validation on loan interest rates. Chain: Debug user dump → plaintext credential extraction → IDOR contract data exfiltration.
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
 
-**Overall Difficulty Score:** 1/5 (Very Easy)
+| Location | Description |
+|---|---|
+| src/index.js | Strict role authorization checks on dashboard access (GET /api/admin/dashboard) validating if role === ADMIN. |
+| src/index.js | Proper parameterized query logic in POST /api/user/settings to update customer parameters. |

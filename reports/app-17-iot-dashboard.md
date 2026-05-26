@@ -1,82 +1,111 @@
-# Audit Report: app-17 — IoT Device Dashboard
+# Security Report: app-17 — IoT Device Dashboard
 
-**Language:** JavaScript (Express)  
-**Business Domain:** IoT / Smart Home  
-**Date:** 2026-05-24
+**Language:** Javascript (Express)
+**Directory:** `apps/javascript/app-17-iot-dashboard`
+
+---
+
+## Application Information
+- **App ID:** app-17
+- **Name:** IoT Device Dashboard
+- **Language:** Javascript
+- **Framework:** Express
+
+## Vulnerability Summary
+
+The following vulnerability list represents the ground truth security issues identified for this application:
+
+| ID | OWASP | Category | Severity | Location | CWE |
+|---|---|---|---|---|---|
+| V1 | A02 | Cryptographic Failures | Medium | src/index.js | CWE-312 |
+| V2 | A05 | Security Misconfiguration | Medium | src/index.js | CWE-209 |
+| V3 | A10 | Server-Side Request Forgery (SSRF) | High | src/index.js | CWE-918 |
 
 ---
 
 ## Standalone Vulnerabilities
 
-### VULN-01: A02 — Cryptographic Failures (Cleartext Secrets)
+### VULN-01: A02 — Cryptographic Failures
 
-**Severity:** Medium  
-**Location:** `src/index.js:52-63` — `initDb`  
-**Lines:**
-```javascript
-// VULNERABILITY A02: Storing device credentials/access keys in cleartext in the database
-```
+- **Severity:** Medium
+- **Location:** `src/index.js`:47-56 (method: `initDb`)
+- **CWE:** [CWE-312](https://cwe.mitre.org/data/definitions/312.html)
 
-**Difficulty: EASY**
+#### Description
+Device secret access keys are stored in plaintext in the database instead of being hashed or encrypted.
 
-- Device secret keys (`IOT-DEV-KEY-THERMO-1122`, `IOT-DEV-KEY-GATEWAY-8877`) stored in plaintext
-- Directly readable from database queries without any encryption
+### VULN-02: A05 — Security Misconfiguration
 
-### VULN-02: A05 — Security Misconfiguration (Information Leakage)
+- **Severity:** Medium
+- **Location:** `src/index.js`:131-163 (method: `POST /api/devices/command`)
+- **CWE:** [CWE-209](https://cwe.mitre.org/data/definitions/209.html)
 
-**Severity:** Medium  
-**Location:** `src/index.js:134-173` — `POST /api/devices/command`  
-**Lines:**
-```javascript
-// VULNERABILITY A05: Security Misconfiguration - Verbose Error Disclosure
-```
-
-**Difficulty: EASY**
-
-- Sending `TRIGGER-ERROR` command causes server to return full stack trace plus `gateway_config`
-- Leaks internal telemetry server URL and access key `INTERNAL-SECRET-TELEMETRY-TOKEN-2026`
+#### Description
+Detailed configuration details (such as API secret keys) and stack traces are returned to the user on execution failure.
 
 ### VULN-03: A10 — Server-Side Request Forgery (SSRF)
 
-**Severity:** High  
-**Location:** `src/index.js:175-192` — `POST /api/devices/refresh`  
-**Lines:**
-```javascript
-// VULNERABILITY A10: Server-Side Request Forgery (SSRF)
-```
+- **Severity:** High
+- **Location:** `src/index.js`:166-182 (method: `POST /api/devices/refresh`)
+- **CWE:** [CWE-918](https://cwe.mitre.org/data/definitions/918.html)
 
-**Difficulty: EASY**
+#### Description
+The device status refresh handler calls external URLs using axios without validating if the IP is internal, allowing SSRF.
 
-- `statusUrl` parameter is fetched directly via `axios.get()` with no validation
-- Can access internal endpoints like `http://localhost:8017/api/internal/telemetry`
-- No IP filtering or allowlist
 
 ---
 
-## Chained Attack: chain-01
+## Chained Attack Scenarios
 
-**Chain Name:** Command Error Leak → SSRF Internal Pivot  
-**Combined Impact:** Lateral Movement  
-**Overall Chain Difficulty: MEDIUM**
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-### Link 1: Verbose Error Disclosure (A05 — Medium)
+### CHAIN-01: Diagnostic Trace Leak → SSRF Internal Network Pivoting
 
-**Difficulty: EASY**
+- **Combined Impact:** `lateral_movement`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy`
 
-- Send `POST /api/devices/command` with `{ "deviceId": 1, "command": "TRIGGER-ERROR" }`
-- Response leaks `telemetry_access_key: INTERNAL-SECRET-TELEMETRY-TOKEN-2026` and the telemetry URL
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-### Link 2: SSRF to Internal Endpoint (A10 — Medium)
+#### Attack Narrative
+An attacker sends a TRIGGER-ERROR command to `/api/devices/command` to force a server exception, which leaks the telemetry API credentials: `INTERNAL-SECRET-TELEMETRY-TOKEN-2026`. The attacker then makes a POST request to `/api/devices/refresh` with `statusUrl: 'http://localhost:8017/api/internal/telemetry?token=INTERNAL-SECRET-TELEMETRY-TOKEN-2026'`, leveraging the SSRF vulnerability to bypass authentication and exfiltrate internal system telemetry.
 
-**Difficulty: EASY**
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Verbose stack trace leaks internal telemetry server token. | Medium | A05 | CWE-209 | src/index.js | `POST /api/devices/command` |
+| 2 | Status update proxy fetches internal endpoints without IP filtering. | Medium | A10 | CWE-918 | src/index.js | `POST /api/devices/refresh` |
 
-- Send `POST /api/devices/refresh` with `{ "statusUrl": "http://localhost:8017/api/internal/telemetry?token=INTERNAL-SECRET-TELEMETRY-TOKEN-2026" }`
-- Server proxies request to internal telemetry endpoint, returning all device secret keys
+### CHAIN-02: Subtle Ssrf Pivot To Crypto
+
+- **Combined Impact:** `lateral_movement`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy` `secondary_chain`
+
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
+
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
+
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | The device status refresh handler calls external URLs using axios without validating if the IP is internal, allowing SSRF. | High | A10 | CWE-918 | src/index.js | `POST /api/devices/refresh` |
+| 2 | Detailed configuration details (such as API secret keys) and stack traces are returned to the user on execution failure. | Medium | A05 | CWE-209 | src/index.js | `POST /api/devices/command` |
+| 3 | Device secret access keys are stored in plaintext in the database instead of being hashed or encrypted. | Medium | A02 | CWE-312 | src/index.js | `initDb` |
+
 
 ---
 
-## Summary
+## Decoys (False-Positive Candidates)
 
-App-17 is a JavaScript Express IoT dashboard with plaintext device secrets, a verbose error handler that leaks internal telemetry credentials, and an SSRF vulnerability in the device refresh endpoint. Chain: Command error leak → SSRF internal pivot → device credential exfiltration.
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
 
-**Overall Difficulty Score:** 2/5 (Easy)
+| Location | Description |
+|---|---|
+| src/index.js | Proper input validation on device command payload sizes in POST /api/devices/command. |
+| src/index.js | Proper parameterized query logic in GET /api/devices/:id to fetch device details safely. |
