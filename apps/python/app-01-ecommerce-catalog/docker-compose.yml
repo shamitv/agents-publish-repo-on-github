@@ -77,7 +77,7 @@ services:
       - --advertise-kafka-addr
       - PLAINTEXT://kafka:9092
     healthcheck:
-      test: ["CMD-SHELL", "rpk cluster health --brokers localhost:9092 | grep -q Healthy"]
+      test: ["CMD-SHELL", "rpk cluster info --brokers localhost:9092 >/dev/null 2>&1"]
       interval: 10s
       timeout: 5s
       retries: 20
