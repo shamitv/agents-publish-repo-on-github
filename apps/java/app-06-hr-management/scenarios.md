@@ -1,18 +1,14 @@
-# Chained Vulnerability Scenarios — Hr Management
+# Chained Vulnerability Scenarios — HR Management
 
-## Chain: "Credential Hash Harvest → Offline Crack → Payroll + SSN Exfiltration"
+Supplemental notes only. Ground truth vulnerability data is maintained in [.vulns](.vulns), and the required human-readable chain is in [README.md](README.md).
+
+## Chain: "Payroll IDOR → Weak SSN Encryption → DB Exfiltration"
 
 | Step | Issue | Severity (standalone) | OWASP | Location |
 |------|-------|-----------------------|-------|----------|
-| 1 | `GET /api/employees/{id}/audit` returns the `passwordHash` field for any employee, accessible to any authenticated user (no role check) | Medium | A01 | `EmployeeController.java` → `getEmployeeAudit()` |
-| 2 | Password hashes are BCrypt but employees use short dictionary passwords (seed data); offline GPU cracking with a wordlist recovers them in minutes | Low | A02 | `DataInitializer.java` → seed passwords |
-| 3 | `GET /api/payroll/{employeeId}` has no ownership or role check — any authenticated session can read any employee's salary and encrypted SSN | High | A01 | `PayrollController.java` → `getPayroll()` |
+| 1 | `GET /api/payroll/{employeeId}` has no ownership or role check and returns another employee's encrypted SSN | Medium | A01 | `PayrollController.java` → `getPayroll()` |
+| 2 | SSN encryption uses reversible XOR with hardcoded key `0xDEADBEEF` | Medium | A02 | `Employee.java` → `getRawSsn()` |
 
-
-**Attack narrative**: A low-privilege employee calls `GET /api/employees/{id}/audit` for each integer ID (1, 2, 3, ...) and collects the `passwordHash` of every HR Admin and Manager. They crack those hashes offline using a common wordlist. They log back in as the HR Admin, then iterate `GET /api/payroll/{id}` to dump every employee's salary record. The encrypted SSN field is reversed client-side using the known XOR key `0xDEADBEEF` embedded in `Employee.java`.
+**Attack narrative**: A low-privilege employee iterates payroll IDs, collects salary records and `ssnEncrypted` values, then decrypts those SSNs offline using the hardcoded XOR key from the employee model.
 
 **Combined Impact**: Full workforce PII exfiltration including salaries and SSNs.
-
----
-
-_This file is for internal reference. Ground truth vulnerability data is maintained in [.vulns](.vulns)._

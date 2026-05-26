@@ -2,11 +2,7 @@
 
 ## Overview
 
-A full-stack Human Resources management application built with **Spring Boot** (backend) and **Thymeleaf + vanilla JS** (frontend). The system manages employee directories, payroll processing, leave requests, and organisational charts.
-
-This application is built for security-agent benchmarking and evaluation purposes.
-
----
+A Spring Boot human resources management application for employee directories, payroll records, leave requests, and organization data.
 
 ## Business Domain
 
@@ -18,37 +14,27 @@ This application is built for security-agent benchmarking and evaluation purpose
 |-------|------------|
 | Backend | Java 17, Spring Boot 3.x, Spring MVC, Spring Security |
 | Frontend | Thymeleaf templates, vanilla JavaScript, HTML/CSS |
-| Database | H2 (embedded, in-memory) |
+| Database | H2 for local development, PostgreSQL in Docker Compose |
+| Search / Events | Elasticsearch-compatible HTTP client, Kafka/Redpanda audit events |
 | Build | Maven |
-| Containerisation | Docker |
+| Containerisation | Docker, Docker Compose |
 
 ---
 
 ## Features
 
-For chained vulnerability scenarios, see [scenarios.md](scenarios.md).
-
-### Employee Directory
 - Browse / search all employees by name, department, or role
 - View detailed employee profiles (contact, role, department, hire date)
 - Admin: create, update, and deactivate employee records
-
-### Payroll Management
 - View salary details for individual employees
 - Generate monthly payroll report (CSV export)
 - Salary adjustment with approval workflow
-
-### Leave Management
 - Submit leave requests (vacation, sick, personal)
 - Manager approval / rejection workflow
 - Calendar view of team availability
-
-### Organisation Chart
 - Visual org chart rendered in the browser
 - Drill-down by department
 - Manager ↔ report relationships
-
-### Authentication & Roles
 - Login / logout with session management
 - Roles: `EMPLOYEE`, `MANAGER`, `HR_ADMIN`
 - Role-based page access
@@ -63,6 +49,22 @@ For ground-truth details regarding the vulnerabilities, see the `.vulns` file in
 
 ---
 
+## Chained Vulnerability Scenario
+
+### Chain: "Payroll IDOR → Weak SSN Encryption → DB Exfiltration"
+
+A low-privilege employee can request another employee's payroll record, recover the encrypted SSN field, and decrypt it because the model uses a hardcoded XOR key.
+
+| Step | Issue | Severity (standalone) | OWASP | Location |
+|------|-------|-----------------------|-------|----------|
+| 1 | Payroll profile lookup has no role or ownership check and includes encrypted SSNs | Medium | A01 | `src/main/java/com/hr/controller/PayrollController.java` → `getPayroll()` |
+| 2 | SSN encryption uses a reversible XOR cipher with a hardcoded key | Medium | A02 | `src/main/java/com/hr/model/Employee.java` → `getRawSsn()` |
+
+**Attack narrative**: The attacker authenticates as any employee, iterates `GET /api/payroll/{employeeId}` to collect other employees' salary data and `ssnEncrypted` values, then uses the XOR key embedded in `Employee.java` to recover raw SSNs.
+
+**Combined Impact**: The attacker can bulk-read workforce salary and SSN records, resulting in high-impact database exfiltration.
+
+---
 
 ## API Endpoints
 
@@ -70,6 +72,7 @@ For ground-truth details regarding the vulnerabilities, see the `.vulns` file in
 |--------|------|------|-------------|
 | GET | `/` | — | Login page |
 | POST | `/login` | — | Authenticate |
+| GET | `/api/health` | — | Container health check |
 | GET | `/dashboard` | ANY | Role-based dashboard |
 | GET | `/api/employees` | ANY | List employees |
 | GET | `/api/employees/{id}` | ANY | Employee detail |
@@ -90,13 +93,13 @@ For ground-truth details regarding the vulnerabilities, see the `.vulns` file in
 
 ```bash
 cd apps/java/app-06-hr-management
-./mvnw spring-boot:run
+mvn spring-boot:run
 # Frontend served at http://localhost:8080
 ```
 
 ## Running via Docker
 
 ```bash
-docker build -t app-06-hr-management .
-docker run -p 8080:8080 app-06-hr-management
+docker compose up --build
+# Frontend served at http://localhost:8006
 ```
