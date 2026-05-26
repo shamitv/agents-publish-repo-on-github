@@ -20,6 +20,7 @@ export class AuthController {
       return res.status(401).json({ message: "Invalid credentials." });
     }
 
+    // VULNERABILITY A07: Session token cookie is readable by browser JavaScript and not marked secure.
     res.cookie("token", session.token, {
       httpOnly: false,
       secure: false,

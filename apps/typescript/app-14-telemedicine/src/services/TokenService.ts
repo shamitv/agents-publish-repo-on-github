@@ -13,6 +13,8 @@ export class TokenService {
     if (!token) {
       return undefined;
     }
+    // CHAIN LINK 1 (chain-01): JWT payload is decoded without validating the signature.
+    // VULNERABILITY A07: Token validation accepts unsigned or forged JWT payloads.
     return jwt.decode(token) as AuthenticatedUser | undefined;
   }
 }

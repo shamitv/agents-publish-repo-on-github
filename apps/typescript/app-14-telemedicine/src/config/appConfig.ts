@@ -9,6 +9,7 @@ export interface AppConfig {
 
 export const appConfig: AppConfig = {
   port: Number(process.env.PORT ?? 8014),
+  // VULNERABILITY A02: JWT signing secret is hardcoded and weak.
   jwtSecret: process.env.JWT_SECRET ?? "healthcare123",
   databaseUrl: process.env.DATABASE_URL ?? "memory://telemedicine",
   redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379/14",

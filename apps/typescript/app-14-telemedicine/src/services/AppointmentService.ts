@@ -28,6 +28,8 @@ export class AppointmentService {
       return cached;
     }
 
+    // CHAIN LINK 2 (chain-01): Appointment notes are loaded by ID without owner or doctor checks.
+    // VULNERABILITY A01: Patient notes endpoint exposes records through an IDOR.
     const appointment = this.appointments.findById(appointmentId);
     if (appointment) {
       this.cache.put(appointment);
