@@ -11,6 +11,8 @@ class BookingService {
       throw new Error('Spot not found.');
     }
 
+    // CHAIN LINK 2 (chain-01): Booking price is trusted from the client instead of recalculated.
+    // VULNERABILITY A04: Client-controlled totalCost permits zero or negative cost bookings.
     return this.bookings.save({
       userId: user.id,
       spotId,
@@ -28,6 +30,8 @@ class BookingService {
       return { found: true, allowed: false };
     }
     booking.status = 'CANCELLED';
+    // CHAIN LINK 3 (chain-01): Cancellation is persisted without a security audit event.
+    // VULNERABILITY A09: Critical booking mutations lack audit logging.
     this.bookings.update(booking);
     return { found: true, allowed: true };
   }

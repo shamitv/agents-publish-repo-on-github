@@ -5,6 +5,8 @@ class ParkingSearchClient {
   }
 
   searchByQueryString(rawQuery) {
+    // CHAIN LINK 1 (chain-01): User input is embedded directly in Elasticsearch query_string syntax.
+    // VULNERABILITY A03: Elasticsearch query injection can broaden spot searches and reveal pricing.
     const elasticsearchQuery = {
       index: 'parking-spots',
       endpoint: this.config.elasticsearchUrl,
