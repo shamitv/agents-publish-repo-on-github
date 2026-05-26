@@ -1,12 +1,15 @@
 package com.hr;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hr.model.Employee;
 import com.hr.service.EmployeeService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import java.math.BigDecimal;
-import java.util.Optional;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
@@ -55,5 +58,38 @@ class App06ApplicationTests {
         
         // Check BCrypt hashing format
         assertTrue(saved.getPasswordHash().startsWith("$2a$"));
+    }
+
+    @Test
+    void modularFilesKeepBootstrapAndIntegrationsSeparated() throws Exception {
+        assertTrue(Files.exists(Path.of("src/main/java/com/hr/cache/EmployeeProfileCache.java")));
+        assertTrue(Files.exists(Path.of("src/main/java/com/hr/messaging/PayrollAuditProducer.java")));
+        assertTrue(Files.exists(Path.of("src/main/java/com/hr/messaging/PayrollAuditConsumer.java")));
+        assertTrue(Files.exists(Path.of("src/main/java/com/hr/search/EmployeeSearchClient.java")));
+        assertTrue(Files.exists(Path.of("src/main/java/com/hr/config/DatabaseConfig.java")));
+
+        String entrypoint = Files.readString(Path.of("src/main/java/com/hr/App06Application.java"));
+        assertTrue(entrypoint.contains("SpringApplication.run"));
+        assertFalse(entrypoint.contains("@GetMapping"));
+        assertFalse(entrypoint.contains("KafkaListener"));
+        assertFalse(entrypoint.contains("JdbcTemplate"));
+    }
+
+    @Test
+    void benchmarkMetadataMatchesCanonicalChain() throws Exception {
+        JsonNode manifest = new ObjectMapper().readTree(Path.of(".vulns").toFile());
+        JsonNode chain = manifest.path("chained_attacks").get(0);
+
+        assertEquals("chain-01", chain.path("chain_id").asText());
+        assertEquals("db_exfiltration", chain.path("impact").asText());
+        assertEquals(2, chain.path("components").size());
+        assertEquals("getPayroll", chain.path("components").get(0).path("method").asText());
+        assertEquals("getRawSsn", chain.path("components").get(1).path("method").asText());
+
+        String payrollController = Files.readString(Path.of("src/main/java/com/hr/controller/PayrollController.java"));
+        String employeeModel = Files.readString(Path.of("src/main/java/com/hr/model/Employee.java"));
+        assertTrue(payrollController.contains("CHAIN LINK 1 (chain-01)"));
+        assertTrue(employeeModel.contains("CHAIN LINK 2 (chain-01)"));
+        assertTrue(employeeModel.contains("VULNERABILITY A02"));
     }
 }
