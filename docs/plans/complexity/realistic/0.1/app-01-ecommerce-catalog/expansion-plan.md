@@ -292,3 +292,4 @@ Key relationships:
 - [ ] Phase 5: Advanced features
 - [ ] `.vulns`, `README.md`, `scenarios.md` updated after each phase
 - [ ] All existing vulnerabilities preserved and verified
+- [ ] Git commit after phase completion
