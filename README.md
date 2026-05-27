@@ -113,7 +113,9 @@ Each application simulates a realistic business system with **2–5 deliberately
 ```
 owasp-test/
 ├── README.md                        # This file
-├── docs/plans/initial/plan.md       # Master implementation plan
+├── docs/
+│   ├── howto/sanitization.md        # How to produce scan-ready copies of any app
+│   └── plans/                       # Expansion and run plans
 ├── apps/
 │   ├── python/                      # 14 Python apps
 │   ├── java/                        # 13 Java apps
