@@ -53,12 +53,13 @@ A companion TypeScript/React supplier portal lives at `apps/typescript/app-01-su
 
 ### Supplier Reporting
 - Generate sales, inventory health, and data quality reports
-- Async job lifecycle (enqueue, poll, download)
-- Scheduled report definitions
+- Dashboard with KPI summary
+- Report list per supplier
 
 ### Admin
 - Cache management, feature flags, webhook registry
 - Product lifecycle management (draft/review/publish/archive)
+- Bulk CSV product upload
 
 ## Security Benchmarking
 
@@ -84,6 +85,21 @@ An attacker confirms the admin account, forges an admin session, and writes unau
 
 ---
 
+### Chain: "Weak Supplier ID Validation -> Catalog Poisoning via Bulk Upload"
+
+An attacker chains weak validation with a trusting bulk upload endpoint to modify catalog data under a forged supplier identity.
+
+| Step | Issue | Severity (standalone) | OWASP | Location |
+|------|-------|-----------------------|-------|----------|
+| 1 | Supplier ID validator accepts zero, negative, and non-numeric values | Low | A04 | `packages/domain/validators.py` -> `validate_supplier_id_chain()` |
+| 2 | Bulk CSV upload trusts `supplierId` from request body without ownership verification | Medium | A01 | `services/catalog-service/src/controllers/bulk_upload_controller.py` -> `bulk_upload_products()` |
+
+**Attack narrative**: The attacker crafts a CSV file with `supplierId` set to a different supplier's ID. The weak validator passes it through (step 1), and the bulk upload endpoint creates products under the forged identity without verifying the authenticated supplier owns that ID (step 2).
+
+**Combined Impact**: Unauthorized catalog data modification through forged supplier identity.
+
+---
+
 ## API Endpoints
 
 ### Catalog Service (port 8081)
@@ -102,17 +118,20 @@ An attacker confirms the admin account, forges an admin session, and writes unau
 | GET | `/api/orders` | ANY | Lists user checkouts history |
 | POST | `/api/orders` | ANY | Processes basket checkout and creates order |
 | GET | `/api/orders/{id}` | ANY | View individual order detail fields |
-| POST | `/api/products/bulk-upload` | SUPPLIER+ | CSV bulk product upload |
-| POST | `/api/workflow/{productId}/{action}` | ADMIN+ | Advance product lifecycle state |
-| GET | `/api/workflow/{productId}/history` | ANY | View lifecycle history |
+| POST | `/api/products/bulk-upload` | SUPPLIER+ | CSV bulk product upload (chain link) |
+| POST | `/api/products/{productId}/lifecycle/{action}` | ADMIN+ | Advance product lifecycle state |
+| GET | `/api/products/{productId}/lifecycle` | ANY | View lifecycle history |
+| GET | `/api/products/my-products` | SUPPLIER+ | List own products (decoy, scoped to session) |
 
 ### Reporting Service (port 5002)
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/health` | — | Health check |
-| GET | `/api/reports/sales` | — | Sales report (chain link) |
-| GET | `/api/reports/inventory` | — | Inventory report |
+| GET | `/v1/reports/definitions` | — | List available report types |
+| GET | `/v1/reports/sales` | — | Sales report aggregation |
+| GET | `/v1/reports/inventory-health` | — | Inventory health report |
+| GET | `/v1/reports/data-quality` | — | Data quality scorecard |
 | POST | `/admin/cache/clear` | — | Clear report cache |
 | POST | `/admin/cache/restore` | — | Restore cache from disk |
 | POST | `/admin/flags` | — | Set feature flag |
@@ -124,6 +143,10 @@ An attacker confirms the admin account, forges an admin session, and writes unau
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/health` | — | Health check |
+| POST | `/portal/auth/login` | — | Supplier login (vulnerability A07) |
+| GET | `/portal/auth/verify` | SUPPLIER+ | Verify session token (decoy) |
+| GET | `/portal/dashboard` | — | KPI summary dashboard |
+| GET | `/portal/reports` | — | List supplier's reports |
 | GET | `/api/supplier/reports/{report_id}` | — | Generate supplier report |
 | GET | `/api/supplier/reports/{report_id}/safe` | — | Generate scoped report (decoy) |
 

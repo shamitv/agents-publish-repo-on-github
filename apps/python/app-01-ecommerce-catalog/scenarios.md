@@ -16,17 +16,18 @@ An attacker combines three individually low/medium-severity issues to modify cat
 
 ---
 
-## Chain: "Weak Supplier ID Validation -> Catalog Poisoning"
+## Chain: "Weak Supplier ID Validation -> Catalog Poisoning via Bulk Upload"
 
-An attacker exploits weak server-side supplier ID validation to inject forged supplier identities into catalog operations.
+An attacker chains a weak validator with a trusting bulk upload endpoint to modify catalog data under a forged supplier identity.
 
 | Step | Issue | Severity (standalone) | OWASP | Location |
 |------|-------|-----------------------|-------|----------|
 | 1 | Supplier ID validator accepts zero, negative, and non-numeric values without error | Low | A04 | `packages/domain/validators.py` -> `validate_supplier_id_chain()` |
+| 2 | Bulk CSV upload trusts `supplierId` from request body without ownership verification | Medium | A01 | `services/catalog-service/src/controllers/bulk_upload_controller.py` -> `bulk_upload_products()` |
 
-**Attack narrative**: The attacker submits a supplier ID of `0`, `-1`, or `"admin"` to an endpoint that relies on `validate_supplier_id_chain()` for identity checks. The weak validator passes these values through, allowing the attacker to impersonate other suppliers or bypass ownership checks.
+**Attack narrative**: The attacker crafts a CSV file containing a `supplierId` column set to a different supplier's ID (e.g., `supplier-002`). In step 1, the weak `validate_supplier_id_chain()` validator passes the forged ID through without rejecting it. In step 2, the bulk upload endpoint (`POST /api/products/bulk-upload`) reads the `supplierId` from the CSV and creates products under the forged identity without verifying the authenticated supplier owns that ID. The attacker can upload arbitrary catalog records attributed to any supplier.
 
-**Combined Impact**: Unauthorized data modification through forged supplier identity.
+**Combined Impact**: Unauthorized catalog data modification through forged supplier identity.
 
 ---
 

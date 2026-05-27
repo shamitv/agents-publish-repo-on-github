@@ -39,6 +39,15 @@
       "description": "Supplier ID validation accepts zero, negative, and non-numeric values, enabling forged supplier identity injection.",
       "severity": "medium",
       "cwe": "CWE-602"
+    },
+    {
+      "owasp_id": "A07",
+      "category": "Identification and Authentication Failures",
+      "location": "services/supplier-portal-api/src/services/auth_service.py",
+      "method": "login",
+      "description": "Supplier portal login accepts any password for any known supplier ID with no credential verification.",
+      "severity": "medium",
+      "cwe": "CWE-287"
     }
   ],
   "chained_attacks": [
@@ -79,8 +88,8 @@
     },
     {
       "chain_id": "chain-02",
-      "chain_name": "Weak Supplier ID Validation -> Catalog Poisoning",
-      "attack_scenario": "An attacker exploits weak supplier ID validation to inject forged supplier IDs into bulk catalog uploads, bypassing ownership checks.",
+      "chain_name": "Weak Supplier ID Validation -> Catalog Poisoning via Bulk Upload",
+      "attack_scenario": "An attacker exploits weak supplier ID validation to inject forged supplier IDs into bulk catalog uploads, bypassing ownership checks. Step 1: weak validator accepts any supplier ID. Step 2: bulk CSV upload trusts supplierId from request body without verifying the authenticated supplier owns that ID.",
       "impact": "data_modification",
       "components": [
         {
@@ -91,6 +100,15 @@
           "method": "validate_supplier_id_chain",
           "severity": "low",
           "cwe": "CWE-602"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A01",
+          "description": "Bulk CSV upload trusts supplierId from request body without ownership verification.",
+          "location": "services/catalog-service/src/controllers/bulk_upload_controller.py",
+          "method": "bulk_upload_products",
+          "severity": "medium",
+          "cwe": "CWE-639"
         }
       ]
     }
@@ -111,6 +129,18 @@
     {
       "location": "packages/utils/pagination.py",
       "description": "parse_pagination clamps page >= 1 and limit in [1, 100], preventing integer abuse."
+    },
+    {
+      "location": "services/catalog-service/src/controllers/product_controller.py",
+      "description": "get_my_products scopes results to authenticated supplier_id from session, co-located with vulnerable bulk upload."
+    },
+    {
+      "location": "services/supplier-portal-api/src/services/auth_service.py",
+      "description": "verify_token performs HMAC session verification, co-located with the vulnerable login that accepts any password."
+    },
+    {
+      "location": "services/reporting-service/src/services/aggregation_service.py",
+      "description": "build_sales_filters uses parameterized SQL placeholders, adjacent to the aggregation functions."
     }
   ]
 }
