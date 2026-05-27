@@ -8,6 +8,18 @@ def create_app():
     from src.routes.report_routes import report_bp
     app.register_blueprint(report_bp)
 
+    from src.routes.job_routes import job_bp
+    app.register_blueprint(job_bp)
+
+    from src.routes.download_routes import download_bp
+    app.register_blueprint(download_bp)
+
+    from src.routes.audit_routes import audit_bp
+    app.register_blueprint(audit_bp)
+
+    from src.routes.webhook_routes import webhook_bp
+    app.register_blueprint(webhook_bp)
+
     from src.controllers.admin_routes import admin_bp
     app.register_blueprint(admin_bp)
 
