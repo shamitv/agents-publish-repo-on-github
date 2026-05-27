@@ -3,6 +3,8 @@
   "nav_dashboard": "Dashboard",
   "nav_reports": "Reports",
   "nav_webhooks": "Webhooks",
+  "login_submit": "Log In",
+  "login_error": "Invalid credentials",
   "dashboard_title": "Dashboard",
   "dashboard_total_sales": "Total Sales",
   "dashboard_total_orders": "Total Orders",

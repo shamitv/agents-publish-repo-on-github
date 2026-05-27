@@ -19,9 +19,9 @@ export function useDashboard() {
       setError(null);
       // CHAIN LINK 2 (chain-01): IDOR — fetches stats by supplier_id from URL query
       const params = new URLSearchParams(window.location.search);
-      const supplierId = params.get('supplier_id') || 'current';
-      const response = await api.get(`/api/dashboard?supplier_id=${supplierId}`);
-      setStats(response.data);
+      const supplierId = params.get('supplier_id') || 'supplier-001';
+      const response = await api.get(`/portal/dashboard?supplier_id=${supplierId}`);
+      setStats(response.data.kpi || response.data);
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Failed to fetch dashboard');
     } finally {

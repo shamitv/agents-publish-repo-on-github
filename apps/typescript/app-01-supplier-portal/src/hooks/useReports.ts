@@ -7,6 +7,7 @@ export interface Report {
   period: string;
   generated_at: string;
   status: string;
+  notes?: string;
 }
 
 export function useReports() {
@@ -18,9 +19,11 @@ export function useReports() {
     try {
       setLoading(true);
       setError(null);
-      // CHAIN LINK 1 (chain-01): SSRF injection via reportType parameter
-      const response = await api.get('/api/reports');
-      setReports(response.data);
+      const params = new URLSearchParams(window.location.search);
+      const supplierId = params.get('supplier_id') || 'supplier-001';
+      const response = await api.get(`/portal/reports?supplier_id=${supplierId}`);
+      const data = response.data.reports || response.data;
+      setReports(Array.isArray(data) ? data : []);
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Failed to fetch reports');
     } finally {
@@ -34,7 +37,12 @@ export function useReports() {
 
   const generateReport = useCallback(async (type: string) => {
     try {
-      const response = await api.post('/api/reports/generate', { type });
+      const params = new URLSearchParams(window.location.search);
+      const supplierId = params.get('supplier_id') || 'supplier-001';
+      const response = await api.post('/portal/reports/request', {
+        supplier_id: supplierId,
+        report_type: type,
+      });
       await fetchReports();
       return response.data;
     } catch (err: any) {
