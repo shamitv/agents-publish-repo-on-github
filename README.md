@@ -113,6 +113,9 @@ Each application simulates a realistic business system with **2–5 deliberately
 ```
 owasp-test/
 ├── README.md                        # This file
+├── tools/
+│   ├── sanitize_app.py              # Sanitizer CLI for producing scan-ready copies
+│   └── run_all.py                   # Batch runner for all 50 apps
 ├── docs/
 │   ├── howto/sanitization.md        # How to produce scan-ready copies of any app
 │   └── plans/                       # Expansion and run plans
