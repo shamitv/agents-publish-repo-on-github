@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 
 
 def create_app():
@@ -10,6 +10,10 @@ def create_app():
 
     from src.controllers.admin_routes import admin_bp
     app.register_blueprint(admin_bp)
+
+    @app.route("/health")
+    def health():
+        return jsonify({"status": "healthy", "service": "reporting-service"})
 
     return app
 
