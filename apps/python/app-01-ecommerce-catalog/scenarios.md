@@ -31,4 +31,18 @@ An attacker chains a weak validator with a trusting bulk upload endpoint to modi
 
 ---
 
+## Chain: "SSRF via Webhook URL -> Internal Service Access"
+
+An attacker registers a webhook with a crafted callback URL pointing to internal services, and the webhook delivery system makes an outbound request to that URL, enabling SSRF.
+
+| Step | Issue | Severity (standalone) | OWASP | Location |
+|------|-------|-----------------------|-------|----------|
+| 1 | Webhook delivery system makes HTTP requests to unvalidated user-supplied URLs | High | A10 | `services/reporting-service/src/services/webhook_retry.py` -> `create_delivery()` |
+
+**Attack narrative**: The attacker registers a webhook with `callback_url` set to `http://169.254.169.254/latest/meta-data/` (AWS metadata endpoint) or `http://localhost:5000/admin/` (internal service). The registration succeeds without URL validation, and the delivery system attempts an HTTP POST to that URL, potentially exposing internal service data.
+
+**Combined Impact**: Access to internal cloud metadata or internal service endpoints.
+
+---
+
 _This file is supplemental internal narrative. Ground truth vulnerability data is maintained in [.vulns](.vulns)._

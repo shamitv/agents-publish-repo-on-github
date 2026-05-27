@@ -132,6 +132,13 @@ An attacker chains weak validation with a trusting bulk upload endpoint to modif
 | GET | `/v1/reports/sales` | — | Sales report aggregation |
 | GET | `/v1/reports/inventory-health` | — | Inventory health report |
 | GET | `/v1/reports/data-quality` | — | Data quality scorecard |
+| POST | `/v1/reports/jobs` | — | Enqueue async report generation |
+| GET | `/v1/reports/jobs/{jobId}` | — | Poll async job status |
+| GET | `/v1/reports/{jobId}/download` | — | Download CSV/XLSX export |
+| GET | `/v1/reports/audit` | ADMIN+ | Query audit log by supplier/event type |
+| POST | `/v1/reports/webhooks` | — | Register webhook subscription |
+| GET | `/v1/reports/webhooks` | — | List webhook subscriptions |
+| DELETE | `/v1/reports/webhooks/{id}` | — | Unregister webhook |
 | POST | `/admin/cache/clear` | — | Clear report cache |
 | POST | `/admin/cache/restore` | — | Restore cache from disk |
 | POST | `/admin/flags` | — | Set feature flag |
@@ -147,6 +154,9 @@ An attacker chains weak validation with a trusting bulk upload endpoint to modif
 | GET | `/portal/auth/verify` | SUPPLIER+ | Verify session token (decoy) |
 | GET | `/portal/dashboard` | — | KPI summary dashboard |
 | GET | `/portal/reports` | — | List supplier's reports |
+| POST | `/portal/reports/request` | — | Request async report generation |
+| GET | `/portal/reports/{jobId}/status` | — | Poll async job status |
+| GET | `/portal/reports/{jobId}/download` | — | Download completed report |
 | GET | `/api/supplier/reports/{report_id}` | — | Generate supplier report |
 | GET | `/api/supplier/reports/{report_id}/safe` | — | Generate scoped report (decoy) |
 

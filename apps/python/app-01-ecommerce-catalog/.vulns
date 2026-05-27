@@ -48,6 +48,15 @@
       "description": "Supplier portal login accepts any password for any known supplier ID with no credential verification.",
       "severity": "medium",
       "cwe": "CWE-287"
+    },
+    {
+      "owasp_id": "A10",
+      "category": "Server-Side Request Forgery",
+      "location": "services/reporting-service/src/services/webhook_retry.py",
+      "method": "create_delivery",
+      "description": "Webhook delivery system makes outbound HTTP requests to unvalidated user-supplied URLs, enabling SSRF to internal services and cloud metadata endpoints.",
+      "severity": "high",
+      "cwe": "CWE-918"
     }
   ],
   "chained_attacks": [
@@ -141,6 +150,14 @@
     {
       "location": "services/reporting-service/src/services/aggregation_service.py",
       "description": "build_sales_filters uses parameterized SQL placeholders, adjacent to the aggregation functions."
+    },
+    {
+      "location": "services/reporting-service/src/services/export_service.py",
+      "description": "sanitize_filename uses regex whitelist and rejects path traversal characters, co-located with export generation functions."
+    },
+    {
+      "location": "services/reporting-service/src/services/audit_service.py",
+      "description": "Audit logging uses atomic write-then-rename pattern with JSONL format, preventing log injection."
     }
   ]
 }
