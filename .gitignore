@@ -20,3 +20,9 @@ dist/
 .DS_Store
 **/.DS_Store
 
+# Throwaway / Export directories (app-generated files)
+throwaway/
+exports/
+*.pickle
+*.pkl
+
