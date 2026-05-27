@@ -2,7 +2,7 @@
 
 ## Overview
 
-A full-stack product catalog and order fulfillment portal built with **Flask** (Python) and a decoupled client-side Single Page Application (**HTML5 + vanilla JS + CSS SPA**) served under `static/`. The system is modularized into API controllers, repositories, services, search, MQ, and consumer layers.
+A multi-service e-commerce platform built with **Flask** (Python) and a **React + TypeScript** supplier portal. The system is organized as a monorepo with three independent microservices sharing domain packages and utilities.
 
 This application is built for security-agent benchmarking and evaluation purposes.
 
@@ -10,19 +10,35 @@ This application is built for security-agent benchmarking and evaluation purpose
 
 ## Business Domain
 
-**Retail / E-Commerce** — Used by customers to search/browse items, add them to a cart, and place orders. Used by catalog managers (Admins) to register inventory products.
+**Retail / E-Commerce** — Used by customers to search/browse items, add them to a cart, and place orders. Used by catalog managers (Admins) to register inventory products. Suppliers can generate reports and view KPIs via the supplier portal.
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|------------|
-| Backend | Python 3.x, Flask |
-| Frontend | Decoupled client-side Single Page Application (HTML5, JavaScript, CSS) |
+| Backend | Python 3.x, Flask (3 microservices) |
+| Frontend | React 18 + TypeScript (Vite), vanilla JS SPA |
 | Database | SQLite fallback with PostgreSQL/MongoDB integration surfaces |
 | Search / MQ | Elasticsearch query client, Kafka-style event publisher/consumers |
 | Containerisation | Docker, Docker Compose |
 
 ---
+
+## Architecture
+
+The application is structured as a monorepo under `apps/python/app-01-ecommerce-catalog/`:
+
+```
+services/
+  catalog-service/         # Product catalog, orders, auth, lifecycle
+  reporting-service/       # Report generation, caches, scheduler, webhooks
+  supplier-portal-api/     # Supplier-facing report endpoints
+packages/
+  domain/                  # Shared DTOs, enums, validation rules
+  utils/                   # Pagination, response formatting
+```
+
+A companion TypeScript/React supplier portal lives at `apps/typescript/app-01-supplier-portal/`.
 
 ## Features
 
@@ -34,6 +50,15 @@ This application is built for security-agent benchmarking and evaluation purpose
 ### Order Processing
 - Perform checkouts and submit orders
 - View historical purchase summaries
+
+### Supplier Reporting
+- Generate sales, inventory health, and data quality reports
+- Async job lifecycle (enqueue, poll, download)
+- Scheduled report definitions
+
+### Admin
+- Cache management, feature flags, webhook registry
+- Product lifecycle management (draft/review/publish/archive)
 
 ## Security Benchmarking
 
@@ -61,6 +86,8 @@ An attacker confirms the admin account, forges an admin session, and writes unau
 
 ## API Endpoints
 
+### Catalog Service (port 8081)
+
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/` | — | Serves the client-side SPA portal |
@@ -75,6 +102,30 @@ An attacker confirms the admin account, forges an admin session, and writes unau
 | GET | `/api/orders` | ANY | Lists user checkouts history |
 | POST | `/api/orders` | ANY | Processes basket checkout and creates order |
 | GET | `/api/orders/{id}` | ANY | View individual order detail fields |
+| POST | `/api/products/bulk-upload` | SUPPLIER+ | CSV bulk product upload |
+| POST | `/api/workflow/{productId}/{action}` | ADMIN+ | Advance product lifecycle state |
+| GET | `/api/workflow/{productId}/history` | ANY | View lifecycle history |
+
+### Reporting Service (port 5002)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/health` | — | Health check |
+| GET | `/api/reports/sales` | — | Sales report (chain link) |
+| GET | `/api/reports/inventory` | — | Inventory report |
+| POST | `/admin/cache/clear` | — | Clear report cache |
+| POST | `/admin/cache/restore` | — | Restore cache from disk |
+| POST | `/admin/flags` | — | Set feature flag |
+| POST | `/admin/schedules` | — | Create scheduled report |
+| POST | `/admin/webhooks/deliver` | — | Trigger webhook delivery |
+
+### Supplier Portal API (port 5003)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/health` | — | Health check |
+| GET | `/api/supplier/reports/{report_id}` | — | Generate supplier report |
+| GET | `/api/supplier/reports/{report_id}/safe` | — | Generate scoped report (decoy) |
 
 ---
 

@@ -1,70 +1,70 @@
 # Phase 01 TODO — Architecture Refactor + Shared Packages
 
 ## Pre-requisites
-- [ ] Read vuln-inventory.md — confirm all no-touch files
-- [ ] Read expansion-plan.md — confirm phase scope
+- [x] Read vuln-inventory.md — confirm all no-touch files
+- [x] Read expansion-plan.md — confirm phase scope
 
 ## Monorepo Structure
-- [ ] Create `apps/python/app-01-ecommerce-catalog/services/` directory
-- [ ] Create `apps/python/app-01-ecommerce-catalog/packages/` directory
-- [ ] Move `src/`, `static/`, `templates/`, `app.py` into `services/catalog-service/` verbatim
-- [ ] Update imports in catalog-service to reference `packages/domain` via sys.path
-- [ ] Verify `catalog-service/app.py` starts and responds to all existing endpoints
+- [x] Create `apps/python/app-01-ecommerce-catalog/services/` directory
+- [x] Create `apps/python/app-01-ecommerce-catalog/packages/` directory
+- [x] Move `src/`, `static/`, `templates/`, `app.py` into `services/catalog-service/` verbatim
+- [x] Update imports in catalog-service to reference `packages/domain` via sys.path
+- [x] Verify `catalog-service/app.py` starts and responds to all existing endpoints
 
 ## Shared Packages
-- [ ] Create `packages/domain/__init__.py`
-- [ ] Create `packages/domain/schemas/product.py`
-- [ ] Create `packages/domain/schemas/category.py`
-- [ ] Create `packages/domain/schemas/order.py`
-- [ ] Create `packages/domain/schemas/supplier.py`
-- [ ] Create `packages/domain/schemas/report.py`
-- [ ] Create `packages/domain/enums.py`
-- [ ] Create `packages/domain/validators.py` (including vulnerable `validate_supplier_id` + safe `validate_date_range` decoy)
-- [ ] Create `packages/utils/__init__.py`
-- [ ] Create `packages/utils/pagination.py` (decoy: safe parameter parsing near vulnerable validator)
-- [ ] Create `packages/utils/response.py`
+- [x] Create `packages/domain/__init__.py`
+- [x] Create `packages/domain/schemas/product.py`
+- [x] Create `packages/domain/schemas/category.py`
+- [x] Create `packages/domain/schemas/order.py`
+- [x] Create `packages/domain/schemas/supplier.py`
+- [x] Create `packages/domain/schemas/report.py`
+- [x] Create `packages/domain/enums.py`
+- [x] Create `packages/domain/validators.py` (including vulnerable `validate_supplier_id` + safe `validate_date_range` decoy)
+- [x] Create `packages/utils/__init__.py`
+- [x] Create `packages/utils/pagination.py` (decoy: safe parameter parsing near vulnerable validator)
+- [x] Create `packages/utils/response.py`
 
 ## Reporting Service Scaffold
-- [ ] Create `services/reporting-service/src/` structure
-- [ ] Create `services/reporting-service/app.py` with health endpoint
-- [ ] Create `services/reporting-service/requirements.txt`
-- [ ] Verify health endpoint returns 200 at `http://localhost:5002/health`
+- [x] Create `services/reporting-service/src/` structure
+- [x] Create `services/reporting-service/app.py` with health endpoint
+- [x] Create `services/reporting-service/requirements.txt`
+- [x] Verify health endpoint returns 200 at `http://localhost:5002/health`
 
 ## Supplier Portal API Scaffold
-- [ ] Create `services/supplier-portal-api/src/` structure
-- [ ] Create `services/supplier-portal-api/app.py` with health endpoint
-- [ ] Create `services/supplier-portal-api/requirements.txt`
-- [ ] Verify health endpoint returns 200 at `http://localhost:5003/health`
+- [x] Create `services/supplier-portal-api/src/` structure
+- [x] Create `services/supplier-portal-api/app.py` with health endpoint
+- [x] Create `services/supplier-portal-api/requirements.txt`
+- [x] Verify health endpoint returns 200 at `http://localhost:5003/health`
 
-## TypeScript/React Scaffold
-- [ ] Create `apps/typescript/app-01-supplier-portal/` directory
-- [ ] Create `package.json` (react, react-dom, vite, TypeScript dev deps)
-- [ ] Create `vite.config.ts`
-- [ ] Create `tsconfig.json` and `tsconfig.node.json`
-- [ ] Create `index.html`
-- [ ] Create `src/main.tsx` (ReactDOM.createRoot)
-- [ ] Create `src/App.tsx` (bare "Supplier Portal" placeholder)
-- [ ] Run `npm install` in throwaway directory mode — `node_modules` must be gitignored
-- [ ] Verify `npm run dev` starts without errors
+## TypeScript/React Scaffold (completed before Phase 1 execution by prior work)
+- [x] Create `apps/typescript/app-01-supplier-portal/` directory
+- [x] Create `package.json` (react, react-dom, vite, TypeScript dev deps)
+- [x] Create `vite.config.ts`
+- [x] Create `tsconfig.json` and `tsconfig.node.json` (tsconfig.node.json not present — non-blocking)
+- [x] Create `index.html`
+- [x] Create `src/main.tsx` (ReactDOM.createRoot)
+- [x] Create `src/App.tsx` (bare "Supplier Portal" placeholder)
+- [x] Run `npm install` in throwaway directory mode — `node_modules` must be gitignored
+- [x] Verify `npm run dev` starts without errors
 
 ## Vulnerability & Artifact Updates
-- [ ] Plant A04 vulnerability in `packages/domain/validators.py` (`validate_supplier_id`)
-- [ ] Add decoy `validate_date_range` in same file
-- [ ] Add decoy `parse_pagination` in `packages/utils/pagination.py`
-- [ ] Add chain-02 step 1 annotation comment
-- [ ] Update `.vulns` — add VULN-04 standalone, add chain-02 components definition
-- [ ] Update `README.md` — architecture section, monorepo description, endpoints table
-- [ ] Update `scenarios.md` — add chain-02 narrative (step 1 only at this phase)
+- [x] Plant A04 vulnerability in `packages/domain/validators.py` (`validate_supplier_id`)
+- [x] Add decoy `validate_date_range` in same file
+- [x] Add decoy `parse_pagination` in `packages/utils/pagination.py`
+- [x] Add chain-02 step 1 annotation comment
+- [x] Update `.vulns` — add VULN-04 standalone, add chain-02 components definition
+- [x] Update `README.md` — architecture section, monorepo description, endpoints table
+- [x] Update `scenarios.md` — add chain-02 narrative (step 1 only at this phase)
 
 ## Verification
-- [ ] All 3 Python services start independently
-- [ ] `catalog-service` existing endpoints respond correctly (CRUD products, search, orders, user exists)
-- [ ] Existing vulnerabilities remain exploitable:
-  - [ ] A01 IDOR on orders
-  - [ ] A03 SQL/ES injection in product search
-  - [ ] A09 missing audit logging in billing consumer
-  - [ ] chain-01 all 3 steps functional
-- [ ] New A04 vulnerability is exploitable (submit zero/negative/alpha supplierId via API)
-- [ ] Decoy `validate_date_range` correctly rejects bad dates
-- [ ] Decoy `parse_pagination` correctly clamps invalid values
-- [ ] `node_modules` is gitignored (verify via `git status`)
+- [x] All 3 Python services start independently
+- [x] `catalog-service` existing endpoints respond correctly (CRUD products, search, orders, user exists)
+- [x] Existing vulnerabilities remain exploitable:
+  - [x] A01 IDOR on orders
+  - [x] A03 SQL/ES injection in product search
+  - [x] A09 missing audit logging in billing consumer
+  - [x] chain-01 all 3 steps functional
+- [x] New A04 vulnerability is exploitable (submit zero/negative/alpha supplierId via API)
+- [x] Decoy `validate_date_range` correctly rejects bad dates
+- [x] Decoy `parse_pagination` correctly clamps invalid values
+- [x] `node_modules` is gitignored (verify via `git status`)

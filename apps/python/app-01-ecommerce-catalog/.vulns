@@ -7,7 +7,7 @@
     {
       "owasp_id": "A01",
       "category": "Broken Access Control",
-      "location": "src/controllers/order_controller.py",
+      "location": "services/catalog-service/src/controllers/order_controller.py",
       "method": "get_order_details",
       "description": "Order retrieval returns any order by path ID after authentication without checking whether the requester owns the order.",
       "severity": "high",
@@ -16,7 +16,7 @@
     {
       "owasp_id": "A03",
       "category": "Injection",
-      "location": "src/services/search_service.py",
+      "location": "services/catalog-service/src/services/search_service.py",
       "method": "search",
       "description": "Product search inserts user input directly into SQL fallback search and Elasticsearch query_string syntax.",
       "severity": "high",
@@ -25,11 +25,20 @@
     {
       "owasp_id": "A09",
       "category": "Security Logging and Monitoring Failures",
-      "location": "src/consumers/billing_consumer.py",
+      "location": "services/catalog-service/src/consumers/billing_consumer.py",
       "method": "process_order_event",
       "description": "Billing event processing changes invoice state without structured audit logging.",
       "severity": "medium",
       "cwe": "CWE-778"
+    },
+    {
+      "owasp_id": "A04",
+      "category": "Insecure Design",
+      "location": "packages/domain/validators.py",
+      "method": "validate_supplier_id",
+      "description": "Supplier ID validation accepts zero, negative, and non-numeric values, enabling forged supplier identity injection.",
+      "severity": "medium",
+      "cwe": "CWE-602"
     }
   ],
   "chained_attacks": [
@@ -43,7 +52,7 @@
           "step": 1,
           "owasp_id": "A01",
           "description": "Unauthenticated username existence endpoint confirms privileged account names.",
-          "location": "src/controllers/user_controller.py",
+          "location": "services/catalog-service/src/controllers/user_controller.py",
           "method": "user_exists",
           "severity": "low",
           "cwe": "CWE-203"
@@ -52,7 +61,7 @@
           "step": 2,
           "owasp_id": "A02",
           "description": "Hardcoded Flask signing secret allows forged admin session cookies.",
-          "location": "src/config/settings.py",
+          "location": "services/catalog-service/src/config/settings.py",
           "method": "SECRET_KEY",
           "severity": "medium",
           "cwe": "CWE-798"
@@ -61,22 +70,47 @@
           "step": 3,
           "owasp_id": "A01",
           "description": "Admin product mutation endpoint trusts the forgeable session role.",
-          "location": "src/controllers/product_controller.py",
+          "location": "services/catalog-service/src/controllers/product_controller.py",
           "method": "create_product",
           "severity": "medium",
           "cwe": "CWE-862"
+        }
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Weak Supplier ID Validation -> Catalog Poisoning",
+      "attack_scenario": "An attacker exploits weak supplier ID validation to inject forged supplier IDs into bulk catalog uploads, bypassing ownership checks.",
+      "impact": "data_modification",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A04",
+          "description": "Supplier ID validator accepts zero, negative, and non-numeric values without error.",
+          "location": "packages/domain/validators.py",
+          "method": "validate_supplier_id_chain",
+          "severity": "low",
+          "cwe": "CWE-602"
         }
       ]
     }
   ],
   "decoys": [
     {
-      "location": "src/repositories/user_repository.py",
+      "location": "services/catalog-service/src/repositories/user_repository.py",
       "description": "Login uses parameterized SQL despite the nearby vulnerable product search flow."
     },
     {
-      "location": "src/controllers/user_controller.py",
+      "location": "services/catalog-service/src/controllers/user_controller.py",
       "description": "The profile endpoint reads the authenticated session user ID rather than accepting arbitrary user IDs."
+    },
+    {
+      "location": "packages/domain/validators.py",
+      "description": "validate_date_range uses strict fromisoformat parsing and start-before-end check, co-located with the vulnerable validate_supplier_id."
+    },
+    {
+      "location": "packages/utils/pagination.py",
+      "description": "parse_pagination clamps page >= 1 and limit in [1, 100], preventing integer abuse."
     }
   ]
 }
