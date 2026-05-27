@@ -60,6 +60,17 @@ def list_reports():
     return jsonify({"reports": reports})
 
 
+def get_feature_flags():
+    flags = [
+        {"key": "dashboard-v2", "enabled": True},
+        {"key": "export-xlsx", "enabled": True},
+        {"key": "report-scheduling", "enabled": True},
+        {"key": "beta-webhook-retry", "enabled": True},
+        {"key": "preview-dark-mode", "enabled": False},
+    ]
+    return jsonify({"flags": [f for f in flags if f["enabled"]]})
+
+
 def request_report():
     data = request.get_json() or {}
     supplier_id = data.get("supplier_id", "")

@@ -6,8 +6,16 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
+      '/api/admin': {
+        target: 'http://localhost:5002',
+        changeOrigin: true,
+      },
       '/api': {
         target: 'http://localhost:5002',
+        changeOrigin: true,
+      },
+      '/portal': {
+        target: 'http://localhost:5003',
         changeOrigin: true,
       },
     },
