@@ -41,7 +41,8 @@ def init_db():
                 description TEXT,
                 category TEXT,
                 price REAL NOT NULL,
-                quantity INTEGER NOT NULL
+                quantity INTEGER NOT NULL,
+                supplier_id TEXT DEFAULT NULL
             )
             """
         )
@@ -78,16 +79,16 @@ def init_db():
             ],
         )
         cursor.executemany(
-            "INSERT INTO products (sku, name, description, category, price, quantity) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO products (sku, name, description, category, price, quantity, supplier_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
             [
-                ("SKU-CB-001", "Neural Uplink Core v4", "Direct cortical connection unit. Enables high-speed quantum cyberspace navigation.", "Hardware", 850.00, 25),
-                ("SKU-CB-002", "Holographic Cyber-Visor", "Augmented reality HUD with thermal signatures, netrunner trace filters, and neon tint.", "Wearables", 320.00, 40),
-                ("SKU-CB-003", "Subdermal Armor Plating", "Military-grade synthetic alloy shields that fit neatly under organic skin layers.", "Cyberware", 1250.00, 15),
-                ("SKU-CB-004", "Monofilament Laser-Whip", "High-energy micro-filament line that slices through standard security gates.", "Tactical", 450.00, 10),
-                ("SKU-CB-005", "Neon Mesh Trenchcoat", "Stunning waterproof active-mesh outerwear with custom LED color wave modulators.", "Apparel", 190.00, 50),
-                ("SKU-CB-006", "Decrypted Netrunner Deck", "Pre-configured mainframe access terminal featuring custom payload exploit macros.", "Hardware", 950.00, 8),
-                ("SKU-CB-007", "Glitch-Art Decal Sticker Pack", "High-quality reflective vinyl sticker prints featuring corrupted hardware errors.", "Apparel", 15.00, 100),
-                ("SKU-CB-008", "Portable Ice-Pick Exploit", "Hardware-based decrypter capable of shattering sub-level commercial firewalls.", "Tactical", 680.00, 12),
+                ("SKU-CB-001", "Neural Uplink Core v4", "Direct cortical connection unit. Enables high-speed quantum cyberspace navigation.", "Hardware", 850.00, 25, "supplier-001"),
+                ("SKU-CB-002", "Holographic Cyber-Visor", "Augmented reality HUD with thermal signatures, netrunner trace filters, and neon tint.", "Wearables", 320.00, 40, "supplier-001"),
+                ("SKU-CB-003", "Subdermal Armor Plating", "Military-grade synthetic alloy shields that fit neatly under organic skin layers.", "Cyberware", 1250.00, 15, "supplier-001"),
+                ("SKU-CB-004", "Monofilament Laser-Whip", "High-energy micro-filament line that slices through standard security gates.", "Tactical", 450.00, 10, "supplier-002"),
+                ("SKU-CB-005", "Neon Mesh Trenchcoat", "Stunning waterproof active-mesh outerwear with custom LED color wave modulators.", "Apparel", 190.00, 50, "supplier-002"),
+                ("SKU-CB-006", "Decrypted Netrunner Deck", "Pre-configured mainframe access terminal featuring custom payload exploit macros.", "Hardware", 950.00, 8, "supplier-002"),
+                ("SKU-CB-007", "Glitch-Art Decal Sticker Pack", "High-quality reflective vinyl sticker prints featuring corrupted hardware errors.", "Apparel", 15.00, 100, "supplier-003"),
+                ("SKU-CB-008", "Portable Ice-Pick Exploit", "Hardware-based decrypter capable of shattering sub-level commercial firewalls.", "Tactical", 680.00, 12, "supplier-003"),
             ],
         )
 

@@ -25,7 +25,7 @@ class ProductRepository:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO products (sku, name, description, category, price, quantity) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO products (sku, name, description, category, price, quantity, supplier_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 data["sku"],
                 data["name"],
@@ -33,10 +33,19 @@ class ProductRepository:
                 data.get("category", "General"),
                 float(data.get("price", 0.0)),
                 int(data.get("quantity", 0)),
+                data.get("supplier_id", None),
             ),
         )
         conn.commit()
         return cursor.lastrowid
+
+    def list_by_supplier(self, supplier_id):
+        cursor = get_db_connection().cursor()
+        cursor.execute(
+            "SELECT id, sku, name, description, category, price, quantity FROM products WHERE supplier_id = ?",
+            (supplier_id,),
+        )
+        return cursor.fetchall()
 
     def reduce_stock(self, product_id, quantity):
         cursor = get_db_connection().cursor()
