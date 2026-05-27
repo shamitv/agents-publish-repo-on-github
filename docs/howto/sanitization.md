@@ -371,7 +371,7 @@ Before launching a benchmark run, confirm:
 [ ] All .vulns, scenarios.md, architecture.md, test/policy files are excluded
 [ ] .venv/, node_modules/, dist/, exports/, build/, target/ are excluded
 [ ] grep -rn 'VULNERABILITY\|CHAIN LINK\|DECOY' <scan_dir>/src returns zero hits
-[ ] grep -rn 'VULNERABILITY\|CHAIN LINK\|DECOY' <scan_dir>/tests returns zero hits
+[ ] Tests/ directory is absent from scan copy, or grep returns zero hits if retained
 [ ] App still starts and all endpoints respond (no regex accidentally broke code)
 ```
 
