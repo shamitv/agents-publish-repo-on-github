@@ -169,7 +169,10 @@ _HINT_KEYWORDS = r"(VULNERABILITY|CHAIN LINK|DECOY)"
 _HARDCODED_EXCLUDE_DIRS = {".venv", "node_modules", "dist", "exports", "build", "target"}
 
 # Files always excluded from scan copies, regardless of .vulns config.
-_HARDCODED_EXCLUDE_FILES = {".vulns", "scenarios.md", "README.md", "docs/tech/architecture.md"}
+_HARDCODED_EXCLUDE_FILES = {
+    ".vulns", "scenarios.md", "README.md", "docs/tech/architecture.md",
+    "tests", "src/test", "__tests__",
+}
 
 
 def _build_annotation_regexes() -> list[tuple[re.Pattern, str]]:
@@ -191,6 +194,10 @@ def _build_annotation_regexes() -> list[tuple[re.Pattern, str]]:
         (re.compile(rf"{{/\*[\s\S]*?{_HINT_KEYWORDS}[\s\S]*?\*/}}"), ""),
         # Java / JS block comments on one line
         (re.compile(rf"/\*\s*{_HINT_KEYWORDS}[^*]*\*/"), ""),
+        # Single-line XML / HTML comments: <!-- VULN A06: ... -->
+        (re.compile(rf"(?m)<!--\s*{_HINT_KEYWORDS}.*?-->"), ""),
+        # Multi-line XML / HTML comments spanning lines
+        (re.compile(rf"<!--[\s\S]*?{_HINT_KEYWORDS}[\s\S]*?-->"), ""),
     ]
 
 
@@ -257,7 +264,7 @@ def sanitize_app(app_root: Path, work_dir: Path) -> Path:
         patterns.append((re.compile(entry["regex"]), entry.get("replace", "")))
 
     # ---- Step 5: Apply patterns to all source files ----
-    source_extensions = {".py", ".java", ".ts", ".tsx", ".js", ".jsx"}
+    source_extensions = {".py", ".java", ".ts", ".tsx", ".js", ".jsx", ".xml", ".html"}
     for src_file in dst.rglob("*"):
         if src_file.suffix in source_extensions:
             try:
@@ -288,7 +295,7 @@ def verify_clean(app_root: Path) -> int:
 
     # Check 1: Source files for annotation keywords
     for src_file in app_root.rglob("*"):
-        if src_file.suffix in {".py", ".java", ".ts", ".tsx", ".js", ".jsx"}:
+        if src_file.suffix in {".py", ".java", ".ts", ".tsx", ".js", ".jsx", ".xml", ".html"}:
             try:
                 content = src_file.read_text(encoding="utf-8")
                 if hint_re.search(content):
