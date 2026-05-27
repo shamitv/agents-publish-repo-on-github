@@ -118,8 +118,8 @@ owasp-test/
 │   └── plans/                       # Expansion and run plans
 ├── apps/
 │   ├── python/                      # 14 Python apps
-│   ├── java/                        # 13 Java apps
-│   ├── typescript/                  # 12 TypeScript apps
+│   ├── java/                        # 11 Java apps
+│   ├── typescript/                  # 10 TypeScript apps
 │   └── javascript/                  # 15 JavaScript apps
 ```
 

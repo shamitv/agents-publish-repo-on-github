@@ -165,6 +165,12 @@ from pathlib import Path
 # These appear in comments, docstrings, and test assertions across all languages.
 _HINT_KEYWORDS = r"(VULNERABILITY|CHAIN LINK|DECOY)"
 
+# Directories always excluded from scan copies, regardless of .vulns config.
+_HARDCODED_EXCLUDE_DIRS = {".venv", "node_modules", "dist", "exports", "build", "target"}
+
+# Files always excluded from scan copies, regardless of .vulns config.
+_HARDCODED_EXCLUDE_FILES = {".vulns", "scenarios.md", "README.md", "docs/tech/architecture.md"}
+
 
 def _build_annotation_regexes() -> list[tuple[re.Pattern, str]]:
     """Return language-agnostic regex patterns that cover all comment styles.
@@ -172,12 +178,13 @@ def _build_annotation_regexes() -> list[tuple[re.Pattern, str]]:
     These serve as a fallback when .vulns has no strip_patterns defined.
     """
     return [
-        # Python # comments
-        (re.compile(rf"(?m)^\s*#\s*{_HINT_KEYWORDS}\b.*$"), ""),
+        # Python inline + full-line # comments (no leading anchor — catches
+        # both "import pickle  # VULN A08: ..." and "# VULN A01: ...")
+        (re.compile(rf"(?m)#\s*{_HINT_KEYWORDS}\b.*$"), ""),
         # Python docstring prose (no # prefix)
         (re.compile(rf"(?m)^\s+{_HINT_KEYWORDS}\b.*$"), ""),
-        # Java / TS / JS line comments
-        (re.compile(rf"(?m)^\s*//\s*{_HINT_KEYWORDS}\b.*$"), ""),
+        # Java / TS / JS inline + full-line // comments
+        (re.compile(rf"(?m)//\s*{_HINT_KEYWORDS}\b.*$"), ""),
         # Single-line JSX block comments: {/* VULN ... */}
         (re.compile(rf"\{{/\*\s*{_HINT_KEYWORDS}[^*/]*\*/\}}"), ""),
         # Multi-line JSX block comments: handle as single contiguous match
@@ -224,18 +231,18 @@ def sanitize_app(app_root: Path, work_dir: Path) -> Path:
     # ---- Step 1: Determine output path ----
     dst = work_dir / app_root.name
 
-    # ---- Step 2: Copy app, excluding dependency directories ----
-    exclude_dirs = rules.get("exclude_dirs", [])
+    # ---- Step 2: Copy app, excluding hard-coded + app-specific directories ----
+    exclude_dirs = sorted(_HARDCODED_EXCLUDE_DIRS | set(rules.get("exclude_dirs", [])))
     shutil.copytree(
         app_root,
         dst,
         symlinks=False,
-        ignore=shutil.ignore_patterns(*exclude_dirs) if exclude_dirs else None,
+        ignore=shutil.ignore_patterns(*exclude_dirs),
         dirs_exist_ok=True,
     )
 
-    # ---- Step 3: Remove excluded files ----
-    exclude_files = rules.get("exclude_files", [])
+    # ---- Step 3: Remove hard-coded + app-specific excluded files ----
+    exclude_files = sorted(_HARDCODED_EXCLUDE_FILES | set(rules.get("exclude_files", [])))
     for pattern in exclude_files:
         for matched_path in dst.glob(pattern):
             if matched_path.is_file():
@@ -244,15 +251,10 @@ def sanitize_app(app_root: Path, work_dir: Path) -> Path:
                 shutil.rmtree(matched_path)
 
     # ---- Step 4: Build regex patterns ----
-    # Prefer patterns from .vulns; fall back to built-in defaults.
-    strip_configs = rules.get("strip_patterns", [])
-    if strip_configs:
-        patterns = [
-            (re.compile(entry["regex"]), entry.get("replace", ""))
-            for entry in strip_configs
-        ]
-    else:
-        patterns = _build_annotation_regexes()
+    # Always start with built-in defaults; extend (never replace) with .vulns patterns.
+    patterns = _build_annotation_regexes()
+    for entry in rules.get("strip_patterns", []):
+        patterns.append((re.compile(entry["regex"]), entry.get("replace", "")))
 
     # ---- Step 5: Apply patterns to all source files ----
     source_extensions = {".py", ".java", ".ts", ".tsx", ".js", ".jsx"}
@@ -270,13 +272,21 @@ def sanitize_app(app_root: Path, work_dir: Path) -> Path:
 
 
 def verify_clean(app_root: Path) -> int:
-    """Check for remaining annotation keywords in all source files.
+    """Check for remaining hint contamination in the scan copy.
+
+    Checks:
+      1. Source files for annotation keywords (VULNERABILITY, CHAIN LINK, DECOY).
+      2. Hard-coded excluded basenames are not present in the scan copy.
+      3. Remaining Markdown/docs for hint keywords or OWASP references.
 
     Returns:
-        Number of files still containing hints. Zero = clean.
+        Number of contaminated files found. Zero = clean.
     """
     hint_re = re.compile(rf"{_HINT_KEYWORDS}")
+    owasp_re = re.compile(r"OWASP|CWE-\d{3}")
     contaminated = []
+
+    # Check 1: Source files for annotation keywords
     for src_file in app_root.rglob("*"):
         if src_file.suffix in {".py", ".java", ".ts", ".tsx", ".js", ".jsx"}:
             try:
@@ -286,12 +296,27 @@ def verify_clean(app_root: Path) -> int:
             except (UnicodeDecodeError, PermissionError):
                 continue
 
+    # Check 2: Hard-coded excluded basenames must not be present
+    for basename in _HARDCODED_EXCLUDE_FILES:
+        for f in app_root.rglob(basename):
+            contaminated.append(f)
+
+    # Check 3: Remaining Markdown/docs files must not contain hint terms
+    for md_file in app_root.rglob("*.md"):
+        try:
+            content = md_file.read_text(encoding="utf-8")
+            if hint_re.search(content) or owasp_re.search(content):
+                contaminated.append(md_file)
+        except (UnicodeDecodeError, PermissionError):
+            continue
+
     if contaminated:
-        print(f"WARNING: {len(contaminated)} files still contain annotation keywords:")
-        for f in contaminated:
+        distinct = sorted(set(contaminated), key=str)
+        print(f"WARNING: {len(distinct)} file(s) still contain contamination:")
+        for f in distinct:
             print(f"  {f.relative_to(app_root)}")
     else:
-        print("OK: No annotation keywords found in source files.")
+        print("OK: No contamination found in scan copy.")
 
     return len(contaminated)
 
