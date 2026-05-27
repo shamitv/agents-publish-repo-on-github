@@ -1,6 +1,6 @@
 # Architecture Document — App 01: E-Commerce Product Catalog API
 
-> **Target State Reference**: This document describes the current system architecture and references the target state defined in [`docs/plans/complexity/realistic/0.1/app-01-ecommerce-catalog/expansion-plan.md`](../../../../../docs/plans/complexity/realistic/0.1/app-01-ecommerce-catalog/expansion-plan.md). Implementation of the target state proceeds across phases (Phase 01–07); this document captures the architecture as-built and calls out planned changes in callout blocks.
+> **Target State Reference**: This document describes the current system architecture and references the target state defined in [`docs/plans/complexity/realistic/0.1/app-01-ecommerce-catalog/expansion-plan.md`](../../../../../docs/plans/complexity/realistic/0.1/app-01-ecommerce-catalog/expansion-plan.md). Implementation of the target state proceeded across phases (Phase 01–05); this document captures the architecture as-built.
 
 ---
 
@@ -38,17 +38,16 @@ The E-Commerce Product Catalog API is a multi-service retail catalog and order f
 
 ### 1.2 Tech Stack
 
-| Layer | Technology | Target State |
-|-------|------------|-------------|
-| Backend | Python 3.x, Flask | Same (Phase 07 adds Go sidecar) |
-| Frontend (Customer) | Decoupled SPA (HTML5, Vanilla JS, CSS) | Unchanged |
-| Frontend (Supplier) | TypeScript, React 18, Vite | Phase 04 ✅ Implemented |
-| Database | SQLite (dev), PostgreSQL-ready schema patterns | PostgreSQL production (Phase 03) |
-| Search / MQ | Elasticsearch query client, Kafka-style event publisher/consumers | Same |
-| Cache | In-memory `dict` with file-based persistence | Redis cache tier (Phase 06) |
-| Config | — | Etcd config store (Phase 07) |
-| Auth | Flask session cookies with hardcoded secret | JWT + Auth0 (Phase 05) |
-| Containerization | Docker, Docker Compose | Docker Compose with API gateway (Phase 05) |
+| Layer | Technology |
+|-------|------------|
+| Backend | Python 3.x, Flask (3 microservices) |
+| Frontend (Customer) | Decoupled SPA (HTML5, Vanilla JS, CSS) |
+| Frontend (Supplier) | TypeScript, React 18, Vite |
+| Database | SQLite `:memory:` |
+| Search / MQ | Elasticsearch query client, Kafka-style event publisher/consumers |
+| Cache | In-memory `dict` with file-based persistence |
+| Auth | Flask session cookies with hardcoded secret (intentionally vulnerable) |
+| Containerization | Docker, Docker Compose |
 
 ---
 
@@ -66,38 +65,25 @@ The E-Commerce Product Catalog API is a multi-service retail catalog and order f
 ## 3. Service Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Supplier Portal                              │
-│                    (TypeScript / React SPA)                         │
-└──────────────────────┬──────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│                  Supplier Portal                      │
+│              (TypeScript / React SPA)                 │
+└──────────────────────┬───────────────────────────────┘
                        │ HTTP (REST)
                        ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│                        API Gateway                                  │
-│                     (Target: Phase 05)                              │
-│          JWT validation, tenant context injection, rate-limit       │
-└────┬──────────────┬──────────────┬──────────────────┬───────────────┘
-     │              │              │                  │
-     ▼              ▼              ▼                  ▼
-┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌──────────────────┐
-│ Catalog  │ │Reporting │ │ Supplier     │ │ Notification     │
-│ Service  │ │ Service  │ │ Portal API   │ │ Service          │
-│(Flask)   │ │(Flask)   │ │(Flask)       │ │(Target: Phase 04)│
-│ :5001    │ │ :5003    │ │ :5002        │ │ :5004            │
-└────┬─────┘ └────┬─────┘ └──────┬───────┘ └──────────────────┘
+┌──────────┐ ┌──────────┐ ┌──────────────┐
+│ Catalog  │ │Reporting │ │ Supplier     │
+│ Service  │ │ Service  │ │ Portal API   │
+│(Flask)   │ │(Flask)   │ │(Flask)       │
+│ :8081    │ │ :5002    │ │ :5003        │
+└────┬─────┘ └────┬─────┘ └──────┬───────┘
      │            │              │
      │            │              │
      ▼            ▼              ▼
-┌─────────────────────────────────────┐
-│         PostgreSQL / SQLite         │
-│  (catalog, orders, users, reports)  │
-└─────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────┐
-│  Redis Cache (Target: Phase 06)     │
-│  (session store, rate-limit buckets)│
-└─────────────────────────────────────┘
+┌──────────────────────────────────────┐
+│           SQLite (in-memory)         │
+│   (catalog, orders, users, reports)  │
+└──────────────────────────────────────┘
 ```
 
 ### Inter-Service Communication
@@ -117,8 +103,7 @@ The E-Commerce Product Catalog API is a multi-service retail catalog and order f
 **Location**: `services/catalog-service/`
 
 **Entry Point**:
-- `app.py` — Development entry point (Flask dev server on port 8081)
-- `src/main.py` — `create_app()` factory for production use
+- `app.py` — Entry point (Flask dev server on port 8081)
 
 #### 4.1.1 Layer Architecture
 
@@ -149,16 +134,17 @@ static/           → Customer-facing SPA (HTML, JS, CSS)
 | GET | `/api/orders` | ANY | `routes/order_controller` | Lists user order history |
 | POST | `/api/orders` | ANY | `routes/order_controller` | Processes checkout |
 | GET | `/api/orders/{id}` | ANY | `routes/order_controller.get_order_details()` | Returns order details by ID |
-| POST | `/api/products/bulk` | ADMIN+ | `routes/bulk_upload_routes` → `controllers/bulk_upload_controller` | CSV bulk import of products |
-| POST | `/api/products/{id}/lifecycle` | ADMIN+ | `routes/lifecycle_routes` → `controllers/lifecycle_controller` | Product retire/restore/relist (Phase 01) |
-| POST | `/api/products/{id}/lifecycle/batch` | ADMIN+ | `routes/lifecycle_routes` → `controllers/lifecycle_controller` | Batch lifecycle operations |
+| POST | `/api/products/bulk-upload` | ADMIN+ | `routes/bulk_upload_routes` → `controllers/bulk_upload_controller` | CSV bulk import of products (chain link) |
+| GET | `/api/products/my-products` | SUPPLIER+ | `routes/product_routes` → `controllers/product_controller.get_my_products()` | List own products scoped to session (decoy) |
+| POST | `/api/products/{productId}/lifecycle/{action}` | ADMIN+ | `routes/lifecycle_routes` → `controllers/lifecycle_controller.advance()` | Advance product lifecycle state (draft→review→published→archived) |
+| GET | `/api/products/{productId}/lifecycle` | ANY | `routes/lifecycle_routes` → `controllers/lifecycle_controller.history()` | View lifecycle history |
 
 #### 4.1.3 Key Business Logic
 
 - **Search Service** (`services/search_service.py`): Supports full-text product search with fallback between Elasticsearch and SQLite.
 - **Order Controller** (`controllers/order_controller.py`): Retrieves order records by ID for the authenticated user.
 - **Billing Consumer** (`consumers/billing_consumer.py`): Processes order events and mutates invoice state.
-- **Lifecycle Service** (`services/lifecycle_service.py`): Manages product state transitions (active → retired → restored → relisted) with status history tracking. Uses a dedicated `ProductLifecycle` model.
+- **Lifecycle Service** (`services/lifecycle_service.py`): Manages product state transitions (draft → review → published → archived) with status history tracking. Uses a dedicated `ProductLifecycle` model.
 - **Bulk Upload Controller** (`controllers/bulk_upload_controller.py`): Accepts CSV file uploads for batch product creation. Parses CSV rows and creates products via the service layer.
 
 #### 4.1.4 Dependencies
@@ -180,7 +166,7 @@ Kafka-style publisher (event bus)
 
 **Location**: `services/reporting-service/`
 
-**Entry Point**: `src/main.py` — Flask app factory on port 5003
+**Entry Point**: `app.py` — Flask app factory on port 5002
 
 #### 4.2.1 Architecture
 
@@ -188,7 +174,6 @@ Kafka-style publisher (event bus)
 routes/           → Report admin routes
 services/
   ├── cache_service.py      → In-memory + file-based report result caching
-  │                          (Target: Redis-backed cache tier in Phase 06)
   ├── feature_flags.py      → Feature flag evaluation and management
   │                          (JSON-file-backed store with metadata support)
   ├── scheduler.py          → Cron-style job scheduling for reports
@@ -204,7 +189,7 @@ exports/          → Generated report output files (CSV, JSON)
 
 #### 4.2.2 Key Components
 
-- **Cache Service**: Stores generated reports in memory and on disk to avoid recomputation. Underlying storage is a simple `dict` with TTL-based expiry. Supports save/restore operations — **Target: Redis-backed cache tier in Phase 06**.
+- **Cache Service**: Stores generated reports in memory and on disk to avoid recomputation. Underlying storage is a simple `dict` with TTL-based expiry.
 - **Feature Flag Store**: Manages boolean feature flags with metadata (description, owner) backed by a JSON file on disk. Provides CRUD operations and toggle support. Used to control rollout of new report types.
 - **Scheduler**: Manages periodic report generation jobs using a lightweight in-process background thread. Supports interval-based scheduling with configurable task types and parameters.
 - **Webhook Retry**: Implements exponential backoff for delivering reports to supplier-configured webhook endpoints. Tracks delivery attempts and failures with per-delivery status.
@@ -241,69 +226,104 @@ exports/          → Generated report output files (CSV, JSON)
 
 **Role**: Supplier-facing REST API for managing report generation, webhook configuration, and supplier profile data.
 
-> **Introduced**: Phase 02 of target state. Expanded with supplier registration and webhook self-service in Phase 03.
+> **Introduced**: Phase 02 of target state. Expanded with A07 auth, dashboard, and async proxies in Phase 02-03.
 
 **Location**: `services/supplier-portal-api/`
 
-**Entry Point**: `src/main.py` — Flask app factory on port 5002
+**Entry Point**: `app.py` — Flask app factory on port 5003
 
 #### 4.3.1 Architecture
 
 ```
-routes/           → report_bp (Flask Blueprint)
-controllers/      → Report controller (triggers generation, returns status)
-services/         → Report generation orchestration
+routes/           → report_bp, auth_bp, portal_bp (Flask Blueprints)
+controllers/      → Report controller, auth controller, portal controller
+services/         → Report generation, dashboard, auth services
 models/           → Supplier model, ReportDefinition model
 ```
 
 #### 4.3.2 Key Models
 
-- **Supplier** (`models/supplier.py`): Represents a registered supplier organization. Contains supplier ID, name, email, tier (standard/premium/enterprise), and active status. Uses an in-memory dictionary store with three seeded suppliers.
-- **ReportDefinition** (`models/report_definition.py`): Describes a report template including query parameters, output format, schedule (cron), and webhook URL.
+- **Supplier** (`models/supplier.py`): Represents a registered supplier organization. Contains supplier ID, name, email, tier (standard/premium/enterprise), and active status. Uses an in-memory dictionary store with 7 seeded suppliers.
+- **ReportDefinition** (`models/report_definition.py`): Describes a report template with report_id, name, report_type (sales, inventory_health, data_quality), description, and supplier association.
 
 #### 4.3.3 Route Map
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/api/supplier/reports/generate` | API Key | Triggers report generation |
-| GET | `/api/supplier/reports/{id}` | API Key | Returns report status/download |
-| GET | `/api/supplier/reports` | API Key | Lists supplier's reports |
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/portal/auth/login` | Supplier login (VULNERABILITY A07) |
+| GET | `/portal/auth/verify` | Verify session token (decoy) |
+| GET | `/portal/dashboard` | KPI summary dashboard |
+| GET | `/portal/reports` | List supplier's reports |
+| POST | `/portal/reports/request` | Request async report generation |
+| GET | `/portal/reports/{jobId}/status` | Poll async job status |
+| GET | `/portal/reports/{jobId}/download` | Download completed report |
+| GET | `/portal/feature-flags` | Return enabled flags for current supplier |
+| GET | `/api/supplier/reports/{report_id}` | Generate supplier report |
+| GET | `/api/supplier/reports/{report_id}/safe` | Generate scoped report (decoy) |
 
 ---
 
 ### 4.4 Supplier Portal Frontend (TypeScript)
 
-**Role**: React-based SPA for supplier users to view dashboards, manage reports, and configure webhooks.
+**Role**: React-based SPA for supplier users to view dashboards, manage reports, configure webhooks, and access admin console for cache/feature-flags/scheduler management.
 
 > **Introduced**: Phase 04 of the target state. ✅ Implemented
 
 **Location**: `apps/typescript/app-01-supplier-portal/`
 
-**Tech Stack**: TypeScript, React 18, Vite, React Router, i18n (en/es)
+**Tech Stack**: TypeScript, React 18, Vite, React Router, Axios, i18n (en/es)
 
 #### 4.4.1 Architecture
 
 ```
+context/          → AuthContext (login/logout, token management)
 pages/
-  ├── DashboardPage.tsx    → Supplier dashboard with KPI cards
-  └── ReportsPage.tsx      → Report list, generation, status tracking
+  ├── Login.tsx             → Supplier login with ID + password
+  ├── DashboardPage.tsx     → KPI cards, recent reports, custom widgets
+  ├── ReportsPage.tsx       → Report list, enqueue, XSS-vulnerable notes renderer
+  ├── ReportDetail.tsx      → Job status, parameters, download button
+  ├── Webhooks.tsx          → Register/list/delete webhooks
+  ├── admin/
+  │   ├── Flags.tsx         → Feature flag list with toggle switches
+  │   ├── FlagDetail.tsx    → Flag metadata with XSS-vulnerable description renderer
+  │   ├── Scheduler.tsx     → Scheduled jobs CRUD
+  │   └── Cache.tsx         → Cache stats dashboard + invalidation
+  └── test/
+      ├── Widgets.tsx       → Custom widget builder (chain-03 XSS plant site)
+      ├── Notifications.tsx → Notification preference mock UI
+      └── Console.tsx       → Admin diagnostic console placeholder
 hooks/
-  ├── useDashboard.ts      → Fetches dashboard data from API
-  └── useReports.ts        → Manages report generation lifecycle
-services/
-  └── api.ts               → HTTP client wrapping fetch
+  ├── useDashboard.ts      → Fetches KPI from /portal/dashboard
+  ├── useReports.ts        → Report generation lifecycle
+  └── useWebhooks.ts       → Webhook subscription CRUD
 components/
-  └── Header.tsx           → Navigation with i18n language switcher
+  ├── Header.tsx           → Navigation with locale switcher
+  ├── Layout.tsx           → Header + Outlet for nested routes
+  ├── SessionProvider.tsx  → Short-lived token refresh decoy
+  ├── DashboardWidgets.tsx → KPICard, RecentReports, CustomWidgetRenderer
+  ├── ReportNotes.tsx      → Safe textContent renderer (decoy)
+  ├── JobStatusBadge.tsx   → Colored status pill
+  ├── DownloadButton.tsx   → Disabled for non-completed jobs
+  └── LoadingSpinner.tsx   → Animated loading indicator
+services/
+  └── api.ts               → Axios instance with A05 token-in-URL vulnerability
 i18n/
   ├── en.json              → English translations
-  ├── es.json              → Spanish translations
-  └── I18nContext.tsx       → React context for i18n
+  ├── es.json              → Spanish translations (partial)
+  └── I18nContext.tsx       → React context for locale switching
 ```
 
 #### 4.4.2 Pages
 
-- **DashboardPage**: Displays supplier KPI summary cards (total products, active orders, report count, pending webhooks). Fetches data via `useDashboard` hook → `/portal/dashboard` API.
-- **ReportsPage**: Lists supplier's generated reports with status indicators. Supports triggering new report generation and navigating to report details. Uses `useReports` hook → `/portal/reports` API.
+- **LoginPage**: Supplier ID + password form calling `POST /portal/auth/login`. Redirects to dashboard on success.
+- **DashboardPage**: Displays KPI cards (total sales, orders, low stock, data quality), recent reports list, and a custom widget preview section.
+- **ReportsPage**: Lists supplier reports with status badges. Has A06 XSS vulnerability: report notes rendered via `dangerouslySetInnerHTML`. Also includes decoy `ReportNotes` component using `textContent`.
+- **ReportDetailPage**: Displays job status, parameters, generated date, and download button (disabled for non-completed jobs).
+- **WebhooksPage**: Register webhook form with client-side URL validation decoy, subscription list with delete.
+- **AdminFlagsPage**: Feature flag list with toggle switches and detail navigation.
+- **AdminFlagDetailPage**: Flag metadata — renders description via `dangerouslySetInnerHTML` (chain-03 step 2 XSS).
+- **AdminSchedulerPage**: Scheduled jobs CRUD with add/delete forms.
+- **AdminCachePage**: Cache stats dashboard with invalidation form.
 
 ---
 
@@ -312,18 +332,16 @@ i18n/
 ### 5.1 `packages/domain/`
 
 Shared domain models and data transfer objects used across multiple services:
-- Product domain objects
-- Order domain objects
-- User models
-- Supplier contracts
+- Product, Category, Order, Supplier, and Report request schemas (dataclasses)
+- Enums (SupplierStatus, ReportType, JobStatus, ProductLifecycleState)
+- Validation rules (`validate_supplier_id` — vulnerable, `validate_date_range` — decoy)
 
 ### 5.2 `packages/utils/`
 
 Cross-cutting utility functions:
-- Event publishing helpers (Kafka-style)
-- Serialization/deserialization
+- Pagination parsing (page/limit clamping, decoy safe pattern)
+- Response formatting helpers
 - Date/time formatting
-- Common validation routines
 
 ---
 
@@ -331,8 +349,7 @@ Cross-cutting utility functions:
 
 ### 6.1 Database
 
-- **Current**: SQLite (single file for dev), with PostgreSQL-ready schema patterns
-- **Target**: PostgreSQL for production (Phase 03+)
+- SQLite `:memory:` (in-memory database, recreated on each service restart)
 
 #### Schema Groups
 
@@ -347,12 +364,7 @@ Cross-cutting utility functions:
 
 ### 6.2 Caching
 
-- **Current**: In-memory `dict` cache in Reporting Service with JSON file persistence
-- **Target**: Redis cache tier (Phase 06) for:
-  - Report result caching
-  - Session store
-  - Rate-limit buckets
-  - Product catalog hot cache
+- In-memory `dict` cache in Reporting Service with JSON file persistence
 
 ### 6.3 Event Bus
 
@@ -366,14 +378,11 @@ Cross-cutting utility functions:
 
 ### 7.1 Authentication
 
-- **Current**: Flask signed session cookies using a configured `SECRET_KEY`.
-- **Target**: JWT-based auth with Auth0/OIDC provider (Phase 05) plus API key authentication for service-to-service calls.
-- **Supplier Portal API**: Uses simple API key authentication.
+- Flask signed session cookies using a configured `SECRET_KEY` (intentionally hardcoded vulnerability).
 
 ### 7.2 Authorization
 
-- **Current**: Session-based role checks (`session.get("role")`) in controllers.
-- **Target**: API Gateway enforces tenant isolation via JWT claims context (Phase 05).
+- Session-based role checks (`session.get("role")`) in controllers.
 
 ### 7.3 API Conventions
 
@@ -391,13 +400,11 @@ Cross-cutting utility functions:
 ```yaml
 # docker-compose.yml (current)
 services:
-  catalog-service:      # Flask, port 5001 → 8081
-  reporting-service:    # Flask, port 5003
-  supplier-portal-api:  # Flask, port 5002
-  supplier-portal-ui:   # Vite dev server, port 5173 → 5173 (Phase 04)
+  web:                  # catalog-service, Flask, port 8081
+  # Note: reporting-service and supplier-portal-api are not yet in docker-compose
 ```
 
-**Target**: Add API Gateway (Envoy/Kong), Redis, Etcd, Notification Service, and change port mappings.
+**Target**: Add reporting-service, supplier-portal-api, and supplier-portal-ui services.
 
 ### 8.2 Dockerfile
 
@@ -405,13 +412,12 @@ Multi-stage build with `pip install` of `requirements.txt`. Production entry poi
 
 ### 8.3 Environment Configuration
 
-| Variable | Current Source | Target Source |
-|----------|---------------|---------------|
-| `SECRET_KEY` | Hardcoded in `settings.py` | Environment variable (Phase 05) |
-| `DATABASE_URL` | SQLite default | PostgreSQL (Phase 03) |
-| `ELASTICSEARCH_URL` | Environment variable | Etcd config store (Phase 07) |
-| `REDIS_URL` | — | Environment variable (Phase 06) |
-| `ETCD_ENDPOINTS` | — | Environment variable (Phase 07) |
+| Variable | Source |
+|----------|--------|
+| `SECRET_KEY` | Hardcoded in `settings.py` (intentionally vulnerable) |
+| `DATABASE_URL` | SQLite `:memory:` default |
+| `ELASTICSEARCH_URL` | Environment variable |
+| `FLASK_SECRET_KEY` | Environment variable (fallback to hardcoded default) |
 
 ---
 
@@ -419,8 +425,7 @@ Multi-stage build with `pip install` of `requirements.txt`. Production entry poi
 
 ### 9.1 Logging
 
-- **Current**: Python `logging` module with basic INFO/WARN/ERROR levels. No structured logging.
-- **Target**: Structured JSON logging with correlation IDs (Phase 05).
+- Python `logging` module with basic INFO/WARN/ERROR levels.
 
 ### 9.2 Health Checks
 
@@ -428,80 +433,62 @@ Multi-stage build with `pip install` of `requirements.txt`. Production entry poi
 
 ### 9.3 Monitoring
 
-- **Current**: None
-- **Target**: Prometheus metrics endpoint + Grafana dashboards (Phase 07)
+- None
 
 ---
 
-## 10. Target State Evolution
+## 10. Expansion Phases
 
-The expansion plan defines seven phases of incremental architecture evolution. Below is a summary of each phase and its architectural impact, with current implementation status.
+The expansion plan defined five phases of incremental architecture evolution. All are implemented.
 
-### Phase 01 — Product Lifecycle Management ✅ (Implemented)
-
-**Architecture Impact**:
-- Added `lifecycle_routes`, `lifecycle_controller`, `lifecycle_service` to Catalog Service
-- Added `ProductLifecycle` and `LifecycleHistory` models
-- New endpoints: `POST /api/products/{id}/lifecycle`, batch lifecycle operations
-
-### Phase 02 — Reporting & Supplier Portal ✅ (Implemented)
+### Phase 01 — Monorepo Refactor + Shared Packages ✅
 
 **Architecture Impact**:
-- Created **Reporting Service** (`services/reporting-service/`) as a new microservice
-- Created **Supplier Portal API** (`services/supplier-portal-api/`) as a new microservice
-- Report generation with scheduling, caching, and webhook delivery
-- Supplier-facing report query endpoints
-- Supplier model with in-memory store and tier-based differentiation (standard/premium/enterprise)
+- Restructured into `services/` (3 microservices) and `packages/` (shared domain + utils)
+- Created `packages/domain/` with shared DTOs, enums, validation rules
+- Created `packages/utils/` with pagination and response helpers
+- Added `A04` vulnerability: weak supplier ID validation in `validators.py`
+- Added chain-02 step 1 annotation
 
-### Phase 03 — Supplier Registration & Webhook Self-Service 🔜
-
-**Architecture Impact**:
-- Supplier model with registration flows (partial: Supplier model exists in-memory)
-- Webhook configuration CRUD for suppliers (partial: webhook delivery exists in admin routes)
-- PostgreSQL migration from SQLite
-
-### Phase 04 — Notification Service & Supplier Frontend ✅ (Partially Implemented)
+### Phase 02 — Core Reporting Features ✅
 
 **Architecture Impact**:
-- **Supplier Portal Frontend** (TypeScript/React, `apps/typescript/app-01-supplier-portal/`) ✅ Implemented
-  - Dashboard with KPI cards and report management UI
-  - i18n support with English and Spanish locales
-  - React hooks for data fetching (`useDashboard`, `useReports`)
-- **Notification Service** (new microservice, port 5004) 🔜 Not yet implemented
+- Product lifecycle management (draft → review → published → archived)
+- Bulk CSV upload with chain-02 step 2 (trusts supplierId from request body)
+- Product attribute sets and values per category
+- Reporting Service aggregation engine (sales, inventory health, data quality reports)
+- Supplier Portal API with auth, dashboard, and report listing
+- Added `A07` vulnerability: accept-any-password supplier login
+- Added chain-02 step 2 annotation (completed chain)
 
-### Phase 05 — Auth Isolation, API Gateway & Admin Console ✅ (Partially Implemented)
-
-**Architecture Impact**:
-- **Admin Console** in Reporting Service ✅ Implemented
-  - Cache management endpoints (stats, entries, invalidate, save, restore)
-  - Feature flag CRUD and toggle
-  - Scheduler job management (list, add, get, delete, start, stop)
-  - Webhook delivery management (list, create, retry, pending/failed)
-- **Feature Flag System** ✅ Implemented
-  - JSON-file-backed `FeatureFlagStore` with metadata support
-  - Validation for flag keys
-- **Scheduler** ✅ Implemented
-  - In-process background thread with interval-based scheduling
-  - Job lifecycle (add, get, delete, start, stop)
-- **Webhook Retry** ✅ Implemented
-  - Exponential backoff delivery with status tracking
-- **API Gateway** 🔜 Not yet implemented
-- **JWT Authentication** 🔜 Not yet implemented
-
-### Phase 06 — Feature Flags & Redis Cache 🔜
+### Phase 03 — Async Reporting + Exports + Audit ✅
 
 **Architecture Impact**:
-- **Redis** cache tier for report results, sessions, rate-limit buckets
-- Cache invalidation on product/order state changes
-- Feature flag system already in place; would be enhanced with remote evaluation
+- Async job queue with thread-per-job processing
+- CSV and XLSX export service with download endpoint
+- Audit logging with JSONL format on disk
+- Webhook subscription management (register/list/unregister)
+- Supplier portal async proxy routes (request, status, download)
+- Added `A10` SSRF vulnerability in webhook delivery system
 
-### Phase 07 — Config Store & Rate Limiting 🔜
+### Phase 04 — Supplier Portal Frontend ✅
 
 **Architecture Impact**:
-- **Etcd** distributed config store replacing environment variables
-- Per-tenant rate limiting with token bucket algorithm
-- PKI infrastructure for mTLS between services
-- Structured audit logging and Prometheus metrics
+- React/TypeScript SPA with 8 pages (Login, Dashboard, Reports, ReportDetail, Webhooks, 3 test pages)
+- Auth context with login/logout and auth-guarded routes
+- i18n support with English and Spanish locales
+- Added `A06` XSS vulnerability: `dangerouslySetInnerHTML` in ReportsPage
+- Added chain-03 step 1: `CustomWidgetRenderer` accepts raw HTML
+
+### Phase 05 — Admin Console + Cache + Scheduler + Feature Flags ✅
+
+**Architecture Impact**:
+- In-memory TTL cache with pickle-based persistence (`A08` vulnerability)
+- Background thread scheduler for recurring report jobs
+- JSON-file-backed feature flag store with seed data
+- Webhook delivery retry with exponential backoff
+- Admin console React pages (Flags, FlagDetail, Scheduler, Cache)
+- Added chain-03 step 2: admin flag detail renders description via `dangerouslySetInnerHTML`
 
 ---
 
@@ -509,14 +496,12 @@ The expansion plan defines seven phases of incremental architecture evolution. B
 
 ### A. Service Port Map
 
-| Service | Internal Port | External Port (Host) |
-|---------|---------------|---------------------|
-| Catalog Service | 5001 | 8081 |
-| Supplier Portal API | 5002 | — (internal) |
-| Reporting Service | 5003 | — (internal) |
-| Notification Service | 5004 (Phase 04) | — (internal) |
-| Supplier Portal UI | 5173 | 5173 (Phase 04) |
-| API Gateway | — | 8080 (Phase 05) |
+| Service | Port |
+|---------|------|
+| Catalog Service | 8081 |
+| Reporting Service | 5002 |
+| Supplier Portal API | 5003 |
+| Supplier Portal UI (Vite dev) | 3000 |
 
 ### B. File Map
 
@@ -592,4 +577,4 @@ apps/python/app-01-ecommerce-catalog/
 
 ---
 
-> **Document Status**: Current as of Phase 05 (Admin Console) implementation. Updated to reflect target state defined in `docs/plans/complexity/realistic/0.1/app-01-ecommerce-catalog/expansion-plan.md`.
+> **Document Status**: Current as of completion of all 5 expansion phases. OWASP Top 10: 2021 coverage: A01–A10 fully covered.
