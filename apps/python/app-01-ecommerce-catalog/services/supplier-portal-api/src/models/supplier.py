@@ -35,6 +35,30 @@ SUPPLIERS: dict[str, Supplier] = {
         email="initech@example.com",
         tier="enterprise",
     ),
+    "supplier-004": Supplier(
+        supplier_id="supplier-004",
+        name="Hooli Ventures",
+        email="hooli@example.com",
+        tier="premium",
+    ),
+    "supplier-005": Supplier(
+        supplier_id="supplier-005",
+        name="Stark Industries",
+        email="stark@example.com",
+        tier="enterprise",
+    ),
+    "supplier-006": Supplier(
+        supplier_id="supplier-006",
+        name="Wayne Enterprises",
+        email="wayne@example.com",
+        tier="standard",
+    ),
+    "supplier-007": Supplier(
+        supplier_id="supplier-007",
+        name="Oscorp",
+        email="oscorp@example.com",
+        tier="standard",
+    ),
 }
 
 
