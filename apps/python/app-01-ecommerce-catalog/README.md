@@ -65,7 +65,11 @@ apps/typescript/app-01-supplier-portal/src/
 | `/webhooks` | WebhooksPage | Register/list/delete webhooks |
 | `/test/widgets` | TestWidgetsPage | Custom widget builder |
 | `/test/notifications` | TestNotificationsPage | Notification prefs |
-| `/test/console` | TestConsolePage | Admin diagnostic console |
+| `/test/console` | TestConsolePage | Admin diagnostic console (Phase 5) |
+| `/admin/flags` | AdminFlagsPage | Feature flag list with toggle switches |
+| `/admin/flags/:key` | AdminFlagDetailPage | Flag detail with metadata rendering |
+| `/admin/scheduler` | AdminSchedulerPage | Scheduled report jobs CRUD |
+| `/admin/cache` | AdminCachePage | Cache stats dashboard + invalidation |
 
 ## Features
 
@@ -84,9 +88,10 @@ apps/typescript/app-01-supplier-portal/src/
 - Report list per supplier
 
 ### Admin
-- Cache management, feature flags, webhook registry
+- Cache management, feature flags, scheduled reports, webhook delivery retry
 - Product lifecycle management (draft/review/publish/archive)
 - Bulk CSV product upload
+- Feature flag toggles with A/B rollout support
 
 ## Security Benchmarking
 
@@ -170,7 +175,18 @@ An attacker chains weak validation with a trusting bulk upload endpoint to modif
 | POST | `/admin/cache/restore` | — | Restore cache from disk |
 | POST | `/admin/flags` | — | Set feature flag |
 | POST | `/admin/schedules` | — | Create scheduled report |
-| POST | `/admin/webhooks/deliver` | — | Trigger webhook delivery |
+| GET | `/api/admin/cache/stats` | — | Cache hit/miss ratio and entry count |
+| POST | `/api/admin/cache/invalidate` | — | Invalidate cache entries by pattern |
+| GET | `/api/admin/flags` | — | List all feature flags |
+| POST | `/api/admin/flags` | — | Create/update feature flag |
+| GET | `/api/admin/flags/{key}` | — | Get flag with metadata (chain link) |
+| POST | `/api/admin/flags/{key}/toggle` | — | Enable/disable flag |
+| GET | `/api/admin/scheduler/jobs` | — | List scheduled jobs |
+| POST | `/api/admin/scheduler/jobs` | — | Create scheduled job |
+| DELETE | `/api/admin/scheduler/jobs/{id}` | — | Remove scheduled job |
+| GET | `/api/admin/webhooks/deliveries` | — | List webhook delivery attempts |
+| POST | `/api/admin/webhooks/deliveries` | — | Create webhook delivery |
+| POST | `/api/admin/webhooks/deliveries/{id}/retry` | — | Retry failed delivery |
 
 ### Supplier Portal API (port 5003)
 

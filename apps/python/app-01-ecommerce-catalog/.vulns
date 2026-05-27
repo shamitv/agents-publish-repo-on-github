@@ -66,6 +66,15 @@
       "description": "Report notes rendered via dangerouslySetInnerHTML without sanitization — XSS payload executes in supplier's browser session.",
       "severity": "high",
       "cwe": "CWE-79"
+    },
+    {
+      "owasp_id": "A08",
+      "category": "Software and Data Integrity Failures",
+      "location": "services/reporting-service/src/services/cache_service.py",
+      "method": "load_cache_from_disk",
+      "description": "Cache persistence uses pickle.load() on a user-writable file — if an attacker can write a malicious pickle payload to the cache file, deserialization executes arbitrary code.",
+      "severity": "high",
+      "cwe": "CWE-502"
     }
   ],
   "chained_attacks": [
@@ -133,7 +142,7 @@
     {
       "chain_id": "chain-03",
       "chain_name": "Custom Widget XSS -> Flag Metadata XSS -> Exfiltration",
-      "attack_scenario": "Step 1: Custom dashboard widget renderer accepts raw HTML without sanitization, allowing script injection. Step 2 (Phase 5): Feature flags endpoint returns unsanitized metadata. Combined: attacker stages XSS to steal session and exfiltrate data.",
+      "attack_scenario": "Step 1: Custom dashboard widget renderer accepts raw HTML without sanitization, allowing script injection. Step 2: Feature flag detail page renders flag description via dangerouslySetInnerHTML in the admin console. Combined: attacker stages XSS in custom widget to steal session, navigates to admin console as privileged user, flag metadata XSS fires and exfiltrates audit data.",
       "impact": "db_exfiltration",
       "components": [
         {
@@ -142,6 +151,15 @@
           "description": "Custom dashboard widget renders raw HTML templates with no CSP or sanitization, enabling stored XSS.",
           "location": "apps/typescript/app-01-supplier-portal/src/components/DashboardWidgets.tsx",
           "method": "CustomWidgetRenderer",
+          "severity": "low",
+          "cwe": "CWE-79"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A06",
+          "description": "Admin flag detail page renders flag description via dangerouslySetInnerHTML without sanitization, enabling stored XSS in admin console context.",
+          "location": "apps/typescript/app-01-supplier-portal/src/pages/admin/FlagDetail.tsx",
+          "method": "AdminFlagDetailPage",
           "severity": "low",
           "cwe": "CWE-79"
         }
@@ -196,6 +214,18 @@
     {
       "location": "apps/typescript/app-01-supplier-portal/src/components/SessionProvider.tsx",
       "description": "Short-lived token simulation with periodic auto-refresh via interval, co-located with the token-in-URL vulnerability in api.ts."
+    },
+    {
+      "location": "services/reporting-service/src/services/cache_service.py",
+      "description": "save_cache_to_disk uses json.dump() (safe), co-located with the vulnerable pickle.load() in load_cache_from_disk."
+    },
+    {
+      "location": "services/reporting-service/src/services/scheduler.py",
+      "description": "validate_cron_expression validates cron syntax — looks like a security guard but is never called in the scheduler flow."
+    },
+    {
+      "location": "services/reporting-service/src/services/webhook_retry.py",
+      "description": "sign_webhook_payload uses hmac.compare_digest for timing-safe HMAC signing."
     }
   ]
 }

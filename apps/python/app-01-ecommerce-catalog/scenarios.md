@@ -52,8 +52,9 @@ An attacker injects script via a custom dashboard widget renderer, then leverage
 | Step | Issue | Severity (standalone) | OWASP | Location |
 |------|-------|-----------------------|-------|----------|
 | 1 | Custom dashboard widget renders raw HTML templates with no CSP or sanitization | Low | A06 | `apps/typescript/app-01-supplier-portal/src/components/DashboardWidgets.tsx` -> `CustomWidgetRenderer()` |
+| 2 | Admin flag detail page renders flag description via `dangerouslySetInnerHTML` without sanitization | Low | A06 | `apps/typescript/app-01-supplier-portal/src/pages/admin/FlagDetail.tsx` -> `AdminFlagDetailPage` |
 
-**Attack narrative**: The attacker visits the custom widget builder page and submits an HTML template containing `<img src=x onerror=alert(document.cookie)>`. The `CustomWidgetRenderer` component renders this via `dangerouslySetInnerHTML` with no sanitization, executing the XSS payload in the supplier's browser session. Step 2 (Phase 5) extends the chain via unsanitized feature flag metadata in the admin console.
+**Attack narrative**: The attacker visits the custom widget builder page and submits an HTML template containing `<img src=x onerror=alert(document.cookie)>`. The `CustomWidgetRenderer` component renders this via `dangerouslySetInnerHTML` with no sanitization, executing the XSS payload in the supplier's browser session (step 1). Using the stolen session token, the attacker navigates to the admin console as a privileged user. The admin flag detail page renders the `description` field via `dangerouslySetInnerHTML` (step 2), which contains a second XSS payload that exfiltrates audit log data containing all supplier report records.
 
 **Combined Impact**: Cross-site scripting enabling session theft and data exfiltration.
 
