@@ -22,6 +22,10 @@ class ReportJob:
     supplier_id: str = ""
     period: str = ""
     status: JobStatus = JobStatus.PENDING
+    progress_pct: float = 0.0
+    error_message: Optional[str] = None
+    output_format: str = "csv"
+    output_path: Optional[str] = None
     result_summary: Optional[dict] = None
     created_at: datetime = field(default_factory=datetime.utcnow)
     completed_at: Optional[datetime] = None
@@ -47,14 +51,17 @@ def get_job(job_id: str) -> Optional[ReportJob]:
     return JOBS.get(job_id)
 
 
-def update_job_status(job_id: str, status: JobStatus, result: Optional[dict] = None) -> Optional[ReportJob]:
+def update_job_status(job_id: str, status: JobStatus, result: Optional[dict] = None, error: Optional[str] = None, progress: float = 0.0) -> Optional[ReportJob]:
     """Update a job's status and optionally set its result."""
     job = JOBS.get(job_id)
     if not job:
         return None
     job.status = status
+    job.progress_pct = progress
     if result:
         job.result_summary = result
+    if error:
+        job.error_message = error
     if status in (JobStatus.COMPLETED, JobStatus.FAILED):
         job.completed_at = datetime.utcnow()
     return job
