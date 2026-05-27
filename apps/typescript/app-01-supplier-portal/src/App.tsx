@@ -12,6 +12,10 @@ import { WebhooksPage } from './pages/Webhooks';
 import { TestWidgetsPage } from './pages/test/Widgets';
 import { TestNotificationsPage } from './pages/test/Notifications';
 import { TestConsolePage } from './pages/test/Console';
+import { AdminFlagsPage } from './pages/admin/Flags';
+import { AdminFlagDetailPage } from './pages/admin/FlagDetail';
+import { AdminSchedulerPage } from './pages/admin/Scheduler';
+import { AdminCachePage } from './pages/admin/Cache';
 import './App.css';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -35,6 +39,10 @@ function AppRoutes() {
         <Route path="/test/widgets" element={<TestWidgetsPage />} />
         <Route path="/test/notifications" element={<TestNotificationsPage />} />
         <Route path="/test/console" element={<TestConsolePage />} />
+        <Route path="/admin/flags" element={<AdminFlagsPage />} />
+        <Route path="/admin/flags/:key" element={<AdminFlagDetailPage />} />
+        <Route path="/admin/scheduler" element={<AdminSchedulerPage />} />
+        <Route path="/admin/cache" element={<AdminCachePage />} />
       </Route>
     </Routes>
   );
