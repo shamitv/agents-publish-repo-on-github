@@ -5,7 +5,9 @@ from flask import Flask
 from src.config.settings import SECRET_KEY
 from src.config.db_sql import init_db
 from src.routes.auth_routes import auth_bp
+from src.routes.bulk_upload_routes import bulk_upload_bp
 from src.routes.health_routes import health_bp
+from src.routes.lifecycle_routes import lifecycle_bp
 from src.routes.order_routes import orders_bp
 from src.routes.page_routes import pages_bp
 from src.routes.product_routes import products_bp
@@ -24,4 +26,6 @@ def create_app():
     app.register_blueprint(users_bp)
     app.register_blueprint(products_bp)
     app.register_blueprint(orders_bp)
+    app.register_blueprint(lifecycle_bp)
+    app.register_blueprint(bulk_upload_bp)
     return app
