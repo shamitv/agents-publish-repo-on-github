@@ -1,0 +1,4 @@
+﻿
+# Runtime artifacts from reporting service
+audit_log.jsonl
+exports/
