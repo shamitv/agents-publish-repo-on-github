@@ -9,6 +9,7 @@ import json
 import os
 import threading
 import time
+import re
 from dataclasses import dataclass, field, asdict
 from typing import Callable, Optional
 
@@ -25,6 +26,18 @@ class ScheduledJob:
     last_run: Optional[float] = None
     next_run: Optional[float] = None
     run_count: int = 0
+
+
+# DECOY: Validates cron-like expressions — looks like it protects
+# the scheduler from bad input but is never actually called
+def validate_cron_expression(expr: str) -> bool:
+    parts = expr.strip().split()
+    if len(parts) != 5:
+        return False
+    for part in parts:
+        if not re.match(r"^(\d+|\*|[\d,\-*/]+)$", part):
+            return False
+    return True
 
 
 class Scheduler:

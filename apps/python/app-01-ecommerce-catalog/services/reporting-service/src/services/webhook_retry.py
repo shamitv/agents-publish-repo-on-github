@@ -22,6 +22,8 @@ import requests
 
 # DECOY: Also imports urllib.parse for what looks like URL validation
 # but the validation is never actually applied.
+import hashlib
+import hmac
 from urllib.parse import urlparse
 
 
@@ -36,6 +38,13 @@ def is_valid_url(url: str) -> bool:
     """
     parsed = urlparse(url)
     return bool(parsed.scheme and parsed.netloc)
+
+
+# DECOY: HMAC signs webhook payloads using timing-safe comparison
+def sign_webhook_payload(payload: dict, secret: str) -> str:
+    data = json.dumps(payload, sort_keys=True).encode()
+    expected = hmac.new(secret.encode(), data, hashlib.sha256).hexdigest()
+    return expected
 
 
 @dataclass
@@ -114,13 +123,18 @@ class WebhookRetryService:
         return asdict(delivery)
 
     def retry_delivery(self, delivery_id: str) -> dict:
-        """Retry a failed delivery. SSRF protection still absent."""
+        """Retry a failed delivery with exponential backoff."""
         delivery = self._deliveries.get(delivery_id)
         if not delivery:
             return {"error": "delivery not found"}
 
         delivery.attempt += 1
         delivery.last_attempt_at = time.time()
+
+        # Exponential backoff: 1s, 2s, 4s
+        backoff = 1 * (2 ** (delivery.attempt - 1))
+        if backoff > 0:
+            time.sleep(backoff)
 
         # DECOY: timeout=10 looks safe but doesn't prevent SSRF
         try:

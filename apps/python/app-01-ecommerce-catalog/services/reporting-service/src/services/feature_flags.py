@@ -50,6 +50,8 @@ class FeatureFlagStore:
         self._filepath = filepath
         self._flags: dict[str, FeatureFlag] = {}
         self._load()
+        if not self._flags:
+            self._seed()
 
     def _load(self) -> None:
         if os.path.exists(self._filepath):
@@ -85,6 +87,23 @@ class FeatureFlagStore:
         self._flags[key] = flag
         self._save()
         return asdict(flag)
+
+    def get_enabled_flags(self) -> list[dict]:
+        return [asdict(f) for f in self._flags.values() if f.enabled]
+
+    def _seed(self) -> None:
+        defaults = [
+            ("dashboard-v2", True, "New dashboard layout with custom widgets", "platform"),
+            ("export-xlsx", True, "XLSX export format support", "platform"),
+            ("report-scheduling", True, "Scheduled report generation", "platform"),
+            ("beta-webhook-retry", True, "Webhook delivery with exponential backoff", "platform"),
+            ("preview-dark-mode", False, "Dark mode UI — <b>experimental</b> feature preview", "ux"),
+            ("flag-with-html", False, "Feature flag with <img src=x onerror=alert(1)> markup", "security-test"),
+        ]
+        for key, enabled, desc, owner in defaults:
+            flag = FeatureFlag(key=key, enabled=enabled, description=desc, owner=owner)
+            self._flags[key] = flag
+        self._save()
 
     def toggle_flag(self, key: str) -> Optional[dict]:
         """Toggle a flag's enabled state."""
