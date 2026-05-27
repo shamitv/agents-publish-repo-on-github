@@ -8,6 +8,9 @@ def create_app():
     from src.routes.report_routes import report_bp
     app.register_blueprint(report_bp)
 
+    from src.controllers.admin_routes import admin_bp
+    app.register_blueprint(admin_bp)
+
     return app
 
 
