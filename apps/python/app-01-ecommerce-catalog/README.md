@@ -40,6 +40,33 @@ packages/
 
 A companion TypeScript/React supplier portal lives at `apps/typescript/app-01-supplier-portal/`.
 
+### Frontend Architecture (React/TypeScript)
+
+```
+apps/typescript/app-01-supplier-portal/src/
+  context/        # Auth context (login/logout, token management)
+  i18n/           # Locale dictionaries (en, es) + locale switcher
+  hooks/          # Data fetching hooks (useDashboard, useReports, useWebhooks)
+  services/       # Axios API client with interceptors
+  components/     # Shared UI components (Header, Layout, etc.)
+  pages/          # Page-level components
+  pages/test/     # Test/diagnostic pages
+  styles/         # CSS stylesheets
+```
+
+**Routes:**
+
+| Route | Page | Description |
+|-------|------|-------------|
+| `/login` | LoginPage | Supplier ID + password auth |
+| `/` | DashboardPage | KPI cards, recent reports, custom widgets |
+| `/reports` | ReportsPage | Report job list + enqueue form |
+| `/reports/:id` | ReportDetailPage | Job status, params, download |
+| `/webhooks` | WebhooksPage | Register/list/delete webhooks |
+| `/test/widgets` | TestWidgetsPage | Custom widget builder |
+| `/test/notifications` | TestNotificationsPage | Notification prefs |
+| `/test/console` | TestConsolePage | Admin diagnostic console |
+
 ## Features
 
 ### Product Catalog

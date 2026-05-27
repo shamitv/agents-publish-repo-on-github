@@ -45,4 +45,18 @@ An attacker registers a webhook with a crafted callback URL pointing to internal
 
 ---
 
+## Chain: "Custom Widget XSS -> Flag Metadata XSS -> Exfiltration"
+
+An attacker injects script via a custom dashboard widget renderer, then leverages an unsanitized feature flag metadata endpoint to exfiltrate data.
+
+| Step | Issue | Severity (standalone) | OWASP | Location |
+|------|-------|-----------------------|-------|----------|
+| 1 | Custom dashboard widget renders raw HTML templates with no CSP or sanitization | Low | A06 | `apps/typescript/app-01-supplier-portal/src/components/DashboardWidgets.tsx` -> `CustomWidgetRenderer()` |
+
+**Attack narrative**: The attacker visits the custom widget builder page and submits an HTML template containing `<img src=x onerror=alert(document.cookie)>`. The `CustomWidgetRenderer` component renders this via `dangerouslySetInnerHTML` with no sanitization, executing the XSS payload in the supplier's browser session. Step 2 (Phase 5) extends the chain via unsanitized feature flag metadata in the admin console.
+
+**Combined Impact**: Cross-site scripting enabling session theft and data exfiltration.
+
+---
+
 _This file is supplemental internal narrative. Ground truth vulnerability data is maintained in [.vulns](.vulns)._

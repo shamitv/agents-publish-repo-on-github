@@ -57,6 +57,15 @@
       "description": "Webhook delivery system makes outbound HTTP requests to unvalidated user-supplied URLs, enabling SSRF to internal services and cloud metadata endpoints.",
       "severity": "high",
       "cwe": "CWE-918"
+    },
+    {
+      "owasp_id": "A06",
+      "category": "Vulnerable and Outdated Components",
+      "location": "apps/typescript/app-01-supplier-portal/src/pages/ReportsPage.tsx",
+      "method": "ReportNotesCell",
+      "description": "Report notes rendered via dangerouslySetInnerHTML without sanitization — XSS payload executes in supplier's browser session.",
+      "severity": "high",
+      "cwe": "CWE-79"
     }
   ],
   "chained_attacks": [
@@ -120,6 +129,23 @@
           "cwe": "CWE-639"
         }
       ]
+    },
+    {
+      "chain_id": "chain-03",
+      "chain_name": "Custom Widget XSS -> Flag Metadata XSS -> Exfiltration",
+      "attack_scenario": "Step 1: Custom dashboard widget renderer accepts raw HTML without sanitization, allowing script injection. Step 2 (Phase 5): Feature flags endpoint returns unsanitized metadata. Combined: attacker stages XSS to steal session and exfiltrate data.",
+      "impact": "db_exfiltration",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A06",
+          "description": "Custom dashboard widget renders raw HTML templates with no CSP or sanitization, enabling stored XSS.",
+          "location": "apps/typescript/app-01-supplier-portal/src/components/DashboardWidgets.tsx",
+          "method": "CustomWidgetRenderer",
+          "severity": "low",
+          "cwe": "CWE-79"
+        }
+      ]
     }
   ],
   "decoys": [
@@ -158,6 +184,18 @@
     {
       "location": "services/reporting-service/src/services/audit_service.py",
       "description": "Audit logging uses atomic write-then-rename pattern with JSONL format, preventing log injection."
+    },
+    {
+      "location": "apps/typescript/app-01-supplier-portal/src/components/ReportNotes.tsx",
+      "description": "Safe report notes renderer using textContent assignment instead of innerHTML, co-located with the vulnerable dangerouslySetInnerHTML in ReportsPage."
+    },
+    {
+      "location": "apps/typescript/app-01-supplier-portal/src/pages/Webhooks.tsx",
+      "description": "Client-side URL validation (validateUrlInput) provides defense-in-depth, co-located with webhook registration form."
+    },
+    {
+      "location": "apps/typescript/app-01-supplier-portal/src/components/SessionProvider.tsx",
+      "description": "Short-lived token simulation with periodic auto-refresh via interval, co-located with the token-in-URL vulnerability in api.ts."
     }
   ]
 }
