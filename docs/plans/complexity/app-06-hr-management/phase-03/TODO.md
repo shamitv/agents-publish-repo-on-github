@@ -7,14 +7,14 @@
 
 ## A03 — Elasticsearch Injection
 - [ ] Edit `src/main/java/com/hr/search/EmployeeSearchClient.java`:
+  - Add safe `searchEmployees(String query)` method (decoy):
+    - Uses proper `NativeSearchQuery` builder or Spring Data Elasticsearch with parameterization
+    - This method does NOT exist yet and must be created alongside the vulnerable one
   - Add method `searchEmployeesRaw(String query)`:
     - Builds ES query string by concatenating user input: `"{\"query\":{\"query_string\":{\"query\":\"" + query + "\"}}}"`
     - Sends via `RestTemplate` to `{elasticsearchUrl}/employees/_search`
     - Do NOT use any query builder or parameterization
     - Add comment: `// VULNERABILITY A03: Employee search concatenates user input directly into Elasticsearch query_string syntax.`
-  - Ensure existing `searchEmployees(String query)` method is preserved as decoy:
-    - Uses proper `NativeSearchQuery` builder or Spring Data Elasticsearch
-    - Add comment noting it's safe (if not already present)
 - [ ] Wire `EmployeeController.listEmployees()` to call `searchEmployeesRaw()` when `?q=` param is present
 
 ## A09 — Missing Audit Logging

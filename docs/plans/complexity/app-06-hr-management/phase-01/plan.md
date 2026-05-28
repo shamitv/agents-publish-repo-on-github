@@ -9,8 +9,8 @@ Switch the application from H2 in-memory database to real PostgreSQL via Docker 
 ### Included
 - [ ] Create `application-postgres.properties` profile switching from H2 to PostgreSQL
 - [ ] Verify PostgreSQL 16 is configured in `docker-compose.yml` with healthcheck
-- [ ] Turn on `APP_KAFKA_ENABLED=true` and verify producer/consumer flow with real Redpanda
-- [ ] Turn on `APP_ELASTICSEARCH_ENABLED=true` and verify ES index creation and search
+- [ ] Verify `APP_KAFKA_ENABLED=true` and verify producer/consumer flow with real Redpanda (flag already present in docker-compose.yml exc; ensure `application-postgres.properties` also sets it)
+- [ ] Verify `APP_ELASTICSEARCH_ENABLED=true` and verify ES index creation and search (flag already present in docker-compose.yml; ensure `application-postgres.properties` also sets it)
 - [ ] Seed `DataInitializer.java` with PostgreSQL-compatible SQL
 - [ ] Verify HikariCP connection pool config for PostgreSQL
 - [ ] Run all 20 existing endpoints against real PostgreSQL

@@ -6,7 +6,7 @@
 
 ## PostgreSQL Profile
 - [ ] Create `src/main/resources/application-postgres.properties`:
-  - `spring.datasource.url=jdbc:postgresql://${DB_HOST:localhost}:5432/hrmanagement`
+  - `spring.datasource.url=jdbc:postgresql://${DB_HOST:localhost}:5432/hrdb`
   - `spring.datasource.driver-class-name=org.postgresql.Driver`
   - `spring.datasource.username=${DB_USER:postgres}`
   - `spring.datasource.password=${DB_PASS:postgres}`
@@ -17,6 +17,8 @@
 - [ ] Edit `DataInitializer.java`: add `@Profile("postgres")` annotation to prevent seeding in dev mode
 
 ## Docker Compose Verification
+- [ ] Add `SPRING_PROFILES_ACTIVE=postgres` to the `web` service environment in `docker-compose.yml` (env vars already set  `SPRING_DATASOURCE_URL`, `APP_KAFKA_ENABLED`, `APP_ELASTICSEARCH_ENABLED`)
+- [ ] Create `.env.example` at app root listing all expected environment variables with placeholder values
 - [ ] Verify `docker-compose.yml` has healthcheck for `postgres`:
   ```yaml
   healthcheck:

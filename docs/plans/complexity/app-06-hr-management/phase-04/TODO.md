@@ -89,7 +89,7 @@
 - [ ] chain-01: Payroll IDOR → XOR decrypt → SSN exfiltration → confirm 2 steps
 - [ ] chain-02: Skip Background Check → no audit trail → confirm 2 steps
 - [ ] chain-03: Leak passwordHash → weak session → account takeover potential → confirm 2 steps
-- [ ] Hint leakage: run `rg "VULNERABILITY|CHAIN LINK|DECOY" --include "*.java" --include "*.html" --include "*.properties" --include "*.xml"` outside permit list → zero matches
+- [ ] Hint leakage: search source tree for annotation comments outside permit list (use `Select-String -Pattern "VULNERABILITY|CHAIN LINK|DECOY" -Include *.java,*.html,*.properties,*.xml -Recurse` on Windows, or `rg "VULNERABILITY|CHAIN LINK|DECOY" --include "*.java" --include "*.html" --include "*.properties" --include "*.xml"` if ripgrep is available) → zero matches outside permit list
 - [ ] Run `mvn test` → all tests pass
 - [ ] Confirm no regression in any of the 20 existing endpoints
 

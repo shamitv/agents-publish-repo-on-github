@@ -7,8 +7,9 @@ Add an A03 Elasticsearch query string injection vulnerability in the employee se
 ## Scope
 
 ### Included
-- [ ] Modify `EmployeeSearchClient.java`: add a raw query concatenation method that enables A03 injection
-- [ ] Keep existing safe ES search method as a decoy
+- [ ] Modify `EmployeeSearchClient.java`: add a safe `searchEmployees()` method (decoy) and a `searchEmployeesRaw()` method (A03 injection) that concatenates user input directly into Elasticsearch query_string syntax
+- [ ] Create both methods from scratch — `EmployeeSearchClient` currently has only `index()`; neither search method exists
+- [ ] Keep existing `EmployeeSearchClient.java` `index()` method intact
 - [ ] Add A09 in `OnboardingWorkflowService.java`: state transitions do not write audit log entries
 - [ ] Add decoy: stdout print stub that looks like logging but does nothing
 - [ ] chain-02 step 2: missing audit on onboarding state change
@@ -48,7 +49,7 @@ Add an A03 Elasticsearch query string injection vulnerability in the employee se
 
 | # | Location | Why it looks vulnerable | Why it is safe |
 |---|----------|------------------------|----------------|
-| 1 | `search/EmployeeSearchClient.java` → `searchEmployees()` (existing) | Same class as A03; also takes a query string parameter | Uses Spring Data Elasticsearch or a `NativeSearchQuery` builder with proper parameterization |
+| 1 | `search/EmployeeSearchClient.java` → `searchEmployees()` (created during Phase 3) | Same class as A03; also takes a query string parameter | Uses Spring Data Elasticsearch or a `NativeSearchQuery` builder with proper parameterization — built side-by-side with vulnerable `searchEmployeesRaw()` |
 | 2 | `service/OnboardingWorkflowService.java` → `transition()` | Same method as A09; has a `System.out.println("AUDIT: transition=" + newState)` statement | Print-to-stdout only — does not write to any database audit table |
 
 ## Data Model Changes

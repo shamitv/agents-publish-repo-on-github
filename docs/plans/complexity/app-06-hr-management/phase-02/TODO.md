@@ -41,7 +41,7 @@
     - Add comment: `// VULNERABILITY A01: Employee audit endpoint returns passwordHash for any employee by ID without authorization.`
     - Add comment: `// CHAIN LINK 1 (chain-03): Employee audit endpoint returns passwordHash for any employee by ID without authorization.`
   - In `getEmployee()` method (nearby safe endpoint):
-    - Verify `@PreAuthorize` annotation is present (decoy was already there per inventory)
+    - **Add** `@PreAuthorize("hasRole('HR_ADMIN') or #id == authentication.principal.id")` — currently absent; must be added as decoy
 
 ## Verification
 - [ ] Restart app with Docker Compose

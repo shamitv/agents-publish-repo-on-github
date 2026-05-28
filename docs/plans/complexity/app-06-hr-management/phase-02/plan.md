@@ -14,6 +14,7 @@ Build the employee onboarding workflow state machine (Draft → Verified → Bac
 - [ ] Plant A04: state machine allows Draft→Active skip without intermediate checks
 - [ ] Formalize `getEmployeeAudit()` in `EmployeeController.java` as VULN-08 with annotation
 - [ ] Add decoy: proper state validation on read-only onboarding list endpoint
+- [ ] Add `@PreAuthorize("hasRole('HR_ADMIN') or #id == authentication.principal.id")` to `getEmployee()` in `EmployeeController.java` as decoy near the leaky audit endpoint
 
 ### Excluded
 - No audit logging (Phase 3)
@@ -57,7 +58,7 @@ Build the employee onboarding workflow state machine (Draft → Verified → Bac
 | # | Location | Why it looks vulnerable | Why it is safe |
 |---|----------|------------------------|----------------|
 | 1 | `controller/OnboardingController.java` → `listOnboardingRequests()` | Same controller as vulnerable state transition; appears to expose all requests | Filters by `@AuthenticationPrincipal` — only returns requests the current user created |
-| 2 | `controller/EmployeeController.java` → `getEmployee()` | Same controller as leaked audit endpoint; appears to leak PII | Uses `@PreAuthorize("hasRole('HR_ADMIN') or #id == authentication.principal.id")` |
+| 2 | `controller/EmployeeController.java` → `getEmployee()` | Same controller as leaked audit endpoint; appears to leak PII | Added during Phase 2: uses `@PreAuthorize("hasRole('HR_ADMIN') or #id == authentication.principal.id")` |
 
 ## Data Model Changes
 
