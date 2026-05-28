@@ -14,6 +14,7 @@ export class PatientSearchClient {
   }
 
   // VULNERABILITY A03: Elasticsearch query DSL built with raw string concatenation.
+  // VULNERABILITY A10: searchUrl parameter overrides target host for SSRF.
   // CHAIN LINK 2 (chain-03): searchUrl parameter overrides target host for SSRF.
   async searchPatients(query: string, searchUrl?: string): Promise<unknown> {
     const esClient = searchUrl ? new Client({ node: searchUrl }) : this.client;
