@@ -32,13 +32,13 @@ class App06ApplicationTests {
                 .role("EMPLOYEE")
                 .salary(new BigDecimal("50000.00"))
                 .build();
-        
+
         String rawSsn = "123-45-6789";
         emp.setRawSsn(rawSsn);
-        
+
         assertNotNull(emp.getSsnEncrypted());
         assertNotEquals(rawSsn, emp.getSsnEncrypted());
-        
+
         // Decrypted matches raw
         assertEquals(rawSsn, emp.getRawSsn());
     }
@@ -53,9 +53,9 @@ class App06ApplicationTests {
                 .role("EMPLOYEE")
                 .salary(new BigDecimal("60000.00"))
                 .build();
-        
+
         Employee saved = employeeService.saveEmployee(emp);
-        
+
         // Check BCrypt hashing format
         assertTrue(saved.getPasswordHash().startsWith("$2a$"));
     }
@@ -91,5 +91,28 @@ class App06ApplicationTests {
         assertTrue(payrollController.contains("CHAIN LINK 1 (chain-01)"));
         assertTrue(employeeModel.contains("CHAIN LINK 2 (chain-01)"));
         assertTrue(employeeModel.contains("VULNERABILITY A02"));
+    }
+
+    @Test
+    void newVulnerabilityAnnotationsPresent() throws Exception {
+        String onboardingService = Files.readString(Path.of("src/main/java/com/hr/service/OnboardingWorkflowService.java"));
+        String searchClient = Files.readString(Path.of("src/main/java/com/hr/search/EmployeeSearchClient.java"));
+        String employeeController = Files.readString(Path.of("src/main/java/com/hr/controller/EmployeeController.java"));
+
+        assertTrue(onboardingService.contains("VULNERABILITY A04"));
+        assertTrue(searchClient.contains("VULNERABILITY A03"));
+        assertTrue(onboardingService.contains("VULNERABILITY A09"));
+        assertTrue(employeeController.contains("VULNERABILITY A01"));
+        assertTrue(employeeController.contains("CHAIN LINK 1 (chain-03)"));
+        assertTrue(onboardingService.contains("CHAIN LINK 1 (chain-02)"));
+        assertTrue(onboardingService.contains("CHAIN LINK 2 (chain-02)"));
+    }
+
+    @Test
+    void newChainsRegisteredInManifest() throws Exception {
+        JsonNode manifest = new ObjectMapper().readTree(Path.of(".vulns").toFile());
+        assertEquals(3, manifest.path("chained_attacks").size());
+        assertEquals(7, manifest.path("decoys").size());
+        assertEquals(8, manifest.path("vulnerabilities").size());
     }
 }

@@ -43,6 +43,46 @@
       "description": "Kafka audit consumer logs externally supplied event content through Log4j 2.14.1",
       "severity": "high",
       "cwe": "CWE-917"
+    },
+    {
+      "owasp_id": "A04",
+      "category": "Insecure Design",
+      "location": "src/main/java/com/hr/service/OnboardingWorkflowService.java",
+      "method": "transition",
+      "line_range": "32-39",
+      "description": "Onboarding state machine accepts any targetState without validating prerequisite steps allowing Draft to Active bypass",
+      "severity": "medium",
+      "cwe": "CWE-602"
+    },
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "src/main/java/com/hr/search/EmployeeSearchClient.java",
+      "method": "searchEmployeesRaw",
+      "line_range": "62-78",
+      "description": "Employee search concatenates user input directly into Elasticsearch query_string syntax without sanitization",
+      "severity": "high",
+      "cwe": "CWE-943"
+    },
+    {
+      "owasp_id": "A09",
+      "category": "Security Logging and Monitoring Failures",
+      "location": "src/main/java/com/hr/service/OnboardingWorkflowService.java",
+      "method": "transition",
+      "line_range": "40-42",
+      "description": "Onboarding state transitions persist in PostgreSQL without writing audit log entries",
+      "severity": "medium",
+      "cwe": "CWE-778"
+    },
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "src/main/java/com/hr/controller/EmployeeController.java",
+      "method": "getEmployeeAudit",
+      "line_range": "88-99",
+      "description": "Employee audit endpoint returns passwordHash for any employee by ID without authorization check",
+      "severity": "medium",
+      "cwe": "CWE-639"
     }
   ],
   "chained_attacks": [
@@ -71,6 +111,58 @@
           "cwe": "CWE-327"
         }
       ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "State Bypass \u2192 Missing Audit \u2192 Data Modification",
+      "attack_scenario": "An HR_ADMIN bypasses the Background Check state by directly requesting Active transition, then the unauthorized state change is never recorded in an audit log leaving no forensic trail.",
+      "impact": "data_modification",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A04",
+          "description": "State machine allows bypassing Background Check by requesting Active directly from Draft",
+          "location": "src/main/java/com/hr/service/OnboardingWorkflowService.java",
+          "method": "transition",
+          "severity": "low",
+          "cwe": "CWE-602"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A09",
+          "description": "Onboarding state change applied without audit event leaving no trail of who bypassed the Background Check",
+          "location": "src/main/java/com/hr/service/OnboardingWorkflowService.java",
+          "method": "transition",
+          "severity": "low",
+          "cwe": "CWE-778"
+        }
+      ]
+    },
+    {
+      "chain_id": "chain-03",
+      "chain_name": "Password Hash Leak \u2192 Weak Session \u2192 Account Takeover",
+      "attack_scenario": "An attacker reads any employee's passwordHash via the unauthenticated audit endpoint, cracks the hash offline, then exploits the 24-hour dashboard session idle timeout to brute-force login as that user.",
+      "impact": "account_takeover",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A01",
+          "description": "Employee audit endpoint returns passwordHash for any employee by ID without authorization",
+          "location": "src/main/java/com/hr/controller/EmployeeController.java",
+          "method": "getEmployeeAudit",
+          "severity": "low",
+          "cwe": "CWE-639"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A07",
+          "description": "Dashboard session idle timeout is set to 24 hours enabling prolonged brute-force after credential exposure",
+          "location": "src/main/java/com/hr/controller/WebController.java",
+          "method": "dashboard",
+          "severity": "low",
+          "cwe": "CWE-613"
+        }
+      ]
     }
   ],
   "decoys": [
@@ -85,6 +177,22 @@
     {
       "location": "src/main/java/com/hr/controller/PayrollController.java",
       "description": "Payroll report endpoint requires HR_ADMIN authorization and should not be flagged as an IDOR"
+    },
+    {
+      "location": "src/main/java/com/hr/controller/OnboardingController.java",
+      "description": "listOnboarding() filters results by the authenticated user's email \u2014 not an IDOR"
+    },
+    {
+      "location": "src/main/java/com/hr/controller/EmployeeController.java",
+      "description": "getEmployee() uses @PreAuthorize requiring HR_ADMIN or same-user ownership \u2014 not an IDOR"
+    },
+    {
+      "location": "src/main/java/com/hr/search/EmployeeSearchClient.java",
+      "description": "searchEmployees() escapes query input using proper parameterization \u2014 NOT injectable"
+    },
+    {
+      "location": "src/main/java/com/hr/config/SecurityConfig.java",
+      "description": "API security config uses default session timeout (30 min) \u2014 not the vulnerable 24h dashboard session"
     }
   ]
 }
