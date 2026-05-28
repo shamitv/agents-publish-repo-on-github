@@ -59,7 +59,7 @@ Static HTML/JS dashboards served by Flask:
 - **Student View** — gradebook, active courses, enrollment status
 - **Instructor View** — quiz builder, grading queue console, student list
 
-### 5) Extend vulnerability surface to 7/10 OWASP categories
+### 5) Extend vulnerability surface to 8/10 OWASP categories (7 standalone + 1 chain-only)
 
 | Phase | New OWASP | Rationale |
 |-------|-----------|-----------|
@@ -216,6 +216,7 @@ All 14 existing endpoints preserved; new dashboards served via static routes:
 - [ ] Phase 3: Business Logic + Auto-Grading
 - [ ] Phase 4: Real Kafka Streaming + Enterprise UI
 - [ ] Phase 5: Advanced Features + Verification
+- [ ] `eval-report.md` created (difficulty ratings + hint leakage validation)
 - [ ] `.vulns`, `README.md`, `scenarios.md` updated after each phase
 - [ ] All existing vulnerabilities preserved and verified
 - [ ] Git commit after phase completion

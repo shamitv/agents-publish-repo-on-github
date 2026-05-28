@@ -8,11 +8,11 @@ Upgrade the LMS from stub-backed infrastructure (SQLite, in-memory Kafka mock, s
 
 | Phase | Title | Focus | New Vulns | Progress |
 |-------|-------|-------|-----------|----------|
-| [1](phase-01/plan.md) | Infrastructure + Docker Compose | Real PostgreSQL, MongoDB, Kafka; healthchecks; config swap | — | ⬜ Not started |
-| [2](phase-02/plan.md) | Polyglot Persistence + Core CRUD | Schema migrations, repository port, seed data, A04 planting | A04 | ⬜ Not started |
-| [3](phase-03/plan.md) | Business Logic + Auto-Grading | Prereq validator, grading engine, rate limiter, A09 planting | A09 | ⬜ Not started |
-| [4](phase-04/plan.md) | Real Kafka Streaming + Enterprise UI | Kafka producer/consumer, student/instructor dashboards, A10+A07 planting | A10, A07 | ⬜ Not started |
-| [5](phase-05/plan.md) | Advanced Features + Verification | Chain scenarios, decoys, metadata sync, full test pass | — | ⬜ Not started |
+| [1](phase-01/plan.md) | Infrastructure + Docker Compose | Real PostgreSQL, MongoDB, Kafka; healthchecks; config swap | — | Planned |
+| [2](phase-02/plan.md) | Polyglot Persistence + Core CRUD | Schema migrations, repository port, seed data, A04 planting | A04 | Planned |
+| [3](phase-03/plan.md) | Business Logic + Auto-Grading | Prereq validator, grading engine, rate limiter, A09 planting | A09 | Planned |
+| [4](phase-04/plan.md) | Real Kafka Streaming + Enterprise UI | Kafka producer/consumer, student/instructor dashboards, A10+A07 planting | A10, A07 | Planned |
+| [5](phase-05/plan.md) | Advanced Features + Verification | Chain scenarios, decoys, metadata sync, full test pass | — | Planned |
 
 ## Key Documents
 
