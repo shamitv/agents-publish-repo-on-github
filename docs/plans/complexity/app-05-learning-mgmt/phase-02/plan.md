@@ -13,8 +13,8 @@ Migrate all data storage from SQLite auto-created tables to real PostgreSQL migr
 - [ ] Wire quiz/submission repositories to MongoDB
 - [ ] Seed mock data for all tables/collections
 - [ ] Verify all 14 endpoints work with real databases
-- [ ] Plant A04 weak enrollment validation
-- [ ] Add decoy: proper enrollment guard on a separate code path
+- [ ] Plant A04 insecure enrollment design (trusts client-supplied role + unvalidated course_id)
+- [ ] Add decoy: proper enrollment guard on list endpoint (scoped to session user_id, ignores client-supplied role)
 
 ### Excluded
 - No Kafka changes (Phase 3)
@@ -28,29 +28,29 @@ Migrate all data storage from SQLite auto-created tables to real PostgreSQL migr
 | Migration scripts in `src/config/migrations/` | Separation from runtime code; one-time run at container init |
 | Seed data in `src/config/seed.py` | Idempotent seeding with `IF NOT EXISTS` guards |
 | Repositories use raw SQL with `psycopg2` | Preserves the original pattern from SQLite version — no ORM dependency |
-| A04 planted in enrollment controller, not repository | Controller is where the missing validation is most visible to auditors |
+| A04 planted in enrollment controller, not repository | Controller is where the missing validation is most visible; trusts client-supplied `role` and `course_id` without server-side checks |
 
 ## Vulnerability Planting
 
 | # | Type | OWASP | CWE | Location | Description | Severity |
 |---|------|-------|-----|----------|-------------|----------|
-| 1 | Standalone | A04 | CWE-602 | `src/controllers/enrollment_controller.py` → `enroll()` | Enrollment accepts any `course_id` without verifying course exists, is active, or student meets prerequisites | Medium |
+| 1 | Standalone | A04 | CWE-602 | `src/controllers/enrollment_controller.py` → `enroll()` | Enrollment accepts client-supplied `role` parameter and arbitrary `course_id` without server-side validation of course existence, active status, student prerequisites, or role authorization | Medium |
 
-**Source comment**: `# VULNERABILITY A04: Enrollment accepts course_id without verifying course exists, is active, or student meets prerequisites`
+**Source comment**: `# VULNERABILITY A04: Enrollment trusts client-supplied role and course_id without server-side validation`
 
 ### Chain-02 Step 1
 
 | Chain | Step | OWASP | CWE | Location | Description | Severity |
 |-------|------|-------|-----|----------|-------------|----------|
-| chain-02 | 1 | A04 | CWE-602 | `src/controllers/enrollment_controller.py` → `enroll()` | Weak enrollment validation allows forging enrollment into restricted courses | Low |
+| chain-02 | 1 | A04 | CWE-602 | `src/controllers/enrollment_controller.py` → `enroll()` | Enrollment accepts attacker-supplied elevated role (e.g., "INSTRUCTOR"), granting unauthorized access to instructor-facing grading endpoints | Low |
 
-**Source comment**: `# CHAIN LINK 1 (chain-02): Enrollment accepts arbitrary course_id without prerequisite or existence checks`
+**Source comment**: `# CHAIN LINK 1 (chain-02): Enrollment trusts client-supplied role, enabling privilege escalation to instructor access`
 
 ## Decoy Patterns
 
 | # | Location | Why it looks vulnerable | Why it is safe |
 |---|----------|------------------------|----------------|
-| 1 | `src/controllers/enrollment_controller.py` → `list_enrollments()` | Same controller file as vulnerable `enroll()`; appears to expose all enrollments | Scopes query to `session["user_id"]` — only returns the authenticated user's enrollments |
+| 1 | `src/controllers/enrollment_controller.py` → `list_enrollments()` | Same controller file as vulnerable `enroll()`; appears to expose all enrollments | Scopes query to `session["user_id"]` — only returns the authenticated user's enrollments. Does NOT trust client-supplied `role`. |
 
 ## Data Model Changes
 
@@ -62,6 +62,7 @@ Migrate all data storage from SQLite auto-created tables to real PostgreSQL migr
 | `courses` | `id SERIAL PK, title VARCHAR, description TEXT, instructor_id INT FK, prerequisites JSONB, status VARCHAR` | Prerequisites stored as JSON array of course IDs |
 | `enrollments` | `id SERIAL PK, user_id INT FK, course_id INT FK, enrolled_at TIMESTAMP, status VARCHAR` | Unique constraint on (user_id, course_id) |
 | `grades` | `id SERIAL PK, user_id INT FK, course_id INT FK, quiz_id INT, score FLOAT, graded_at TIMESTAMP` | Per-quiz scoring |
+| `audit_log` | `id SERIAL PK, user_id INT, action VARCHAR, entity_type VARCHAR, entity_id INT, old_value TEXT, new_value TEXT, created_at TIMESTAMP` | Decoy-only: proper audit trail near the un-audited grade write path (Phase 3) |
 
 ### MongoDB Collections
 

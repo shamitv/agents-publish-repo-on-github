@@ -9,14 +9,15 @@
 
 | File | Must Have |
 |------|-----------|
-| `src/services/submission_service.py` | `// VULNERABILITY A01`, `// CHAIN LINK 3 (chain-01)` |
-| `src/services/debug_service.py` | `// VULNERABILITY A05`, `// CHAIN LINK 1 (chain-01)`, `// CHAIN LINK 1 (chain-03)` |
-| `src/services/auth_service.py` | `// CHAIN LINK 2 (chain-01)` |
-| `src/workers/import_listener.py` | `// VULNERABILITY A08` |
-| `src/controllers/enrollment_controller.py` | `// VULNERABILITY A04`, `// CHAIN LINK 1 (chain-02)` |
-| `src/workers/grading_listener.py` | `// VULNERABILITY A09`, `// CHAIN LINK 2 (chain-02)` |
-| `src/services/import_service.py` | `// VULNERABILITY A10`, `// CHAIN LINK 2 (chain-03)` |
-| `src/controllers/auth_controller.py` | `// VULNERABILITY A07` |
+| `src/services/submission_service.py` | `# VULNERABILITY A01`, `# CHAIN LINK 3 (chain-01)` |
+| `src/services/debug_service.py` | `# VULNERABILITY A05`, `# CHAIN LINK 1 (chain-01)`, `# CHAIN LINK 1 (chain-03)` |
+| `src/services/auth_service.py` | `# CHAIN LINK 2 (chain-01)` |
+| `src/workers/import_listener.py` | `# VULNERABILITY A08` |
+| `src/controllers/enrollment_controller.py` | `# VULNERABILITY A04`, `# CHAIN LINK 1 (chain-02)` |
+| `src/workers/grading_listener.py` | `# VULNERABILITY A09`, `# CHAIN LINK 2 (chain-02)` |
+| `src/services/grade_override_service.py` | `# CHAIN LINK 2 (chain-02)` (secondary) |
+| `src/services/import_service.py` | `# VULNERABILITY A10`, `# CHAIN LINK 2 (chain-03)` |
+| `src/controllers/auth_controller.py` | `# VULNERABILITY A07` |
 
 - [ ] Fix any missing or misformatted annotations
 
@@ -27,6 +28,7 @@
 - [ ] DECOY-04: `src/controllers/enrollment_controller.py` `→ list_enrollments()` — confirm scoped
 - [ ] DECOY-05: `src/services/import_service.py` `→ fetch_metadata()` — confirm allowlist
 - [ ] DECOY-06: `src/controllers/auth_controller.py` `→ login()` — confirm secure cookie flags
+- [ ] DECOY-07: `src/workers/grading_listener.py` `→ audit_enrollment_change()` — confirm writes proper audit_log entries for enrollment changes only
 
 ## Test File Update
 - [ ] Edit `tests/test_modular_contract.py`:
@@ -38,21 +40,21 @@
   - Add `self.assertIn("CHAIN LINK 2 (chain-02)", source)`
   - Add `self.assertIn("CHAIN LINK 2 (chain-03)", source)`
   - Update manifest validation: `self.assertEqual(len(manifest["chained_attacks"]), 3)`
-  - Update decoy count: `self.assertGreaterEqual(len(manifest["decoys"]), 6)`
+  - Update decoy count: `self.assertGreaterEqual(len(manifest["decoys"]), 7)`
 
 ## .vulns Update
-- [ ] Add VULN-04 (A04 weak enrollment)
+- [ ] Add VULN-04 (A04 insecure enrollment design — trusts client-supplied role + unvalidated course_id)
 - [ ] Add VULN-05 (A09 missing audit logging)
 - [ ] Add VULN-06 (A10 SSRF content import)
 - [ ] Add VULN-07 (A07 weak dashboard session)
-- [ ] Add chain-02 with 2 components
-- [ ] Add chain-03 with 2 components
-- [ ] Add decoys 04, 05, 06 to `decoys` array
+- [ ] Add chain-02 with 2 components (enrollment role escalation → missing audit grade tampering)
+- [ ] Add chain-03 with 2 components (debug leak → SSRF internal pivot)
+- [ ] Add decoys 04, 05, 06, 07 to `decoys` array
 - [ ] Verify `app_id`, `app_name`, `language`, `framework` unchanged
 - [ ] Validate `.vulns` against AGENTS.md JSON schema
 - [ ] Confirm `vulnerabilities` array length = 7
 - [ ] Confirm `chained_attacks` array length = 3
-- [ ] Confirm `decoys` array length = 6
+- [ ] Confirm `decoys` array length = 7
 
 ## eval-report.md
 - [ ] Create `eval-report.md`:
@@ -78,13 +80,14 @@
 - [ ] VULN-01 A01: Read another user's submission → confirm works
 - [ ] VULN-02 A05: Read `/api/debug/config` → confirm secrets leaked
 - [ ] VULN-03 A08: Publish malicious pickle to Kafka import topic → confirm RCE
-- [ ] VULN-04 A04: Enroll in non-existent course → confirm succeeds
-- [ ] VULN-05 A09: Submit quiz, check no audit log written → confirm
-- [ ] VULN-06 A10: Import URL to `http://localhost:8085/api/debug/config` → confirm fetched
+- [ ] VULN-04 A04: Enroll with `{"role": "INSTRUCTOR"}` → confirm elevated role accepted
+- [ ] VULN-05 A09: Submit quiz via Kafka → check `audit_log` has no grade entry → confirm
+- [ ] VULN-06 A10: Import URL to `http://localhost:8085/admin/internal/metrics` → confirm fetched (SSRF)
 - [ ] VULN-07 A07: Dashboard login → confirm cookie has no `httpOnly` flag
 - [ ] chain-01: Debug leak → forge session → read submission → confirm 3 steps work
-- [ ] chain-02: Enroll without prereqs → submit quiz → grade applied without audit → confirm
-- [ ] chain-03: Read debug config → submit SSRF import → pivot internally → confirm
+- [ ] chain-02: Escalate role via enrollment → override grade via `/api/instructor/grades/override` → confirm no audit_log entry → 2-step chain works
+- [ ] chain-03: Read debug config for internal metrics path → submit SSRF import to `localhost:8085/admin/internal/metrics` → confirm internal data exfiltrated
+- [ ] Verify `/admin/internal/metrics` is NOT reachable from host browser (no port mapping)
 - [ ] Run `python -m pytest tests/test_modular_contract.py -v` → all pass
 - [ ] Confirm no regression in any of the 14 existing API endpoints
 

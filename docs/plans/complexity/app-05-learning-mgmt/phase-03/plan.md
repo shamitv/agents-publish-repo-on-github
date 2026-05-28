@@ -7,13 +7,15 @@ Implement the core LMS business logic — prerequisite course validation, auto-g
 ## Scope
 
 ### Included
-- [ ] `src/services/prereq_validator.py` — check completed prerequisite courses before allowing enrollment or quiz submission
-- [ ] `src/services/grading_service.py` — score multiple-choice, free-text, and code-snippet questions
-- [ ] `src/services/rate_limiter.py` — limit submission retry frequency per student per quiz
-- [ ] Wire grading service into submission controller
-- [ ] Plant A09: grading listener applies scores without audit logging
-- [ ] Add decoy: logging stub that writes to stdout near the vulnerable consumer
-- [ ] chain-02 step 2: grading data-modification without audit trail
+- [ ] `src/services/prereq_validator.py` — check prerequisite completion (used by the safe enrollment path; ignored by the A04 vulnerable path)
+- [ ] `src/services/grading_service.py` — multi-question-type auto-grading engine
+- [ ] `src/services/rate_limiter.py` — submission retry throttle per student per quiz
+- [ ] `src/services/grade_override_service.py` — instructor manual grade adjustment with weak authorization (chain-02 write vector)
+- [ ] Wire grading service into submission flow: grade on submit, write to `grades` table
+- [ ] Add `POST /api/instructor/grades/override` endpoint
+- [ ] Plant A09: grading listener writes scores to `grades` without writing to `audit_log`
+- [ ] Plant chain-02 step 2: grade override lacks course-ownership check + missing audit trail
+- [ ] Add decoy: `audit_enrollment_change()` method in grading_listener.py — writes proper audit entries to `audit_log` table (enrollment changes only, not grades)
 
 ### Excluded
 - No Kafka changes (Phase 4 — real streaming)
@@ -26,29 +28,30 @@ Implement the core LMS business logic — prerequisite course validation, auto-g
 |----------|-----------|
 | Grading service is synchronous for now | Simpler to validate; async Kafka grading comes in Phase 4 |
 | Rate limiter uses in-memory counters | No Redis dependency yet; resets on app restart (acceptable for benchmark) |
-| A09 planted in `src/workers/grading_listener.py` | Follows the existing pattern of VULN-03 (pickle) in a worker file — same directory, same risk profile |
+| A09 planted in `src/workers/grading_listener.py` | Follows the existing pattern of VULN-03 (pickle) in a worker file — same directory, same risk profile. The current stub is 3 lines; real grading code must be added first for the vuln to be meaningful. |
+| Grade override in `src/services/grade_override_service.py` | Separate service for chain-02 step 2 — validates instructor role but does NOT verify course ownership, enabling cross-course grade tampering |
 
 ## Vulnerability Planting
 
 | # | Type | OWASP | CWE | Location | Description | Severity |
 |---|------|-------|-----|----------|-------------|----------|
-| 1 | Standalone | A09 | CWE-778 | `src/workers/grading_listener.py` → `grade_submission()` | Grading listener writes score updates to PostgreSQL without recording audit log entries, enabling undetected grade tampering | Medium |
+| 1 | Standalone | A09 | CWE-778 | `src/workers/grading_listener.py` → `process_submission()` | Grading listener writes score to `grades` table but does NOT write to `audit_log`. No record exists of who changed what grade or when. | Medium |
 
-**Source comment**: `# VULNERABILITY A09: Grading listener applies score changes without writing audit log entries`
+**Source comment**: `# VULNERABILITY A09: Grading listener writes score changes to grades table without audit log entries`
 
 ### Chain-02 Step 2
 
 | Chain | Step | OWASP | CWE | Location | Description | Severity |
 |-------|------|-------|-----|----------|-------------|----------|
-| chain-02 | 2 | A09 | CWE-778 | `src/workers/grading_listener.py` → `grade_submission()` | Score changes applied without audit logging — no trail of who changed what grade | Low |
+| chain-02 | 2 | A09 | CWE-778 | `src/services/grade_override_service.py` → `override_grade()` | Grade override endpoint validates INSTRUCTOR role but does NOT check course ownership — any instructor can modify any student's grade. Combined with missing audit trail, tampering is untraceable. | Medium |
 
-**Source comment**: `# CHAIN LINK 2 (chain-02): Grading listener silently updates grades without emitting audit events`
+**Source comment**: `# CHAIN LINK 2 (chain-02): Grade override writes scores without course-ownership check and without audit log entries — tampering is undetectable`
 
 ## Decoy Patterns
 
 | # | Location | Why it looks vulnerable | Why it is safe |
 |---|----------|------------------------|----------------|
-| 1 | `src/workers/grading_listener.py` → `audit_enrollment_change()` | Same file as the vulnerable un-audited `grade_submission()`; writes enrollment status changes and looks like a generic audit method | Writes structured audit entries to a dedicated `audit_log` table in PostgreSQL with user ID, timestamp, and old/new value pairs |
+| 1 | `src/workers/grading_listener.py` → `audit_enrollment_change()` | Same file as un-audited `process_submission()`; looks like it handles all audit events | Writes proper structured audit entries with user_id, timestamp, old/new value pairs to `audit_log` — only for enrollment changes, not grades |
 
 ## Data Model Changes
 
@@ -58,7 +61,11 @@ Implement the core LMS business logic — prerequisite course validation, auto-g
 
 ## API Contracts
 
-No new endpoints. Existing endpoints now use grading services:
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/instructor/grades/override` | Instructor+ | Override a student's grade — no course ownership verification (vulnerable, chain-02 write vector) |
+
+Existing endpoints now use grading services:
 - `POST /api/submissions` → submission controller calls `grading_service.grade()` before saving
 
 ## Artifact Updates
@@ -66,9 +73,11 @@ No new endpoints. Existing endpoints now use grading services:
 - `src/services/prereq_validator.py`: New file
 - `src/services/grading_service.py`: New file
 - `src/services/rate_limiter.py`: New file
-- `src/workers/grading_listener.py`: Add A09 annotation + decoy print stub
+- `src/services/grade_override_service.py`: New file (chain-02 step 2 location)
+- `src/workers/grading_listener.py`: Rewrite from 3-line stub to real grading consumer — add A09 annotation + decoy `audit_enrollment_change()` method
+- `src/routes/instructor_routes.py`: Add `/api/instructor/grades/override` route
 - `.vulns`: Add VULN-05 (A09) + chain-02 step 2
-- `README.md`: Update description to mention auto-grading
+- `README.md`: Update description to mention auto-grading and grade override
 - `scenarios.md`: Complete chain-02 narrative with both steps
 
 ## Dependencies on Other Phases

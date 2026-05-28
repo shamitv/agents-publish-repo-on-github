@@ -25,23 +25,35 @@
   - In-memory dict tracking attempt timestamps
 - [ ] Wire into submission controller: reject submission if rate limit exceeded
 
+## Grade Override Service
+- [ ] Create `src/services/grade_override_service.py`:
+  - `override_grade(instructor_id, student_id, quiz_id, new_score)` → updates grade in PostgreSQL
+  - Validates instructor role but does NOT verify course ownership
+  - Writes to `grades` table but NOT to `audit_log`
+- [ ] Wire into `src/routes/instructor_routes.py`: register `POST /api/instructor/grades/override`
+- [ ] Source comment: `# CHAIN LINK 2 (chain-02): Grade override writes scores without course-ownership check and without audit log entries`
+
 ## A09 Vulnerability — Missing Audit Logging
-- [ ] Edit `src/workers/grading_listener.py`:
-  - In `grade_submission()` (or equivalent score-apply method), write score to PostgreSQL grades table
-  - Do NOT write to any audit log table
-  - Add comment: `# VULNERABILITY A09: Grading listener applies score changes without writing audit log entries`
-  - Add comment: `# CHAIN LINK 2 (chain-02): Grading listener silently updates grades without emitting audit events`
-  - Add decoy in same file: `audit_enrollment_change()` method that writes structured entries to `audit_log` table
+- [ ] Rewrite `src/workers/grading_listener.py` from 3-line stub to real grading consumer:
+  - `process_submission()` — consume grading event, write score to PostgreSQL `grades` table
+  - Do NOT write to `audit_log` table
+  - Add comment: `# VULNERABILITY A09: Grading listener writes score changes to grades table without audit log entries`
+- [ ] Add decoy in same file: `audit_enrollment_change()` method that writes structured entries to `audit_log` table (enrollment changes only, NOT grades)
 
 ## Verification
 - [ ] Restart app
 - [ ] Submit a quiz via `POST /api/submissions`:
   - Verify grading service returns score
-- [ ] Enroll in a course without prerequisites:
-  - A04 path should succeed (no enforcement)
+- [ ] Enroll in a course with `{"role": "INSTRUCTOR"}`:
+  - A04 path should succeed (role escalation via enrollment)
 - [ ] Verify A09 vulnerability:
-  - Submit a quiz, then check PostgreSQL `grades` table — score is stored
-  - Check for any audit log table — should not exist
+  - Submit a quiz via Kafka → grading listener writes score to `grades` table
+  - Check `audit_log` table — no corresponding entry should exist for the grade write
+- [ ] Verify chain-02 step 2:
+  - Call `POST /api/instructor/grades/override` — grade written without course ownership check
+  - Confirm `audit_log` has no entry for the grade change
+- [ ] Verify decoy `audit_enrollment_change()`:
+  - Enroll in a course → `audit_log` has an audit entry (safe pattern)
 - [ ] Verify existing vulnerabilities remain exploitable:
   - A01 IDOR: read another user's submission
   - A05 Debug: read secrets

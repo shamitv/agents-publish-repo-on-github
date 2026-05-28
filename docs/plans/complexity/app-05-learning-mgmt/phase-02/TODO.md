@@ -38,12 +38,13 @@
   - `get_submission()`: query by submission_id
   - `save_submission()`: insert document
 
-## A04 Vulnerability — Weak Enrollment
+## A04 Vulnerability — Insecure Enrollment Design
 - [ ] Edit `src/controllers/enrollment_controller.py`:
   - In `enroll()`, accept enrollment without checking course existence, active status, or prerequisites
-  - Add comment: `# VULNERABILITY A04: Enrollment accepts course_id without verifying course exists, is active, or student meets prerequisites`
-  - Add comment: `# CHAIN LINK 1 (chain-02): Enrollment accepts arbitrary course_id without prerequisite or existence checks`
-- [ ] Verify `list_enrollments()` still scopes by `session["user_id"]` (DECOY-03 preserved)
+  - Also trust client-supplied `role` parameter — write it into the session or user record without server-side validation
+  - Add comment: `# VULNERABILITY A04: Enrollment trusts client-supplied role and course_id without server-side validation`
+  - Add comment: `# CHAIN LINK 1 (chain-02): Enrollment trusts client-supplied role, enabling privilege escalation to instructor access`
+- [ ] Verify `list_enrollments()` still scopes by `session["user_id"]` and ignores client-supplied `role` (DECOY-03 preserved, decoy added in this phase)
 
 ## Config Tuning
 - [ ] Update `src/config/settings.py`: add MongoDB collection names, migration paths
@@ -54,9 +55,10 @@
 - [ ] Verify all 14 endpoints respond correctly with real data:
   - `POST /api/auth/login` reads from real PostgreSQL
   - `GET /api/courses` reads from real PostgreSQL
-  - `POST /api/enrollments` accepts enrollment into non-existent course (A04)
+  - `POST /api/enrollments` accepts enrollment into non-existent course and trusts client-supplied role (A04)
   - `GET /api/submissions/2` reads from real MongoDB
 - [ ] Verify A04 vulnerability:
+  - Enroll with `{"role": "INSTRUCTOR"}` → role should be accepted without server-side validation
   - Enroll in a non-existent course ID → should succeed
   - Enroll in a course without prerequisites → should succeed
 - [ ] Verify existing vulnerabilities remain exploitable:

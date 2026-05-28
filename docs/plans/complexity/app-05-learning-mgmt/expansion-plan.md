@@ -5,7 +5,7 @@
 Upgrade the Online Learning Management System from a stub-backed Flask application (SQLite, in-memory Kafka emulation, mock MongoDB) to a Docker-orchestrated, enterprise-grade polyglot system with real PostgreSQL, MongoDB, Apache Kafka, auto-grading business logic, and instructor/student portal dashboards.
 
 **Current app**: Python/Flask, 37 source files, 14 endpoints, 3 standalone vulns, 1 chained scenario
-**Target app**: Same 14 endpoints upgraded to real DB/Kafka + new grading pipeline + 2 new dashboards, ~55–65 source files
+**Target app**: Same 14 endpoints upgraded to real DB/Kafka + new grading pipeline + 2 new dashboards + internal metrics endpoint, ~50 source files
 
 > **Non-goals / Constraints**
 > - Do **not** remove or fix any intentionally planted vulnerability listed in [vuln-inventory.md](./vuln-inventory.md).
@@ -40,7 +40,7 @@ Upgrade the Online Learning Management System from a stub-backed Flask applicati
 |-----------|---------------|---------------|
 | Primary DB | SQLite (`db_sql.py`) | PostgreSQL 15 via `psycopg2-binary` |
 | Document store | In-memory mock (`db_mongo.py`) | MongoDB 6 via `pymongo` |
-| Event broker | Python-thread-based queue emulation (`kafka_client.py`) | Apache Kafka via `kafka-python` |
+| Event broker | Python-thread-based queue emulation (`kafka_client.py`) | Redpanda (Apache Kafka protocol) via `kafka-python` — already in docker-compose.yml |
 | Orchestration | Manual | `docker-compose.yml` with healthchecks |
 
 ### 2) Existing code preserved verbatim
@@ -52,6 +52,7 @@ All existing source files, vulnerability annotations, and benchmark metadata sta
 - `src/services/prereq_validator.py` — prerequisite course completion checks
 - `src/services/grading_service.py` — multi-question-type auto-grading engine
 - `src/services/rate_limiter.py` — submission retry throttling
+- `src/services/grade_override_service.py` — instructor manual grade adjustment with weak authorization (chain-02 enabler)
 
 ### 4) New UI dashboards
 
@@ -63,8 +64,8 @@ Static HTML/JS dashboards served by Flask:
 
 | Phase | New OWASP | Rationale |
 |-------|-----------|-----------|
-| 2 | A04 — Insecure Design | Weak enrollment validation in the enrollment migration |
-| 3 | A09 — Security Logging & Monitoring | Grading pipeline applies score changes without audit trail |
+| 2 | A04 — Insecure Design | Enrollment trusts client-supplied role + accepts unvalidated course_id |
+| 3 | A09 — Security Logging & Monitoring | Grading pipeline writes grades without audit trail |
 | 4 | A10 — SSRF | Course content import fetches user-supplied URLs |
 | 4 | A07 — Identification & Auth Failures | Dashboard session cookie missing `httpOnly`/`secure` flags |
 
@@ -77,8 +78,8 @@ Static HTML/JS dashboards served by Flask:
 | Phase | Standalone Vulns Added | Chain Additions | Decoy Patterns |
 |-------|-----------------------|-----------------|----------------|
 | 1 | — | — | — |
-| 2 | 1 (A04) | chain-02 step 1 | Proper enrollment guard on list endpoint |
-| 3 | 1 (A09) | chain-02 step 2 | Logging stub that writes to stdout near vulnerable consumer |
+| 2 | 1 (A04) | chain-02 step 1 (role escalation via enrollment) | Proper enrollment guard on list endpoint |
+| 3 | 1 (A09) | chain-02 step 2 (missing audit + missing ownership check on grade override) | Audit method stub near un-audited consumer |
 | 4 | 2 (A10, A07) | chain-03 step 2 | URL allowlist on import GET; proper session config on auth |
 | 5 | — | chain-03 step 1 (uses existing A05) | Decoy enrollment validation variant |
 
@@ -106,15 +107,17 @@ Static HTML/JS dashboards served by Flask:
 - [ ] Wire quiz/submission repositories to MongoDB
 - [ ] Seed data for all tables
 - [ ] Verify all 14 endpoints work with real databases
-- [ ] Plant A04 vulnerability in enrollment flow
+- [ ] Plant A04 vulnerability in enrollment flow (trusts client-supplied role + unvalidated course_id)
 - [ ] Add decoy: proper enrollment validation on list endpoint
 
 ### Phase 3 — Business Logic + Auto-Grading
 - [ ] `src/services/prereq_validator.py` — prerequisite completion checker
 - [ ] `src/services/grading_service.py` — multi-question-type scoring engine
 - [ ] `src/services/rate_limiter.py` — submission retry throttle
+- [ ] `src/services/grade_override_service.py` — instructor manual grade adjustment (chain-02 write vector)
 - [ ] Wire grading service into submission flow
-- [ ] Plant A09 vulnerability in grading listener
+- [ ] Add `POST /api/instructor/grades/override` endpoint
+- [ ] Plant A09 vulnerability in grading listener (no audit log write)
 - [ ] Add decoy: logging stub near vulnerable consumer
 
 ### Phase 4 — Real Kafka Streaming + Enterprise UI
@@ -124,12 +127,13 @@ Static HTML/JS dashboards served by Flask:
 - [ ] Real `KafkaConsumer` in `ImportListener` worker (pickle RCE preserved)
 - [ ] Student dashboard: gradebook, active courses, enrollment
 - [ ] Instructor dashboard: quiz builder, grading queue
+- [ ] Add `GET /admin/internal/metrics` — internal-only endpoint (no Docker port map — chain-03 SSRF target)
 - [ ] Plant A10 (SSRF in content import) and A07 (weak session cookies on dashboard)
 - [ ] Add decoys: URL allowlist on import GET, proper session config on auth
 
 ### Phase 5 — Advanced Features + Verification
-- [ ] chain-02 scenario: Weak Enrollment → Missing Audit → Unlogged Grade Change
-- [ ] chain-03 scenario: Debug Config Leak → SSRF Internal Pivot
+- [ ] chain-02 scenario: Enrollment Role Escalation → Missing Audit → Undetected Grade Tampering
+- [ ] chain-03 scenario: Debug Config Leak → SSRF Internal Pivot (via `/admin/internal/metrics`)
 - [ ] Add decoy variants for all new chains
 - [ ] Update `tests/test_modular_contract.py` for new annotations
 - [ ] Update `.vulns` — add VULN-04 (A04), VULN-05 (A09), VULN-06 (A10), VULN-07 (A07) + chain-02, chain-03
@@ -148,6 +152,7 @@ Static HTML/JS dashboards served by Flask:
 | `courses` | id, title, description, instructor_id, prerequisites (JSON), status | Course metadata |
 | `enrollments` | id, user_id, course_id, enrolled_at, status | Enrollment records |
 | `grades` | id, user_id, course_id, quiz_id, score, graded_at | Grading results |
+| `audit_log` | id, user_id, action, entity_type, entity_id, old_value, new_value, timestamp | Decoy-only: proper audit trail alongside the un-audited grade write path |
 
 ### New MongoDB Collections
 
@@ -178,6 +183,8 @@ All 14 existing endpoints preserved; new dashboards served via static routes:
 | GET | `/api/debug/config` | No | **Vulnerable**: leaks secrets |
 | GET | `/api/instructor/courses` | Instructor+ | Instructor's courses |
 | GET | `/api/instructor/submissions/<quiz_id>` | Instructor+ | Submissions for a quiz |
+| POST | `/api/instructor/grades/override` | Instructor+ | **Vulnerable**: overrides a student's grade without course ownership check |
+| GET | `/admin/internal/metrics` | Internal | Operational metrics (no Docker port mapping — SSRF target for chain-03) |
 | GET | `/dashboard/student` | Student | Student portal UI |
 | GET | `/dashboard/instructor` | Instructor+ | Instructor portal UI |
 
@@ -185,6 +192,7 @@ All 14 existing endpoints preserved; new dashboards served via static routes:
 
 ## Security Benchmark Considerations
 
+- A03 (Injection) and A06 (Vulnerable & Outdated Components) remain intentionally uncovered post-expansion. A03 is a strong candidate for future expansion given DECOY-01 (parameterized login) is already positioned as a decoy.
 - Keep existing benchmark vulnerabilities intact — refer to [vuln-inventory.md](./vuln-inventory.md) before every code change.
 - Each phase adds decoy safe patterns near vulnerable-looking code:
   - Phase 2: Proper enrollment validation on list endpoint near weak validation

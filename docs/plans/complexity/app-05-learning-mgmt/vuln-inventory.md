@@ -126,7 +126,7 @@ These files contain vulnerability annotations and **must not be modified** in wa
 | `src/repositories/enrollment_repository.py` | DECOY-03 | No direct modification |
 | `.vulns` | Ground truth manifest | Update to add entries only; never delete |
 
-**Rule**: If a refactoring step must touch these files (e.g., changing imports after config layer migration), the vulnerability code and comments must be preserved verbatim, and `.vulns` locations updated accordingly.
+**Rule**: If a refactoring step must touch these files (e.g., changing imports after config layer migration, or adding new `CHAIN LINK` annotations for additional chain scenarios), the vulnerability code and comments must be preserved verbatim. New annotations may be added to no-touch files as long as existing vulnerability code and comments remain unchanged. `.vulns` locations must be updated accordingly.
 
 ---
 
@@ -146,5 +146,73 @@ Current coverage vs. OWASP Top 10: 2021:
 | A08 | Software & Data Integrity | Yes | VULN-03 |
 | A09 | Security Logging & Monitoring | **No** | **Target for this upgrade (Phase 3)** |
 | A10 | SSRF | **No** | **Target for this upgrade (Phase 4)** |
+
+## Planned Vulnerability Additions
+
+The following vulnerabilities will be planted during the complexity upgrade. They are documented here so implementers know the target state before writing code.
+
+### VULN-04 — Insecure Enrollment Design
+| Field | Value |
+|-------|-------|
+| OWASP | **A04** — Insecure Design |
+| CWE | CWE-602 |
+| Planned file | `src/controllers/enrollment_controller.py` |
+| Planned method | `enroll()` |
+| Severity | Medium |
+| Phase | 2 |
+| Description | Enrollment endpoint trusts client-supplied `role` parameter and arbitrary `course_id` without server-side validation of course existence, active status, student prerequisites, or role authorization. |
+| Chain role | chain-02 step 1: role escalation via enrollment |
+
+### VULN-05 — Missing Audit Logging
+| Field | Value |
+|-------|-------|
+| OWASP | **A09** — Security Logging & Monitoring Failures |
+| CWE | CWE-778 |
+| Planned file | `src/workers/grading_listener.py` |
+| Planned method | `process_submission()` |
+| Severity | Medium |
+| Phase | 3 |
+| Description | Grading listener writes score updates to PostgreSQL `grades` table without writing corresponding entries to `audit_log`. No record exists of who changed a grade, when, or from what prior value. |
+| Chain role | chain-02 step 2: missing audit makes grade tampering undetectable |
+
+### VULN-06 — SSRF in Course Content Import
+| Field | Value |
+|-------|-------|
+| OWASP | **A10** — Server-Side Request Forgery |
+| CWE | CWE-918 |
+| Planned file | `src/services/import_service.py` |
+| Planned method | `fetch_content()` |
+| Severity | High |
+| Phase | 4 |
+| Description | Course content import fetches user-supplied URLs via `requests.get(url)` without hostname or private-network validation. Enables accessing internal-only endpoints from within the Docker network. |
+| Chain role | chain-03 step 2: SSRF enables internal pivot using leaked topology from chain-03 step 1 |
+
+### VULN-07 — Weak Dashboard Session Cookies
+| Field | Value |
+|-------|-------|
+| OWASP | **A07** — Identification & Authentication Failures |
+| CWE | CWE-614 |
+| Planned file | `src/controllers/auth_controller.py` |
+| Planned method | `dashboard_login()` |
+| Severity | Low |
+| Phase | 4 |
+| Description | Dashboard session cookie set without `httpOnly` or `secure` flags, enabling client-side script access. API login endpoint retains proper cookie config as a decoy. |
+| Chain role | Standalone only |
+
+### Planned Chain Scenarios
+
+| Chain | Name | Steps | Impact | Phases |
+|-------|------|-------|--------|--------|
+| chain-02 | Enrollment Role Escalation → Missing Audit → Undetected Grade Tampering | A04 (role escalation) → A09 (no audit on grade writes) | `data_modification` | 2, 3 |
+| chain-03 | Debug Config Leak → SSRF Internal Pivot | A05 (leaked topology) → A10 (SSRF to `/admin/internal/metrics`) | `lateral_movement` | 4, 5 |
+
+### Planned Decoys
+
+| # | Location | Phase |
+|---|----------|-------|
+| DECOY-04 | `src/controllers/enrollment_controller.py` `→ list_enrollments()` (scoped, ignores client role) | 2 |
+| DECOY-05 | `src/services/import_service.py` `→ fetch_metadata()` (hostname allowlist) | 4 |
+| DECOY-06 | `src/controllers/auth_controller.py` `→ login()` API (secure cookie flags) | 4 |
+| DECOY-07 | `src/workers/grading_listener.py` `→ audit_enrollment_change()` (proper audit for enrollment only) | 3 |
 
 **Upgrade strategy**: Phase 2→A04, Phase 3→A09, Phase 4→A10+A07 to reach 8/10 coverage.

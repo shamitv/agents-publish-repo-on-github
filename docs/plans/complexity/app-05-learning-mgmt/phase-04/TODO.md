@@ -30,7 +30,7 @@
   - Add `fetch_content(url)` method
   - Use `requests.get(url)` with NO validation on scheme, hostname, or IP range
   - Add comment: `# VULNERABILITY A10: Course content import fetches user-supplied URLs without hostname or private-network validation`
-  - Add comment: `# CHAIN LINK 2 (chain-03): SSRF in import_service.fetch_content() enables internal network pivot using leaked debug topology`
+  - Add comment: `# CHAIN LINK 2 (chain-03): SSRF in import_service.fetch_content() enables internal network pivot to /admin/internal/metrics using leaked debug topology`
 - [ ] Add decoy `fetch_metadata(url)`:
   - Same signature but validates against an allowlist before fetching
   - Add comment noting it's safe
@@ -58,24 +58,35 @@
 - [ ] Create `templates/dashboard_instructor.html`:
   - Quiz builder: list of quizzes per course, create/edit links
   - Grading queue: submissions pending manual review
+  - Grade override: form to manually adjust student scores (uses chain-02 grade override flow)
   - Student list: enrolled students per course
 - [ ] Register route in Flask: `GET /dashboard/instructor`
+
+## Internal Metrics Endpoint
+- [ ] Create `src/config/routes/internal.py`:
+  - `GET /admin/internal/metrics` — returns container operational data (connections, memory, service topology)
+  - Bind to `0.0.0.0:8085` but do NOT add port mapping in `docker-compose.yml`
+  - This is the SSRF target for chain-03; only reachable from within the Docker network
+- [ ] Ensure the debug endpoint (A05) leaks the internal metrics path in environment output
 
 ## Verification
 - [ ] Restart app with Docker Compose
 - [ ] Verify real Kafka producer/consumer works:
   - Submit a quiz → event published to `grading` topic
-  - GradingListener consumes event → score written to PostgreSQL
+  - GradingListener consumes event → score written to PostgreSQL `grades` table (no `audit_log` entry)
 - [ ] Verify pickle RCE (VULN-03) via real Kafka:
   - Publish malicious pickle to `course-imports` topic
   - ImportListener deserializes → RCE triggered
-- [ ] Verify A10 SSRF:
-  - Submit import URL pointing to `http://localhost:8085/api/debug/config`
-  - Content is fetched from the internal debug endpoint
+- [ ] Verify A10 SSRF (chain-03 step 2):
+  - Submit import URL pointing to `http://localhost:8085/admin/internal/metrics`
+  - Content is fetched from the internal metrics endpoint (unreachable externally)
+  - Confirm the SSRF bypasses the Docker network boundary
+- [ ] Verify `/admin/internal/metrics` is NOT reachable from host (no port mapping)
 - [ ] Verify A07 weak session:
   - Login via dashboard → inspect cookie → `httpOnly` and `secure` flags absent
   - Login via API → inspect cookie → `httpOnly` and `secure` flags present (decoy)
 - [ ] Verify dashboards render at `/dashboard/student` and `/dashboard/instructor`
+- [ ] Verify grade override flow from instructor dashboard works (chain-02)
 - [ ] Verify existing vulnerabilities still exploitable
 - [ ] Verify decoys:
   - `fetch_metadata()` rejects internal hostnames

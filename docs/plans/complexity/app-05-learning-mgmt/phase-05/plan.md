@@ -7,8 +7,8 @@ Finalize chained scenarios (chain-02, chain-03), plant remaining decoy patterns,
 ## Scope
 
 ### Included
-- [ ] chain-02: Weak Enrollment → Missing Audit → Unlogged Grade Tampering
-- [ ] chain-03: Debug Config Leak → SSRF Internal Pivot
+- [ ] chain-02: Enrollment Role Escalation → Missing Audit → Undetected Grade Tampering
+- [ ] chain-03: Debug Config Leak → SSRF Internal Pivot (targets `/admin/internal/metrics`)
 - [ ] Add decoy variants for each new chain
 - [ ] Finalize source annotations (VULNERABILITY + CHAIN LINK comments) across all files
 - [ ] Update `tests/test_modular_contract.py` for new annotations
@@ -39,14 +39,16 @@ None. All vulnerabilities planted in prior phases:
 
 ## Chained Scenarios
 
-### chain-02: Weak Enrollment → Missing Audit → Unlogged Grade Tampering
+### chain-02: Enrollment Role Escalation → Missing Audit → Undetected Grade Tampering
 
 **Combined Impact**: `data_modification`
 
 | Step | OWASP | CWE | Location | Method | Severity | Source Comment |
 |------|-------|-----|----------|--------|----------|----------------|
-| 1 | A04 | CWE-602 | `src/controllers/enrollment_controller.py` | `enroll()` | Low | `// CHAIN LINK 1 (chain-02): Enrollment accepts arbitrary course_id without prerequisite or existence checks` |
-| 2 | A09 | CWE-778 | `src/workers/grading_listener.py` | `grade_submission()` | Low | `// CHAIN LINK 2 (chain-02): Grading listener silently updates grades without emitting audit events` |
+| 1 | A04 | CWE-602 | `src/controllers/enrollment_controller.py` | `enroll()` | Low | `# CHAIN LINK 1 (chain-02): Enrollment trusts client-supplied role, enabling privilege escalation to instructor access` |
+| 2 | A09 | CWE-778 | `src/workers/grading_listener.py` / `src/services/grade_override_service.py` | `process_submission()` / `override_grade()` | Low | `# CHAIN LINK 2 (chain-02): Grade override writes scores without course-ownership check and without audit log entries — tampering is undetectable` |
+
+**Attack narrative**: Attacker sends enrollment request with `{"course_id": 99, "role": "INSTRUCTOR"}`. The A04 vulnerability accepts the client-supplied elevated role. Now authenticated with instructor privileges, the attacker calls `POST /api/instructor/grades/override` targeting any student's submission. The override endpoint doesn't verify course ownership — any instructor-role user can modify any grade. The grading listener writes the change to `grades` without an `audit_log` entry (A09). No trace of who changed the grade, when, or from what value. Repeated across multiple submissions, an attacker can manipulate the entire gradebook without detection.
 
 ### chain-03: Debug Config Leak → SSRF Internal Pivot
 
@@ -54,8 +56,10 @@ None. All vulnerabilities planted in prior phases:
 
 | Step | OWASP | CWE | Location | Method | Severity | Source Comment |
 |------|-------|-----|----------|--------|----------|----------------|
-| 1 | A05 | CWE-200 | `src/services/debug_service.py` | `collect()` | Low | `// CHAIN LINK 1 (chain-03): Debug endpoint leaks internal service hostnames and topology, enabling SSRF-based internal pivot` |
-| 2 | A10 | CWE-918 | `src/services/import_service.py` | `fetch_content()` | Medium | `// CHAIN LINK 2 (chain-03): SSRF in import_service.fetch_content() enables internal network pivot using leaked debug topology` |
+| 1 | A05 | CWE-200 | `src/services/debug_service.py` | `collect()` | Low | `# CHAIN LINK 1 (chain-03): Debug endpoint leaks internal service hostnames and internal endpoint paths, enabling SSRF targeting` |
+| 2 | A10 | CWE-918 | `src/services/import_service.py` | `fetch_content()` | Medium | `# CHAIN LINK 2 (chain-03): SSRF in fetch_content() enables internal network pivot to /admin/internal/metrics using leaked debug topology` |
+
+**Attack narrative**: Attacker sends `GET /api/debug/config`, obtaining internal Docker service hostnames and the `/admin/internal/metrics` path from leaked environment variables. Attacker then calls `POST /api/courses/import` with `{"url": "http://localhost:8085/admin/internal/metrics"}`. The SSRF vulnerability in `fetch_content()` fetches the URL without hostname validation. The `/admin/internal/metrics` endpoint has no Docker port mapping, so it's unreachable externally — but the SSRF originates from within the container, bypassing the network boundary. Attacker exfiltrates operational data that enables further attacks on the internal network.
 
 ## Decoy Patterns
 
@@ -64,17 +68,18 @@ None. All vulnerabilities planted in prior phases:
 | 1 | `src/repositories/user_repository.py` | Raw SQL with user input | Parameterized placeholders | Existing |
 | 2 | `src/controllers/course_controller.py` | Adjacent to IDOR endpoint | Role-gated write | Existing |
 | 3 | `src/repositories/enrollment_repository.py` | Co-located with enrollment write | Scoped by session user ID | Existing |
-| 4 | `src/controllers/enrollment_controller.py` `→ list_enrollments()` | Same file as A04 `enroll()` | Scoped by session user ID | Phase 2 |
+| 4 | `src/controllers/enrollment_controller.py` `→ list_enrollments()` | Same file as A04 `enroll()` | Scoped by session user_id; ignores client-supplied role | Phase 2 |
 | 5 | `src/services/import_service.py` `→ fetch_metadata()` | Same file as A10 `fetch_content()` | Hostname allowlist validation | Phase 4 |
 | 6 | `src/controllers/auth_controller.py` `→ login()` (API) | Same file as A07 `dashboard_login()` | Sets `httpOnly=True, secure=True` | Phase 4 |
+| 7 | `src/workers/grading_listener.py` `→ audit_enrollment_change()` | Same file as un-audited `process_submission()` | Writes proper audit_log entries — enrollment changes only, NOT grades | Phase 3 |
 
 ## Artifact Updates
 
 - `src/controllers/enrollment_controller.py`: Verify A04 + chain-02 step 1 annotations present
 - `src/workers/grading_listener.py`: Verify A09 + chain-02 step 2 annotations present
+- `src/services/grade_override_service.py`: Verify chain-02 step 2 annotation present (secondary location)
 - `src/services/import_service.py`: Verify A10 + chain-03 step 2 annotations present
-- `src/controllers/auth_controller.py`: Verify A07 annotation present
-- `src/services/debug_service.py`: No changes (chain-03 step 1 reuses chain-01 step 1)
+- `src/services/debug_service.py`: Verify chain-03 step 1 annotation added (alongside existing chain-01 + A05)
 - `tests/test_modular_contract.py`: Add assertions for new annotations
 - `eval-report.md`: New file -- difficulty rating table (1-5 scale) + hint leakage grep results
 - `.vulns`: Final review -- add VULN-04, VULN-05, VULN-06, VULN-07, chain-02, chain-03
@@ -90,7 +95,7 @@ None. All vulnerabilities planted in prior phases:
 
 - [ ] All 7 vulnerabilities exploitable
 - [ ] All 3 chain scenarios functional end-to-end
-- [ ] All 6 decoy patterns present and safe
+- [ ] All 7 decoy patterns present and safe
 - [ ] `.vulns` matches source annotations exactly
 - [ ] README chain section matches `.vulns`
 - [ ] `scenarios.md` describes all chains
