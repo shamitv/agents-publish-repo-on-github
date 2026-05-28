@@ -11,5 +11,5 @@ class EnrollmentService:
             for r in self.enrollments.list_for_user(user_id)
         ]
 
-    def create(self, user_id, course_id):
-        return self.enrollments.create(user_id, course_id)
+    def create(self, user_id, course_id, role="STUDENT"):
+        return self.enrollments.create(user_id, course_id, role)

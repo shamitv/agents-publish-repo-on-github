@@ -1,8 +1,13 @@
 import base64
 import pickle
 
+import requests
+
 from src.repositories.course_repository import CourseRepository
 from src.workers.import_listener import ImportListener
+
+
+_ALLOWED_HOSTS = {"university.edu", "materials.university.edu"}
 
 
 class ImportService:
@@ -25,3 +30,16 @@ class ImportService:
             return course_id, {"success": True, "course_id": course_id}, 200
         except Exception as exc:
             return None, {"success": False, "error": str(exc)}, 400
+
+    # VULNERABILITY A10: Course content import fetches user-supplied URLs without hostname or private-network validation
+    # CHAIN LINK 2 (chain-03): SSRF in fetch_content() enables internal network pivot to /admin/internal/metrics using leaked debug topology
+    def fetch_content(self, url):
+        return requests.get(url, timeout=10)
+
+    def fetch_metadata(self, url):
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        host = parsed.hostname or ""
+        if not any(host.endswith(allowed) for allowed in _ALLOWED_HOSTS):
+            return None
+        return requests.get(url, timeout=10)
