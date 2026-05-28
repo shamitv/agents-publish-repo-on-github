@@ -1,6 +1,6 @@
 # Generic Complexity Upgrade Guide
 
-Apply this process to any benchmark app that lacks a dedicated complexity plan (the ~42 apps not covered by `app-01` through `app-36` plans). It produces the same artifact set — `expansion-plan.md`, `vuln-inventory.md`, `eval-report.md`, and per-phase `plan.md` + `TODO.md` + `status-report.md` — following the patterns validated on [app-01](realistic/0.1/app-01-ecommerce-catalog/expansion-plan.md) and [app-05](../app-05-learning-mgmt/expansion-plan.md).
+Apply this process to any benchmark app whose row in the [master complexity README](README.md) reads "Phase structure pending" or is not yet listed. Currently this covers the apps outside the 8 dedicated complexity-plan apps (01, 05, 06, 10, 11, 14, 17, 36). It produces the same artifact set -- `expansion-plan.md`, `vuln-inventory.md`, `eval-report.md`, and per-phase `plan.md` + `TODO.md` + `status-report.md` -- following the patterns validated on [app-01](realistic/0.1/app-01-ecommerce-catalog/expansion-plan.md) and [app-05](app-05-learning-mgmt/expansion-plan.md).
 
 ---
 
@@ -12,7 +12,7 @@ Apply this process to any benchmark app that lacks a dedicated complexity plan (
 4. [Step 3: Vulnerability & Chain Design](#4-step-3-vulnerability--chain-design)
 5. [Step 4: Phase Definition & Templates](#5-step-4-phase-definition--templates)
 6. [Step 5: Implementation](#6-step-5-implementation)
-7. [Step 6: Evaluation — Difficulty + Hint Leakage](#7-step-6-evaluation--difficulty--hint-leakage)
+7. [Step 6: Evaluation -- Difficulty + Hint Leakage](#7-step-6-evaluation--difficulty--hint-leakage)
 8. [Step 7: Artifact Generation](#8-step-7-artifact-generation)
 9. [Appendix A: Template Files](#appendix-a-template-files)
 10. [Appendix B: Language-Specific Notes](#appendix-b-language-specific-notes)
@@ -33,30 +33,64 @@ For each target app, you will generate:
 | `phase-NN/TODO.md` | Granular task checklist with commit/status-report items | Before implementation |
 | `phase-NN/status-report.md` | Post-implementation summary for the phase | After implementation |
 | `eval-report.md` | Difficulty ratings + hint leakage validation | After all phases |
-| `README.md` | App-level index linking all of the above | Before implementation |
+| `README.md` | App-level plan index (`docs/plans/complexity/app-<NN>-<name>/README.md`) | Before implementation |
 
-### Prerequisites
+### Prerequisites -- Annotation Check
+
+Before starting the inventory, verify the app has the required benchmark annotations. Search the source files:
+
+```bash
+rg -n "VULNERABILITY|CHAIN LINK" apps/<lang>/app-<NN> -g "*.{py,java,ts,js}"
+```
+
+**If annotations exist**: The app already meets AGENTS.md requirements. Proceed to [Step 1: App Inventory](#2-step-1-app-inventory).
+
+**If zero annotations are found** (common for apps in the generic scope, e.g., `apps/java/app-08-warehouse-mgmt`, `apps/javascript/app-16-restaurant-reviews`): Run the **annotation baseline** below before continuing.
+
+#### Annotation Baseline
+
+1. **Scan for exploitable patterns** in the source code. Look for:
+   - Raw string formatting into SQL/query strings (A03 injection targets)
+   - Endpoints that look up records by user-supplied ID without ownership checks (A01 IDOR targets)
+   - Hardcoded keys, secrets, or credentials in config or model files (A02 targets)
+   - Unsafe deserialization calls (`pickle.loads`, `ObjectInputStream.readObject`, etc.) (A08 targets)
+   - Unauthenticated routes returning env vars / config / debug info (A05 targets)
+   - Logging calls with string concatenation and user-controlled data (A09 targets)
+   - HTTP clients that fetch user-supplied URLs without validation (A10 targets)
+
+2. **Plant 2-4 annotated standalone vulnerabilities**. For each exploitable pattern found, add a source comment:
+   `// VULNERABILITY <OWASP_ID>: <brief description>`
+
+3. **Plant 1 or more chained scenarios**. Identify 2-3 weaknesses that can be combined for high impact. Annotate each step:
+   `// CHAIN LINK <N> (chain-<ID>): <description>`
+
+4. **Create or rebuild `.vulns`** with the `vulnerabilities`, `chained_attacks`, and `decoys` arrays per the AGENTS.md JSON schema.
+
+5. **Plant at least 2 decoy safe patterns** near vulnerable code. Document them in `.vulns.decoys`.
+
+6. **Verify annotation presence** by re-running the search from step 0 -- all annotations must be found.
+
+Then proceed to [Step 1: App Inventory](#2-step-1-app-inventory).
+
+### Other Prerequisites
 
 - The app already exists in `apps/<language>/app-<NN>-<name>/`
-- The app has a `.vulns` manifest (even if minimal)
-- The app already contains 2–4 vulnerability annotations per AGENTS.md
-- The app already has ≥ 1 chained scenario with `// CHAIN LINK` annotations
 - You have read AGENTS.md and understand the benchmark annotation rules
 
 ### Constraints (never violated)
 
 1. Never remove or fix an existing `// VULNERABILITY` or `// CHAIN LINK` annotation
 2. Never remove or weaken an existing decoy pattern listed in `.vulns.decoys`
-3. Every new vulnerability must have real, exploitable code — not a comment
+3. Every new vulnerability must have real, exploitable code -- not a comment
 4. Every new chain step must have a `// CHAIN LINK N (chain-ID): description` source comment
 5. Near every vulnerable code path, add at least one decoy safe pattern
-6. Update `.vulns`, `README.md`, and `scenarios.md` after every phase
+6. Update the app's `.vulns`, `apps/<lang>/app-<NN>-<name>/README.md`, and `scenarios.md` after every phase
 
 ---
 
 ## 2. Step 1: App Inventory
 
-Before designing anything, document the app's current state. Follow the pattern from [app-05's vuln-inventory.md](../app-05-learning-mgmt/vuln-inventory.md).
+Before designing anything, document the app's current state. Follow the pattern from [app-05's vuln-inventory.md](app-05-learning-mgmt/vuln-inventory.md).
 
 ### 2.1 Collect baseline data
 
@@ -128,7 +162,7 @@ List which OWASP Top 10:2021 categories are NOT covered by existing standalone v
 
 ### 3.1 Component pool
 
-Select 2–5 components from the pool below. Each adds concrete infrastructure and creates new vulnerability opportunities.
+Select 2--5 components from the pool below. Each adds concrete infrastructure and creates new vulnerability opportunities.
 
 | # | Component | Domain Fit | Language Support | New Vuln Opportunities | Decoy Opportunity |
 |---|-----------|-----------|-----------------|----------------------|-------------------|
@@ -145,7 +179,7 @@ Select 2–5 components from the pool below. Each adds concrete infrastructure a
 
 ### 3.2 Randomization procedure
 
-1. **Determine count**: Roll 1d4+1 for 2–5 components
+1. **Determine count**: Roll 1d4+1 for 2--5 components
 2. **Filter pool**: Remove components that make no sense for the app's domain
    - Example: a static CMS app doesn't need WebSockets
    - Example: a simple contact form doesn't need a second DB
@@ -157,7 +191,7 @@ Select 2–5 components from the pool below. Each adds concrete infrastructure a
 ### 3.3 Minimum viable complexity
 
 Every upgrade must include at least:
-- **1 infrastructure component** from pool items 1–8 (not just a UI app)
+- **1 infrastructure component** from pool items 1--8 (not just a UI app)
 - **+1 new standalone vulnerability** beyond existing ones
 - **+1 new chain step** (extend an existing chain or create a new one)
 
@@ -195,7 +229,7 @@ Selected by roll: MQ (Kafka), Search (ES), Cache (Redis).
 
 ### 4.1 Map components to vulnerabilities
 
-For each selected component, plant 1–2 new vulnerabilities. Use this mapping as a starting point:
+For each selected component, plant 1--2 new vulnerabilities. Use this mapping as a starting point:
 
 | Component | Primary Vuln | Secondary Vuln | Decoy |
 |-----------|-------------|----------------|-------|
@@ -213,7 +247,7 @@ For each selected component, plant 1–2 new vulnerabilities. Use this mapping a
 ### 4.2 Chain design
 
 **Rules** (from AGENTS.md, validated on app-01 and app-05):
-- 2–3 distinct code-level issues per chain
+- 2--3 distinct code-level issues per chain
 - Each step individually low or medium severity
 - Combined impact must be high or critical
 - Must be real, exploitable code
@@ -224,12 +258,12 @@ For each selected component, plant 1–2 new vulnerabilities. Use this mapping a
 
 | Pattern | Steps | Combined Impact |
 |---------|-------|-----------------|
-| Config Leak → SSRF Pivot | A05 (expose internal topology) → A10 (fetch internal URL) | `lateral_movement` |
-| Weak Validation → Missing Audit | A04 (accept bad input) → A09 (apply without logging) | `data_modification` |
-| IDOR → Weak Crypto | A01 (read any record) → A02 (decrypt with hardcoded key) | `db_exfiltration` |
-| Weak Auth → Session Forge → IDOR | A07 (weak cookie) → A02 (predictable session) → A01 (read any user's data) | `account_takeover` |
-| Debug Leak → Deserialization RCE | A05 (expose classpath/internal info) → A08 (unsafe deserialization) | `lateral_movement` |
-| SSRF → Cache Poisoning | A10 (internal HTTP request) → A04 (write into cache without validation) | `data_modification` |
+| Config Leak -> SSRF Pivot | A05 (expose internal topology) -> A10 (fetch internal URL) | `lateral_movement` |
+| Weak Validation -> Missing Audit | A04 (accept bad input) -> A09 (apply without logging) | `data_modification` |
+| IDOR -> Weak Crypto | A01 (read any record) -> A02 (decrypt with hardcoded key) | `db_exfiltration` |
+| Weak Auth -> Session Forge -> IDOR | A07 (weak cookie) -> A02 (predictable session) -> A01 (read any user's data) | `account_takeover` |
+| Debug Leak -> Deserialization RCE | A05 (expose classpath/internal info) -> A08 (unsafe deserialization) | `lateral_movement` |
+| SSRF -> Cache Poisoning | A10 (internal HTTP request) -> A04 (write into cache without validation) | `data_modification` |
 
 ### 4.3 Decoy placement rules
 
@@ -241,7 +275,7 @@ For every new vulnerable code path:
 ```markdown
 | # | Location | Why it looks vulnerable | Why it is safe |
 |---|----------|------------------------|----------------|
-| 1 | `src/services/import_service.py` → `fetch_metadata()` | Same file as SSRF; also accepts a URL parameter | Validates hostname against an allowlist before fetching |
+| 1 | `src/services/import_service.py` -> `fetch_metadata()` | Same file as SSRF; also accepts a URL parameter | Validates hostname against an allowlist before fetching |
 ```
 
 ---
@@ -252,16 +286,16 @@ For every new vulnerable code path:
 
 | Components Selected | Recommended Phases | Phase Structure |
 |-------------------|-------------------|-----------------|
-| 2 | 3 | Infra + Comp1 → Comp2 → Verify |
-| 3 | 4 | Infra → DB → MQ/Batch → UI/Verify |
-| 4 | 5 | Infra → DB1 → DB2 → MQ → UI/Verify |
-| 5 | 6 | Infra → DB → Search → MQ → UI → Verify |
+| 2 | 3 | Infra + Comp1 -> Comp2 -> Verify |
+| 3 | 4 | Infra -> DB -> MQ/Batch -> UI/Verify |
+| 4 | 5 | Infra -> DB1 -> DB2 -> MQ -> UI/Verify |
+| 5 | 6 | Infra -> DB -> Search -> MQ -> UI -> Verify |
 
 ### 5.2 Generic phase map
 
 | Phase | Title | Content | Always? |
 |-------|-------|---------|---------|
-| 1 | **Infrastructure + Docker Compose** | `docker-compose.yml`, healthchecks, dependency injection, stub→real config swap | Yes |
+| 1 | **Infrastructure + Docker Compose** | `docker-compose.yml`, healthchecks, dependency injection, stub->real config swap | Yes |
 | 2 | **Core Data Migration** | Additional DB schemas, seed data, repository port | If component includes a database |
 | 3 | **Service Layer + Business Logic** | New service classes, algorithms, validators | If MQ, Batch, or Search selected |
 | 4 | **Async Queue / Streaming** | Wire MQ or batch scheduler, implement consumers/workers | If MQ or Batch selected |
@@ -271,7 +305,7 @@ For every new vulnerable code path:
 ### 5.3 Template: `expansion-plan.md`
 
 ```markdown
-# App <NN> (<name>) — Complexity Upgrade Expansion Plan
+# App <NN> (<name>) -- Complexity Upgrade Expansion Plan
 
 ## Overview
 
@@ -282,7 +316,7 @@ auto-grading logic, and portal dashboards.>
 
 > **Non-goals / Constraints**
 > - Do not remove or fix any planted vulnerability in [vuln-inventory.md](./vuln-inventory.md).
-> - Add 1–2 new standalone vulnerabilities per phase.
+> - Add 1--2 new standalone vulnerabilities per phase.
 > - Add decoy safe code near vulnerable-looking code.
 > - Update `.vulns`, `README.md`, `scenarios.md` each phase.
 
@@ -313,7 +347,7 @@ auto-grading logic, and portal dashboards.>
 
 | Phase | New OWASP | Component Used | Decoy |
 |-------|-----------|---------------|-------|
-| 1 | — | — | — |
+| 1 | -- | -- | -- |
 | 2 | A0X | <component> | <description> |
 ...
 
@@ -321,7 +355,7 @@ auto-grading logic, and portal dashboards.>
 
 | Phase | Title | Scope | New Vulns |
 |-------|-------|-------|-----------|
-| 1 | <title> | <summary> | — |
+| 1 | <title> | <summary> | -- |
 | 2 | <title> | <summary> | A0X |
 ...
 
@@ -340,10 +374,10 @@ auto-grading logic, and portal dashboards.>
 
 ### 5.4 Template: `vuln-inventory.md`
 
-Follow the [app-05 vuln-inventory.md](../app-05-learning-mgmt/vuln-inventory.md) exactly. Sections:
+Follow the [app-05 vuln-inventory.md](app-05-learning-mgmt/vuln-inventory.md) exactly. Sections:
 
 ```markdown
-# Vulnerability Inventory — App <NN> (<name>)
+# Vulnerability Inventory -- App <NN> (<name>)
 
 ## Purpose
 ## App Profile
@@ -382,13 +416,13 @@ Follow the [app-05 vuln-inventory.md](../app-05-learning-mgmt/vuln-inventory.md)
 
 | # | Type | OWASP | CWE | Location | Description | Severity |
 |---|------|-------|-----|----------|-------------|----------|
-| 1 | Standalone / Chain Link | A0X | CWE-XXX | <file> → <method> | <description> | Medium |
+| 1 | Standalone / Chain Link | A0X | CWE-XXX | <file> -> <method> | <description> | Medium |
 
 ## Decoy Patterns
 
 | # | Location | Why it looks vulnerable | Why it is safe |
 |---|----------|------------------------|----------------|
-| 1 | <file> → <method> | <reason> | <reason> |
+| 1 | <file> -> <method> | <reason> | <reason> |
 
 ## Data Model Changes
 
@@ -407,18 +441,18 @@ Follow the [app-05 vuln-inventory.md](../app-05-learning-mgmt/vuln-inventory.md)
 
 ## Dependencies on Other Phases
 
-- **Depends on**: Phase <N> — <reason>
-- **Required by**: Phase <N> — <reason>
+- **Depends on**: Phase <N> -- <reason>
+- **Required by**: Phase <N> -- <reason>
 ```
 
 ### 5.6 Template: `phase-NN/TODO.md`
 
 ```markdown
-# Phase <NN> TODO — <Title>
+# Phase <NN> TODO -- <Title>
 
 ## Pre-requisites
 - [ ] Prior phase complete and verified
-- [ ] Read vuln-inventory.md — confirm no-touch files
+- [ ] Read vuln-inventory.md -- confirm no-touch files
 
 ## <Task Group 1>
 - [ ] <granular task>
@@ -468,15 +502,15 @@ Implement phases strictly in order. Each phase must be complete and verified bef
 
 | When | Commit message format |
 |------|----------------------|
-| After each major task | `app-<NN> phase-<NN>: <task> — <brief detail>` |
-| At phase completion | `app-<NN> phase-<NN>: <title> — <N> files, <M> vulns, <D> decoys` |
+| After each major task | `app-<NN> phase-<NN>: <task> -- <brief detail>` |
+| At phase completion | `app-<NN> phase-<NN>: <title> -- <N> files, <M> vulns, <D> decoys` |
 
 ### 6.3 Status report format
 
 Create `phase-<NN>/status-report.md` at the end of each phase:
 
 ```markdown
-# Phase <NN> Status Report — app-<NN> <name>
+# Phase <NN> Status Report -- app-<NN> <name>
 
 ## Summary
 - **Phase**: <title>
@@ -487,13 +521,13 @@ Create `phase-<NN>/status-report.md` at the end of each phase:
 - **Chains advanced**: <chain-ID> step <N>
 
 ## Verification
-- Existing vulnerabilities intact: ✅ / ❌
-- New vulnerabilities exploitable: ✅ / ❌
-- Decoys present: ✅ / ❌
-- `.vulns` updated: ✅ / ❌
-- README updated: ✅ / ❌
-- scenarios.md updated: ✅ / ❌
-- Tests passing: ✅ / ❌
+- Existing vulnerabilities intact: [PASS] / [FAIL]
+- New vulnerabilities exploitable: [PASS] / [FAIL]
+- Decoys present: [PASS] / [FAIL]
+- `.vulns` updated: [PASS] / [FAIL]
+- README updated: [PASS] / [FAIL]
+- scenarios.md updated: [PASS] / [FAIL]
+- Tests passing: [PASS] / [FAIL]
 
 ## Changes Made
 
@@ -506,7 +540,7 @@ Create `phase-<NN>/status-report.md` at the end of each phase:
 - <path>
 
 ### Vulnerabilities Planted
-- VULN-0<N> (A0X): <file> → <method> — <description>
+- VULN-0<N> (A0X): <file> -> <method> -- <description>
 
 ### Blockers
 - <none or list>
@@ -514,11 +548,11 @@ Create `phase-<NN>/status-report.md` at the end of each phase:
 
 ---
 
-## 7. Step 6: Evaluation — Difficulty + Hint Leakage
+## 7. Step 6: Evaluation -- Difficulty + Hint Leakage
 
 ### 7.1 Difficulty rating
 
-After all phases are complete, rate each vulnerability and chain on a 1–5 scale:
+After all phases are complete, rate each vulnerability and chain on a 1--5 scale:
 
 | Rating | Label | Criteria |
 |--------|-------|----------|
@@ -539,9 +573,9 @@ Record ratings in `eval-report.md`:
 | VULN-05 | A09 | `workers/grading_listener.py:grade()` | 2 | Submit quiz, then check audit table is empty |
 | VULN-06 | A10 | `services/import_service.py:fetch_content()` | 3 | Need debug leak first + craft internal URL |
 | VULN-07 | A07 | `controllers/auth.py:dashboard_login()` | 1 | Inspect cookie headers after login |
-| chain-01 | A05→A02→A01 | 3 services | 4 | Three-step across debug, auth, submission services |
-| chain-02 | A04→A09 | 2 services | 3 | Enroll path → grading pipeline |
-| chain-03 | A05→A10 | 2 services | 3 | Debug leak → SSRF pivot |
+| chain-01 | A05->A02->A01 | 3 services | 4 | Three-step across debug, auth, submission services |
+| chain-02 | A04->A09 | 2 services | 3 | Enroll path -> grading pipeline |
+| chain-03 | A05->A10 | 2 services | 3 | Debug leak -> SSRF pivot |
 ```
 
 ### 7.2 Hint leakage validation
@@ -565,14 +599,35 @@ Search all source files for benchmark keywords **outside** the permitted locatio
 **Search commands**:
 
 ```bash
-# Python
-rg -n "VULNERABILITY|CHAIN LINK|DECOY|intentional vuln|benchmark" apps/<lang>/app-<NN> --include "*.py" | grep -v "VULNERABILITY\|CHAIN LINK\|DECOY" 
+# Python -- search only .py files, excluding permit-list files
+rg -n "VULNERABILITY|CHAIN LINK|DECOY|intentional vuln|benchmark" \
+  apps/<lang>/app-<NN> \
+  -g "*.py" \
+  -g "!**/.vulns" \
+  -g "!**/README.md" \
+  -g "!**/scenarios.md" \
+  -g "!docs/plans/complexity/**" \
+  | grep -v "VULNERABILITY\|CHAIN LINK\|DECOY"
 
-# Java
-rg -n "VULNERABILITY|CHAIN LINK|DECOY|intentional vuln|benchmark" apps/<lang>/app-<NN> --include "*.java" | grep -v "VULNERABILITY\|CHAIN LINK\|DECOY"
+# Java -- search only .java files
+rg -n "VULNERABILITY|CHAIN LINK|DECOY|intentional vuln|benchmark" \
+  apps/<lang>/app-<NN> \
+  -g "*.java" \
+  -g "!**/.vulns" \
+  -g "!**/README.md" \
+  -g "!**/scenarios.md" \
+  -g "!docs/plans/complexity/**" \
+  | grep -v "VULNERABILITY\|CHAIN LINK\|DECOY"
 
-# TypeScript/JavaScript
-rg -n "VULNERABILITY|CHAIN LINK|DECOY|intentional vuln|benchmark" apps/<lang>/app-<NN> --include "*.ts" --include "*.js" | grep -v "VULNERABILITY\|CHAIN LINK\|DECOY"
+# TypeScript/JavaScript -- search .ts and .js
+rg -n "VULNERABILITY|CHAIN LINK|DECOY|intentional vuln|benchmark" \
+  apps/<lang>/app-<NN> \
+  -g "*.{ts,js}" \
+  -g "!**/.vulns" \
+  -g "!**/README.md" \
+  -g "!**/scenarios.md" \
+  -g "!docs/plans/complexity/**" \
+  | grep -v "VULNERABILITY\|CHAIN LINK\|DECOY"
 ```
 
 **Validation result**: Add to `eval-report.md`:
@@ -582,10 +637,10 @@ rg -n "VULNERABILITY|CHAIN LINK|DECOY|intentional vuln|benchmark" apps/<lang>/ap
 
 | Search Scope | Files Scanned | Matches | Status |
 |-------------|---------------|---------|--------|
-| All `.py` source files | 37 | 0 outside annotations | ✅ PASS |
-| Test files | 1 | 0 | ✅ PASS |
-| Config files (non-.vulns) | 5 | 0 | ✅ PASS |
-| Docker files | 2 | 0 | ✅ PASS |
+| All `.py` source files | 37 | 0 outside annotations | [PASS] PASS |
+| Test files | 1 | 0 | [PASS] PASS |
+| Config files (non-.vulns) | 5 | 0 | [PASS] PASS |
+| Docker files | 2 | 0 | [PASS] PASS |
 
 **Result**: ZERO matches outside the permit list. No hint leakage detected.
 ```
@@ -598,25 +653,25 @@ rg -n "VULNERABILITY|CHAIN LINK|DECOY|intentional vuln|benchmark" apps/<lang>/ap
 
 ```
 docs/plans/complexity/app-<NN>-<name>/
-├── README.md                    # App-level index (see below)
-├── expansion-plan.md            # Master plan
-├── vuln-inventory.md            # No-touch inventory
-├── eval-report.md               # Difficulty ratings + hint leakage
-├── phase-01/
-│   ├── plan.md
-│   ├── TODO.md
-│   └── status-report.md         # Generated post-implementation
-├── phase-02/
-│   ├── plan.md
-│   ├── TODO.md
-│   └── status-report.md
-└── ...                          # Additional phases
+|-- README.md                    # App-level index (see below)
+|-- expansion-plan.md            # Master plan
+|-- vuln-inventory.md            # No-touch inventory
+|-- eval-report.md               # Difficulty ratings + hint leakage
+|-- phase-01/
+|   |-- plan.md
+|   |-- TODO.md
+|   '-- status-report.md         # Generated post-implementation
+|-- phase-02/
+|   |-- plan.md
+|   |-- TODO.md
+|   '-- status-report.md
+'-- ...                          # Additional phases
 ```
 
 ### 8.2 App-level README template
 
 ```markdown
-# Complexity Upgrade Plan — app-<NN>: <name>
+# Complexity Upgrade Plan -- app-<NN>: <name>
 
 ## Overview
 
@@ -632,11 +687,11 @@ docs/plans/complexity/app-<NN>-<name>/
 
 | Phase | Title | Focus | New Vulns | Status |
 |-------|-------|-------|-----------|--------|
-| [1](phase-01/plan.md) | <title> | <scope> | — | ⬜ / ✅ |
-| [2](phase-02/plan.md) | <title> | <scope> | A0X | ⬜ / ✅ |
-| [3](phase-03/plan.md) | <title> | <scope> | A0X | ⬜ / ✅ |
-| [4](phase-04/plan.md) | <title> | <scope> | A0X | ⬜ / ✅ |
-| [5](phase-05/plan.md) | <title> | <scope> | — | ⬜ / ✅ |
+| [1](phase-01/plan.md) | <title> | <scope> | -- | Not started / Complete |
+| [2](phase-02/plan.md) | <title> | <scope> | A0X | Not started / Complete |
+| [3](phase-03/plan.md) | <title> | <scope> | A0X | Not started / Complete |
+| [4](phase-04/plan.md) | <title> | <scope> | A0X | Not started / Complete |
+| [5](phase-05/plan.md) | <title> | <scope> | -- | Not started / Complete |
 
 ## Key Documents
 
@@ -648,24 +703,24 @@ docs/plans/complexity/app-<NN>-<name>/
 
 ## OWASP Coverage
 
-<Before → After summary>
+<Before -> After summary>
 ```
 
 ---
 
 ## Appendix A: Template Files
 
-All templates above are designed to be copied verbatim and filled in for each app. They are also embedded in the file structure of [app-05](../app-05-learning-mgmt/) as concrete examples.
+All templates above are designed to be copied verbatim and filled in for each app. They are also embedded in the file structure of [app-05](app-05-learning-mgmt/) as concrete examples.
 
 Quick-reference links to example files:
 
 | Artifact | Example |
 |----------|---------|
-| `expansion-plan.md` | [app-05/expansion-plan.md](../app-05-learning-mgmt/expansion-plan.md) |
-| `vuln-inventory.md` | [app-05/vuln-inventory.md](../app-05-learning-mgmt/vuln-inventory.md) |
-| `phase-NN/plan.md` | [app-05/phase-03/plan.md](../app-05-learning-mgmt/phase-03/plan.md) |
-| `phase-NN/TODO.md` | [app-05/phase-03/TODO.md](../app-05-learning-mgmt/phase-03/TODO.md) |
-| `README.md` | [app-05/README.md](../app-05-learning-mgmt/README.md) |
+| `expansion-plan.md` | [app-05/expansion-plan.md](app-05-learning-mgmt/expansion-plan.md) |
+| `vuln-inventory.md` | [app-05/vuln-inventory.md](app-05-learning-mgmt/vuln-inventory.md) |
+| `phase-NN/plan.md` | [app-05/phase-03/plan.md](app-05-learning-mgmt/phase-03/plan.md) |
+| `phase-NN/TODO.md` | [app-05/phase-03/TODO.md](app-05-learning-mgmt/phase-03/TODO.md) |
+| `README.md` | [app-05/README.md](app-05-learning-mgmt/README.md) |
 | `eval-report.md` | (this guide defines the format; no example yet) |
 
 ---
