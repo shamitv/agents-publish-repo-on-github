@@ -46,6 +46,22 @@ A low-privilege customer reaches a billing-admin pricing endpoint, submits an ar
 
 ---
 
+### Chain: "Usage SQL Injection → Invoice IDOR → Audit Bypass → db_exfiltration"
+
+An attacker enumerates customer IDs via SQL injection on usage search, then iterates through those IDs on the unprotected invoice endpoint to bulk-extract billing history with no audit trail.
+
+| Step | Issue | Severity (standalone) | OWASP | Location |
+|------|-------|-----------------------|-------|----------|
+| 1 | SQL injection on usage search enumerates customer IDs and plan associations | Medium | A03 | `src/main/java/com/telecom/billing/controller/UsageController.java` → `getUsageByDateRange()` |
+| 2 | Invoice endpoint has no per-customer access control — any ID is readable | Medium | A01 | `src/main/java/com/telecom/billing/controller/BillingController.java` → `getCustomerInvoices()` |
+| 3 | Bulk invoice reads bypass the available BillingAuditProducer — zero audit events | Low | A09 | `src/main/java/com/telecom/billing/service/BillingService.java` → `getInvoicesByCustomer()` |
+
+**Attack narrative**: The attacker authenticates, injects SQL via `GET /api/usage/search` to discover valid customer IDs across the system, then calls `GET /api/billing/invoices?customerId=<N>` for each discovered ID to extract every customer's invoice records. The mass extraction produces no Kafka audit events because `BillingAuditProducer.publish()` is never called during invoice retrieval.
+
+**Combined Impact**: The attacker can exfiltrate the complete billing history of all customers with zero audit footprint, resulting in high-impact database exfiltration.
+
+---
+
 ## API Endpoints
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|

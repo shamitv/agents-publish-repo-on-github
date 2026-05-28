@@ -53,12 +53,42 @@
       "description": "Plan rate changes are persisted without publishing an audit event.",
       "severity": "low",
       "cwe": "CWE-778"
+    },
+    {
+      "owasp_id": "A05",
+      "category": "Security Misconfiguration",
+      "location": "src/main/java/com/telecom/billing/service/HealthService.java",
+      "method": "currentHealth",
+      "line_range": "26-31",
+      "description": "Health endpoint exposes internal Kafka bootstrap server URL and Elasticsearch URL to unauthenticated callers.",
+      "severity": "low",
+      "cwe": "CWE-200"
+    },
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "src/main/java/com/telecom/billing/controller/BillingController.java",
+      "method": "getCustomerInvoices",
+      "line_range": "23-27",
+      "description": "Invoice query endpoint has no per-customer access control — any authenticated user can read any customer's full invoice history.",
+      "severity": "medium",
+      "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A09",
+      "category": "Security Logging and Monitoring Failures",
+      "location": "src/main/java/com/telecom/billing/service/BillingService.java",
+      "method": "getInvoicesByCustomer",
+      "line_range": "21-24",
+      "description": "Invoice retrieval bypasses the available billing audit producer — sensitive data reads generate no audit events.",
+      "severity": "low",
+      "cwe": "CWE-778"
     }
   ],
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "Weak Billing Admin Auth \u2192 Unvalidated Custom Rate \u2192 Missing Audit Logs \u2192 Data Modification",
+      "chain_name": "Weak Billing Admin Auth → Unvalidated Custom Rate → Missing Audit Logs → Data Modification",
       "attack_scenario": "A low-privilege customer reaches a billing-admin pricing endpoint, submits an arbitrary negative plan rate, and the pricing mutation is saved without an audit event.",
       "impact": "data_modification",
       "components": [
@@ -90,6 +120,41 @@
           "cwe": "CWE-778"
         }
       ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Usage SQL Injection → Invoice IDOR → Audit Bypass → db_exfiltration",
+      "attack_scenario": "An attacker uses SQL injection on the usage search endpoint to enumerate all customer IDs, then iterates through those IDs against the unprotected invoice endpoint to bulk-extract every customer's complete billing history. The mass data access produces no audit trail because BillingAuditProducer is never invoked during invoice reads.",
+      "impact": "db_exfiltration",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A03",
+          "description": "SQL injection on usage search allows attacker to enumerate customer IDs and plan associations across the billing system.",
+          "location": "src/main/java/com/telecom/billing/controller/UsageController.java",
+          "method": "getUsageByDateRange",
+          "severity": "medium",
+          "cwe": "CWE-89"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A01",
+          "description": "Invoice endpoint has no per-customer ownership check — attacker reads any customer's invoices by cycling through enumerated customer IDs.",
+          "location": "src/main/java/com/telecom/billing/controller/BillingController.java",
+          "method": "getCustomerInvoices",
+          "severity": "medium",
+          "cwe": "CWE-639"
+        },
+        {
+          "step": 3,
+          "owasp_id": "A09",
+          "description": "Bulk invoice reads bypass the available BillingAuditProducer — mass data extraction leaves no audit event trail.",
+          "location": "src/main/java/com/telecom/billing/service/BillingService.java",
+          "method": "getInvoicesByCustomer",
+          "severity": "low",
+          "cwe": "CWE-778"
+        }
+      ]
     }
   ],
   "decoys": [
@@ -104,6 +169,14 @@
     {
       "location": "src/main/java/com/telecom/billing/messaging/BillingAuditProducer.java",
       "description": "Audit producer is available for safe workflows; the vulnerability is the pricing endpoint bypassing it."
+    },
+    {
+      "location": "src/main/java/com/telecom/billing/controller/CustomerController.java",
+      "description": "getCustomer endpoint has proper principal-based ownership check — adjacent to BillingController which lacks the same check."
+    },
+    {
+      "location": "src/main/java/com/telecom/billing/messaging/BillingAuditProducer.java",
+      "description": "Audit producer correctly publishes to Kafka when called — the vulnerability is specific endpoints not invoking it, not the producer itself."
     }
   ]
 }

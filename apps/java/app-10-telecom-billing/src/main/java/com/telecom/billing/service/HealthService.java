@@ -21,6 +21,8 @@ public class HealthService {
         this.elasticsearchUrl = elasticsearchUrl;
     }
 
+    // VULNERABILITY A05: Health endpoint exposes internal Kafka and Elasticsearch
+    // infrastructure URLs to unauthenticated callers.
     public Map<String, Object> currentHealth() {
         Integer databaseAlive = jdbcTemplate.queryForObject("select 1", Integer.class);
         return Map.of(

@@ -122,4 +122,43 @@ class App10ApplicationTests {
         assertTrue(adminController.contains("CHAIN LINK 2 (chain-01)"));
         assertTrue(adminController.contains("CHAIN LINK 3 (chain-01)"));
     }
+
+    @Test
+    void testChain02MetadataMatchesManifest() throws Exception {
+        JsonNode manifest = new ObjectMapper().readTree(Path.of(".vulns").toFile());
+        JsonNode chain = null;
+        for (JsonNode c : manifest.path("chained_attacks")) {
+            if ("chain-02".equals(c.path("chain_id").asText())) {
+                chain = c;
+                break;
+            }
+        }
+        assertNotNull(chain, "chain-02 not found in .vulns chained_attacks");
+        assertEquals("db_exfiltration", chain.path("impact").asText());
+        assertEquals(3, chain.path("components").size());
+        assertEquals("getUsageByDateRange", chain.path("components").get(0).path("method").asText());
+        assertEquals("getCustomerInvoices", chain.path("components").get(1).path("method").asText());
+        assertEquals("getInvoicesByCustomer", chain.path("components").get(2).path("method").asText());
+
+        String usageController = Files.readString(Path.of(
+            "src/main/java/com/telecom/billing/controller/UsageController.java"));
+        assertTrue(usageController.contains("CHAIN LINK 1 (chain-02)"));
+
+        String billingController = Files.readString(Path.of(
+            "src/main/java/com/telecom/billing/controller/BillingController.java"));
+        assertTrue(billingController.contains("CHAIN LINK 2 (chain-02)"));
+
+        String billingService = Files.readString(Path.of(
+            "src/main/java/com/telecom/billing/service/BillingService.java"));
+        assertTrue(billingService.contains("CHAIN LINK 3 (chain-02)"));
+    }
+
+    @Test
+    void testHealthEndpointExposesInfraUrls() throws Exception {
+        String healthService = Files.readString(Path.of(
+            "src/main/java/com/telecom/billing/service/HealthService.java"));
+        assertTrue(healthService.contains("VULNERABILITY A05"));
+        assertTrue(healthService.contains("\"kafka\""));
+        assertTrue(healthService.contains("\"search\""));
+    }
 }

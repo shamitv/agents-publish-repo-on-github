@@ -18,6 +18,9 @@ public class BillingService {
         this.invoiceSearchClient = invoiceSearchClient;
     }
 
+    // CHAIN LINK 3 (chain-02): Bulk invoice reads cross no audit boundary —
+    // BillingAuditProducer is available but never called during customer invoice retrieval.
+    // VULNERABILITY A09: Get-invoice queries bypass the configured billing audit producer.
     public List<Invoice> getInvoicesByCustomer(Long customerId) {
         return invoiceRepository.findByCustomerId(customerId);
     }
