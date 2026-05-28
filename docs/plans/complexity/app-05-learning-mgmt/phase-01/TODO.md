@@ -56,3 +56,20 @@
   - DECOY-02: course creation still gated by role
   - DECOY-03: enrollment list still scoped to session
 - [ ] Confirm no annotation-bearing files were modified
+
+## Regular Commits
+- [ ] Commit after each major task:
+  `git add -A && git commit -m "app-05 phase-01: <descriptive message>"`
+- [ ] Push to remote after each commit
+
+## Phase Status Report
+- [ ] Create `phase-01/status-report.md` after completion:
+  - What was implemented
+  - Files created (count)
+  - Files modified (count)
+  - Vulnerabilities planted (type, location)
+  - Decoys planted (location)
+  - Existing vulns still intact? (yes/no)
+  - Chains functional? (yes/no)
+  - Tests passing? (yes/no)
+  - Blockers

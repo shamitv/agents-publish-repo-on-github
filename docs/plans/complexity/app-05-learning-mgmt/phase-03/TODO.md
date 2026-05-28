@@ -31,7 +31,7 @@
   - Do NOT write to any audit log table
   - Add comment: `# VULNERABILITY A09: Grading listener applies score changes without writing audit log entries`
   - Add comment: `# CHAIN LINK 2 (chain-02): Grading listener silently updates grades without emitting audit events`
-  - Add decoy: `print("DEBUG: audit_event_written=OK")` that looks like logging but does nothing
+  - Add decoy in same file: `audit_enrollment_change()` method that writes structured entries to `audit_log` table
 
 ## Verification
 - [ ] Restart app
@@ -52,3 +52,20 @@
   - DECOY-02: course create role-gated
   - DECOY-03: enrollment list scoped
 - [ ] Run `tests/test_modular_contract.py`
+
+## Regular Commits
+- [ ] Commit after each major task:
+  `git add -A && git commit -m "app-05 phase-03: <descriptive message>"`
+- [ ] Push to remote after each commit
+
+## Phase Status Report
+- [ ] Create `phase-03/status-report.md` after completion:
+  - What was implemented
+  - Files created (count)
+  - Files modified (count)
+  - Vulnerabilities planted (type, location)
+  - Decoys planted (location)
+  - Existing vulns still intact? (yes/no)
+  - Chains functional? (yes/no)
+  - Tests passing? (yes/no)
+  - Blockers

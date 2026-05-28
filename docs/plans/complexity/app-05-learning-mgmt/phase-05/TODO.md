@@ -10,7 +10,7 @@
 | File | Must Have |
 |------|-----------|
 | `src/services/submission_service.py` | `// VULNERABILITY A01`, `// CHAIN LINK 3 (chain-01)` |
-| `src/services/debug_service.py` | `// VULNERABILITY A05`, `// CHAIN LINK 1 (chain-01)` |
+| `src/services/debug_service.py` | `// VULNERABILITY A05`, `// CHAIN LINK 1 (chain-01)`, `// CHAIN LINK 1 (chain-03)` |
 | `src/services/auth_service.py` | `// CHAIN LINK 2 (chain-01)` |
 | `src/workers/import_listener.py` | `// VULNERABILITY A08` |
 | `src/controllers/enrollment_controller.py` | `// VULNERABILITY A04`, `// CHAIN LINK 1 (chain-02)` |
@@ -49,6 +49,15 @@
 - [ ] Add chain-03 with 2 components
 - [ ] Add decoys 04, 05, 06 to `decoys` array
 - [ ] Verify `app_id`, `app_name`, `language`, `framework` unchanged
+- [ ] Validate `.vulns` against AGENTS.md JSON schema
+- [ ] Confirm `vulnerabilities` array length = 7
+- [ ] Confirm `chained_attacks` array length = 3
+- [ ] Confirm `decoys` array length = 6
+
+## eval-report.md
+- [ ] Create `eval-report.md`:
+  - Difficulty rating table for all 7 vulns + 3 chains (1-5 scale with rationale)
+  - Hint leakage validation: `rg -n "VULNERABILITY|CHAIN LINK|DECOY" -g "*.{py,html}" -g "!**/.vulns" -g "!**/README.md" -g "!**/scenarios.md" -g "!docs/plans/**"` -- expect zero matches
 
 ## README.md Update
 - [ ] Update architecture section: real PostgreSQL, MongoDB, Kafka
@@ -78,3 +87,20 @@
 - [ ] chain-03: Read debug config → submit SSRF import → pivot internally → confirm
 - [ ] Run `python -m pytest tests/test_modular_contract.py -v` → all pass
 - [ ] Confirm no regression in any of the 14 existing API endpoints
+
+## Regular Commits
+- [ ] Commit after each major task:
+  `git add -A && git commit -m "app-05 phase-05: <descriptive message>"`)
+- [ ] Push to remote after each commit
+
+## Phase Status Report
+- [ ] Create `phase-05/status-report.md` after completion:
+  - What was implemented
+  - Files created (count)
+  - Files modified (count)
+  - Vulnerabilities planted (type, location)
+  - Decoys planted (location)
+  - Existing vulns still intact? (yes/no)
+  - Chains functional? (yes/no)
+  - Tests passing? (yes/no)
+  - Blockers

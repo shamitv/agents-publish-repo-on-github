@@ -70,3 +70,20 @@
   - DECOY-02: course creation still role-gated
   - DECOY-03: enrollment list still scoped
 - [ ] Run `tests/test_modular_contract.py`
+
+## Regular Commits
+- [ ] Commit after each major task:
+  `git add -A && git commit -m "app-05 phase-02: <descriptive message>"`
+- [ ] Push to remote after each commit
+
+## Phase Status Report
+- [ ] Create `phase-02/status-report.md` after completion:
+  - What was implemented
+  - Files created (count)
+  - Files modified (count)
+  - Vulnerabilities planted (type, location)
+  - Decoys planted (location)
+  - Existing vulns still intact? (yes/no)
+  - Chains functional? (yes/no)
+  - Tests passing? (yes/no)
+  - Blockers
