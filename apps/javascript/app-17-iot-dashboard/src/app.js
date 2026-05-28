@@ -10,6 +10,7 @@ const { PgDeviceRepository } = require('./repositories/PgDeviceRepository');
 const { TelemetryRepository } = require('./repositories/TelemetryRepository');
 const { EventConsumer } = require('./mq/EventConsumer');
 const { EventProducer } = require('./mq/EventProducer');
+const { KafkaProducer } = require('./mq/KafkaProducer');
 const { DeviceSearchClient } = require('./search/DeviceSearchClient');
 const { AuthService } = require('./services/AuthService');
 const { DeviceService } = require('./services/DeviceService');
@@ -25,7 +26,7 @@ const { createDeviceRoutes } = require('./routes/deviceRoutes');
 const { createHealthRoutes } = require('./routes/healthRoutes');
 const { createInternalRoutes } = require('./routes/internalRoutes');
 
-function createApp() {
+function createApp(opts) {
   const app = express();
   app.use(express.json());
   app.use(cookieParser());
@@ -35,8 +36,10 @@ function createApp() {
   const sessions = new SessionCache();
   const users = new UserRepository(store);
   const devices = new DeviceRepository(store);
-  const events = new EventProducer(new EventConsumer());
-  const search = new DeviceSearchClient(appConfig);
+  const events = opts && opts.kafkaProducer
+    ? new KafkaProducer(opts.kafkaProducer)
+    : new EventProducer(new EventConsumer());
+  const search = new DeviceSearchClient(appConfig, opts && opts.esClient);
   const authService = new AuthService(users, sessions, events);
   const deviceService = new DeviceService(devices, search, events);
   const refreshService = new RefreshService();

@@ -63,6 +63,26 @@
       "description": "Device telemetry endpoint returns telemetry data for any device without verifying user ownership.",
       "severity": "medium",
       "cwe": "CWE-639"
+    },
+    {
+      "owasp_id": "A08",
+      "category": "Software and Data Integrity Failures",
+      "location": "src/consumers/TelemetryConsumer.js",
+      "method": "processMessage",
+      "line_range": "49-52",
+      "description": "Consumer executes device rule scripts via eval() on untrusted input from Kafka iot-configs topic.",
+      "severity": "medium",
+      "cwe": "CWE-94"
+    },
+    {
+      "owasp_id": "A09",
+      "category": "Security Logging and Monitoring Failures",
+      "location": "src/consumers/TelemetryConsumer.js",
+      "method": "processMessage",
+      "line_range": "53-54",
+      "description": "No audit trail recorded for device command/telemetry event processing in Kafka consumer.",
+      "severity": "low",
+      "cwe": "CWE-778"
     }
   ],
   "chained_attacks": [
@@ -152,6 +172,18 @@
     {
       "location": "src/repositories/PgUserRepository.js",
       "description": "User passwords are hashed with bcrypt before storage."
+    },
+    {
+      "location": "src/consumers/ValidatedConsumer.js",
+      "description": "Schema-validated consumer on separate validated-telemetry topic — safe deserialization with type checking."
+    },
+    {
+      "location": "src/search/DeviceSearchClient.js -> searchByDeviceName()",
+      "description": "Uses parameterized ES match query — not vulnerable to query DSL injection."
+    },
+    {
+      "location": "src/services/AuthService.js",
+      "description": "Auth events (login/logout) are properly published to event system for audit tracking."
     }
   ]
 }

@@ -15,7 +15,7 @@ class DeviceController {
     return next();
   };
 
-  runCommand = (req, res) => {
+  runCommand = async (req, res) => {
     const { deviceId, command } = req.body;
     if (!deviceId || !command) {
       return res.status(400).json({ error: 'Device ID and command are required.' });
@@ -25,7 +25,7 @@ class DeviceController {
     }
 
     try {
-      const result = this.deviceService.runCommand(Number(deviceId), command);
+      const result = await this.deviceService.runCommand(Number(deviceId), command);
       return res.json(result);
     } catch (err) {
       return res.status(err.statusCode || 500).json(this.deviceService.commandError(err));
