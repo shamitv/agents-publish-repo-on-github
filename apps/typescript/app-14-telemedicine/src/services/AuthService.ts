@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import Redis from "ioredis";
 import { AuthenticatedUser } from "../models/User";
 import { AuditEventProducer } from "../mq/AuditEventProducer";
 import { UserRepository } from "../repositories/UserRepository";
@@ -8,7 +9,8 @@ export class AuthService {
   constructor(
     private readonly users: UserRepository,
     private readonly tokens: TokenService,
-    private readonly auditEvents: AuditEventProducer
+    private readonly auditEvents: AuditEventProducer,
+    private readonly redis: Redis
   ) {}
 
   async register(username: string, password: string) {
@@ -30,7 +32,24 @@ export class AuthService {
     };
   }
 
-  requireUser(token: string | undefined) {
+  async logout(token: string | undefined) {
+    if (token) {
+      try {
+        await this.redis.set(`session:blacklist:${token}`, "1", "EX", 7200);
+      } catch {
+        // non-critical
+      }
+    }
+  }
+
+  async requireUser(token: string | undefined) {
+    if (!token) return undefined;
+    try {
+      const blacklisted = await this.redis.get(`session:blacklist:${token}`);
+      if (blacklisted) return undefined;
+    } catch {
+      // if redis is down, proceed; non-critical
+    }
     return this.tokens.verify(token);
   }
 }

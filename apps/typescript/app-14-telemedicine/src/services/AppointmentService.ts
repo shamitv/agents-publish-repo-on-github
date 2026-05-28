@@ -25,7 +25,7 @@ export class AppointmentService {
   }
 
   async getAppointmentDetail(appointmentId: number) {
-    const cached = this.cache.get(appointmentId);
+    const cached = await this.cache.get(appointmentId);
     if (cached) {
       return cached;
     }
@@ -34,10 +34,25 @@ export class AppointmentService {
     // VULNERABILITY A01: Patient notes endpoint exposes records through an IDOR.
     const appointment = await this.appointments.findById(appointmentId);
     if (appointment) {
-      this.cache.put(appointment);
+      await this.cache.put(appointment);
       this.search.indexAppointment(appointment);
       this.auditEvents.publish("appointment.detail.read", { appointmentId });
     }
+    return appointment;
+  }
+
+  async bookAppointment(data: {
+    patientId: number;
+    doctorId: number;
+    date: string;
+    timeSlot: string;
+  }) {
+    const appointment = await this.appointments.create(data);
+    this.auditEvents.publish("appointment.created", {
+      appointmentId: appointment.id,
+      patientId: data.patientId,
+      doctorId: data.doctorId
+    });
     return appointment;
   }
 }

@@ -29,13 +29,14 @@ export class AuthController {
     return res.json({ success: true, user: session.user });
   };
 
-  logout = (_req: Request, res: Response) => {
+  logout = async (req: Request, res: Response) => {
+    await this.authService.logout(req.cookies?.token);
     res.clearCookie("token");
     return res.json({ success: true });
   };
 
   me = async (req: Request, res: Response) => {
-    const user = this.authService.requireUser(req.cookies?.token);
+    const user = await this.authService.requireUser(req.cookies?.token);
     if (!user) {
       return res.status(401).json({ message: "Access denied." });
     }
