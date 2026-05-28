@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Dashboard - Learning Management System</title>
+<link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+<nav><h1>📚 Student Dashboard</h1><div id="user-info"></div><button onclick="logout()">Logout</button></nav>
+<main>
+<section id="gradebook"><h2>My Gradebook</h2><div id="grades-list"></div></section>
+<section id="courses"><h2>Active Courses</h2><div id="courses-list"></div></section>
+<section id="enrollment"><h2>Enroll in a Course</h2><input type="number" id="course-id" placeholder="Course ID"><button onclick="enroll()">Enroll</button></section>
+</main>
+<script src="/static/js/dashboard.js"></script>
+</body>
+</html>
