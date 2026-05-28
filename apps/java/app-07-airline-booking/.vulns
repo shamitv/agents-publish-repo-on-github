@@ -9,8 +9,8 @@
       "category": "Injection",
       "location": "src/main/java/com/airline/repository/FlightSearchDao.java",
       "method": "searchFlights",
-      "line_range": "15-22",
-      "description": "Flight search SQL query built via string concatenation with user-supplied origin, destination, and date values",
+      "line_range": "18-23",
+      "description": "Flight search SQL query is built via string concatenation with user-supplied origin, destination, and date values.",
       "severity": "critical",
       "cwe": "CWE-89"
     },
@@ -19,8 +19,8 @@
       "category": "Identification and Authentication Failures",
       "location": "src/main/java/com/airline/config/SecurityConfig.java",
       "method": "filterChain",
-      "line_range": "28-30",
-      "description": "Session fixation protection disabled via sessionFixation().none() \u2014 session ID not rotated on login",
+      "line_range": "50-52",
+      "description": "Session fixation protection is disabled via sessionFixation().none(), so the session ID is not rotated on login.",
       "severity": "high",
       "cwe": "CWE-384"
     },
@@ -29,8 +29,8 @@
       "category": "Insecure Design",
       "location": "src/main/java/com/airline/service/BookingService.java",
       "method": "createBooking",
-      "line_range": "20-42",
-      "description": "No rate limiting, no payment timeout, no concurrency control on booking creation \u2014 allows inventory hoarding",
+      "line_range": "39-73",
+      "description": "Booking creation immediately reserves inventory without rate limiting, payment timeout, or concurrency controls, allowing inventory hoarding.",
       "severity": "high",
       "cwe": "CWE-799"
     }
@@ -38,51 +38,40 @@
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "Sequential PNR Enumeration \u2192 Booking IDOR \u2192 Stored XSS on Staff View",
-      "attack_scenario": "Attacker registers with a name containing a script tag, enumerates sequential PNRs to access other passengers' bookings via the IDOR boarding-summary endpoint, and the malicious name executes as XSS when airline staff renders the boarding list, stealing staff session cookies.",
+      "chain_name": "Sequential PNR Enumeration -> Booking IDOR -> Stored XSS on Staff View",
+      "attack_scenario": "Attacker registers with a script payload in their passenger name, enumerates predictable PNRs, accesses boarding summaries without ownership checks, and triggers stored XSS when airline staff render the summary in the boarding UI.",
       "impact": "account_takeover",
       "components": [
         {
           "step": 1,
           "owasp_id": "A04",
-          "description": "PNR generated as an incrementing integer counter making all booking references predictable and enumerable",
+          "description": "PNRs are generated as incrementing values such as BK000001, making booking references predictable.",
           "location": "src/main/java/com/airline/service/PnrGenerator.java",
           "method": "generate",
+          "line_range": "8-10",
           "severity": "low",
-          "cwe": "CWE-330",
-          "required_evidence": [
-            "src/main/java/com/airline/service/PnrGenerator.java",
-            "generate"
-          ],
-          "negative_evidence": []
+          "cwe": "CWE-330"
         },
         {
           "step": 2,
           "owasp_id": "A01",
-          "description": "GET /api/bookings/{pnr}/boarding-summary returns full booking details without verifying the requesting user owns the PNR",
+          "description": "The boarding-summary endpoint returns booking details for any valid PNR without verifying the requester owns the booking.",
           "location": "src/main/java/com/airline/controller/BookingController.java",
           "method": "getBoardingSummary",
+          "line_range": "70-86",
           "severity": "medium",
-          "cwe": "CWE-639",
-          "required_evidence": [
-            "src/main/java/com/airline/controller/BookingController.java",
-            "getBoardingSummary"
-          ],
-          "negative_evidence": []
+          "cwe": "CWE-639"
         },
         {
           "step": 3,
           "owasp_id": "A03",
-          "description": "Passenger name is concatenated into a raw HTML string in the API response without encoding; executes as Stored XSS when rendered via innerHTML on staff UI",
+          "description": "Passenger name is returned as raw HTML and rendered with innerHTML in the staff boarding UI.",
           "location": "src/main/java/com/airline/controller/BookingController.java",
+          "secondary_location": "src/main/resources/templates/staff-boarding.html",
           "method": "getBoardingSummary",
+          "line_range": "80-82",
           "severity": "medium",
-          "cwe": "CWE-79",
-          "required_evidence": [
-            "src/main/java/com/airline/controller/BookingController.java",
-            "getBoardingSummary"
-          ],
-          "negative_evidence": []
+          "cwe": "CWE-79"
         }
       ],
       "difficulty": "medium",
@@ -92,120 +81,113 @@
         "realistic_decoy"
       ],
       "chain_prerequisites": [
-        "attacker can reach the public request path",
-        "attacker can control one request parameter or body field"
+        "attacker has or can create a passenger account",
+        "attacker can create a booking with a controlled passenger name",
+        "airline staff can load boarding summaries in the staff UI"
       ],
       "negative_evidence": [
+        "src/main/java/com/airline/controller/BookingController.java",
+        "getByPnr",
         "src/main/java/com/airline/support/ReferenceGuards.java",
-        "ReferenceGuards.sameOwner",
-        "ReferenceGuards.allowedCallback"
+        "ReferenceGuards.sameOwner"
       ],
       "vulnerability_family": "idor",
       "required_evidence": [
         "src/main/java/com/airline/service/PnrGenerator.java",
         "generate",
         "src/main/java/com/airline/controller/BookingController.java",
-        "getBoardingSummary"
+        "getBoardingSummary",
+        "src/main/resources/templates/staff-boarding.html",
+        "innerHTML"
       ]
     },
     {
       "chain_id": "chain-02",
-      "chain_name": "Subtle Injection Pivot To Injection",
-      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
-      "impact": "account_takeover",
-      "difficulty": "hard",
-      "subtlety_tags": [
-        "cross_file",
-        "stateful_flow",
-        "implicit_trust",
-        "realistic_decoy",
-        "direct_data_flow",
-        "secondary_chain"
-      ],
-      "required_evidence": [
-        "src/main/java/com/airline/service/BookingService.java",
-        "createBooking",
-        "src/main/java/com/airline/config/SecurityConfig.java",
-        "filterChain",
-        "src/main/java/com/airline/repository/FlightSearchDao.java",
-        "searchFlights"
-      ],
-      "chain_prerequisites": [
-        "attacker has or can create a low privilege account",
-        "attacker can combine request input with stored application state",
-        "attacker can reach the public request path",
-        "attacker can control one request parameter or body field"
-      ],
-      "negative_evidence": [
-        "src/main/java/com/airline/support/ReferenceGuards.java",
-        "ReferenceGuards.sameOwner",
-        "ReferenceGuards.allowedCallback"
-      ],
-      "vulnerability_family": "injection",
+      "chain_name": "Predictable Seat Hold References -> Hold Ownership Bypass -> Unauthorized Hold Confirmation",
+      "attack_scenario": "Attacker guesses another passenger's predictable hold reference, reads or changes the held seat without ownership validation, and confirms the hold as their own booking without owner or payment verification.",
+      "impact": "data_modification",
       "components": [
         {
           "step": 1,
           "owasp_id": "A04",
-          "description": "No rate limiting, no payment timeout, no concurrency control on booking creation \u2014 allows inventory hoarding",
-          "location": "src/main/java/com/airline/service/BookingService.java",
-          "method": "createBooking",
-          "severity": "high",
-          "cwe": "CWE-799",
-          "required_evidence": [
-            "src/main/java/com/airline/service/BookingService.java",
-            "createBooking"
-          ],
-          "negative_evidence": []
+          "description": "Seat hold references use predictable incrementing values such as HOLD000101.",
+          "location": "src/main/java/com/airline/service/HoldRefGenerator.java",
+          "method": "generate",
+          "line_range": "10-12",
+          "severity": "low",
+          "cwe": "CWE-330"
         },
         {
           "step": 2,
-          "owasp_id": "A07",
-          "description": "Session fixation protection disabled via sessionFixation().none() \u2014 session ID not rotated on login",
-          "location": "src/main/java/com/airline/config/SecurityConfig.java",
-          "method": "filterChain",
-          "severity": "high",
-          "cwe": "CWE-384",
-          "required_evidence": [
-            "src/main/java/com/airline/config/SecurityConfig.java",
-            "filterChain"
-          ],
-          "negative_evidence": []
+          "owasp_id": "A01",
+          "description": "Hold read and seat-change operations trust holdRef and skip owner validation.",
+          "location": "src/main/java/com/airline/service/SeatHoldService.java",
+          "method": "getHoldByRef/changeHeldSeat",
+          "line_range": "78-111",
+          "severity": "medium",
+          "cwe": "CWE-639"
         },
         {
           "step": 3,
-          "owasp_id": "A03",
-          "description": "Flight search SQL query built via string concatenation with user-supplied origin, destination, and date values",
-          "location": "src/main/java/com/airline/repository/FlightSearchDao.java",
-          "method": "searchFlights",
-          "severity": "critical",
-          "cwe": "CWE-89",
-          "required_evidence": [
-            "src/main/java/com/airline/repository/FlightSearchDao.java",
-            "searchFlights"
-          ],
-          "negative_evidence": []
+          "owasp_id": "A04",
+          "description": "Hold confirmation trusts holdRef and skips owner and payment-state verification before creating a confirmed booking.",
+          "location": "src/main/java/com/airline/service/SeatHoldService.java",
+          "method": "confirmHold",
+          "line_range": "115-137",
+          "severity": "medium",
+          "cwe": "CWE-345"
         }
+      ],
+      "difficulty": "medium",
+      "subtlety_tags": [
+        "stateful_flow",
+        "implicit_trust",
+        "realistic_decoy"
+      ],
+      "chain_prerequisites": [
+        "attacker has or can create a passenger account",
+        "another passenger has an active seat hold",
+        "attacker can guess or enumerate nearby hold references"
+      ],
+      "negative_evidence": [
+        "src/main/java/com/airline/service/SeatHoldService.java",
+        "getOwnedHold",
+        "src/main/java/com/airline/support/ReferenceGuards.java",
+        "ReferenceGuards.sameOwner"
+      ],
+      "vulnerability_family": "idor",
+      "required_evidence": [
+        "src/main/java/com/airline/service/HoldRefGenerator.java",
+        "generate",
+        "src/main/java/com/airline/service/SeatHoldService.java",
+        "getHoldByRef",
+        "changeHeldSeat",
+        "confirmHold"
       ]
     }
   ],
   "decoys": [
     {
       "location": "src/main/java/com/airline/config/SecurityConfig.java",
-      "description": "BCryptPasswordEncoder \u2014 password hashing is SAFE"
+      "description": "BCryptPasswordEncoder hashes passwords and is safe."
     },
     {
       "location": "src/main/java/com/airline/repository/FlightRepository.java",
-      "description": "Spring Data JPA with @Query and named params \u2014 NOT injectable"
+      "description": "Spring Data JPA repository methods do not concatenate SQL."
     },
     {
       "location": "src/main/java/com/airline/controller/BookingController.java",
-      "description": "PNR lookup validates ownership \u2014 access control is correct here"
+      "description": "GET /api/bookings/{pnr} validates booking ownership before returning details."
+    },
+    {
+      "location": "src/main/java/com/airline/service/SeatHoldService.java",
+      "description": "getOwnedHold verifies hold ownership and is a safe decoy near vulnerable hold operations."
     }
   ],
   "benchmark_profile": {
-    "version": "v0.9",
+    "version": "v1.0",
     "target_difficulty": "medium",
-    "upgrade_style": "in-place mixed difficulty ladder",
+    "upgrade_style": "complex airline rewrite with two contextual chains",
     "decoy_file": "src/main/java/com/airline/support/ReferenceGuards.java"
   }
 }
