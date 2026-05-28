@@ -1,8 +1,9 @@
 class DeviceController {
-  constructor(authService, deviceService, refreshService) {
+  constructor(authService, deviceService, refreshService, telemetryQueryService) {
     this.authService = authService;
     this.deviceService = deviceService;
     this.refreshService = refreshService;
+    this.telemetryQueryService = telemetryQueryService;
   }
 
   requireAuth = (req, res, next) => {
@@ -50,6 +51,46 @@ class DeviceController {
       return res.status(404).json({ error: 'Device not found.' });
     }
     return res.json(device);
+  };
+
+  // CHAIN LINK 1 (chain-02): Telemetry endpoint accepts any device ID regardless of requesting user.
+  // VULNERABILITY A01: Device telemetry endpoint returns data without verifying device ownership.
+  getDeviceTelemetry = async (req, res) => {
+    const deviceId = Number(req.params.id);
+    try {
+      const telemetry = await this.telemetryQueryService.getDeviceTelemetry(deviceId);
+      return res.json({ deviceId, telemetry });
+    } catch (err) {
+      return res.status(500).json({ error: 'Failed to retrieve telemetry.', details: err.message });
+    }
+  };
+
+  queryDeviceTelemetry = async (req, res) => {
+    const deviceId = Number(req.params.id);
+    const { filter } = req.body;
+    if (!filter) {
+      return res.status(400).json({ error: 'Filter string is required.' });
+    }
+    try {
+      const results = await this.telemetryQueryService.queryDeviceTelemetry(deviceId, filter);
+      return res.json({ deviceId, filter, results });
+    } catch (err) {
+      return res.status(500).json({ error: 'Query failed.', details: err.message });
+    }
+  };
+
+  getDeviceTelemetryRange = async (req, res) => {
+    const deviceId = Number(req.params.id);
+    const { from, to } = req.query;
+    if (!from || !to) {
+      return res.status(400).json({ error: 'from and to query parameters are required.' });
+    }
+    try {
+      const telemetry = await this.telemetryQueryService.getDeviceTelemetryRange(deviceId, from, to);
+      return res.json({ deviceId, from, to, telemetry });
+    } catch (err) {
+      return res.status(500).json({ error: 'Failed to retrieve telemetry range.', details: err.message });
+    }
   };
 }
 

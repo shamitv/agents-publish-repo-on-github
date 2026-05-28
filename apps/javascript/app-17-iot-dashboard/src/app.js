@@ -6,6 +6,8 @@ const { InMemoryStore } = require('./db/InMemoryStore');
 const { SessionCache } = require('./cache/SessionCache');
 const { UserRepository } = require('./repositories/UserRepository');
 const { DeviceRepository } = require('./repositories/DeviceRepository');
+const { PgDeviceRepository } = require('./repositories/PgDeviceRepository');
+const { TelemetryRepository } = require('./repositories/TelemetryRepository');
 const { EventConsumer } = require('./mq/EventConsumer');
 const { EventProducer } = require('./mq/EventProducer');
 const { DeviceSearchClient } = require('./search/DeviceSearchClient');
@@ -13,6 +15,7 @@ const { AuthService } = require('./services/AuthService');
 const { DeviceService } = require('./services/DeviceService');
 const { RefreshService } = require('./services/RefreshService');
 const { TelemetryService } = require('./services/TelemetryService');
+const { TelemetryQueryService } = require('./services/TelemetryQueryService');
 const { AuthController } = require('./controllers/AuthController');
 const { DeviceController } = require('./controllers/DeviceController');
 const { HealthController } = require('./controllers/HealthController');
@@ -39,8 +42,12 @@ function createApp() {
   const refreshService = new RefreshService();
   const telemetryService = new TelemetryService(devices, appConfig);
 
+  const pgDevices = new PgDeviceRepository();
+  const telemetryRepo = new TelemetryRepository();
+  const telemetryQueryService = new TelemetryQueryService(telemetryRepo);
+
   const authController = new AuthController(authService);
-  const deviceController = new DeviceController(authService, deviceService, refreshService);
+  const deviceController = new DeviceController(authService, deviceService, refreshService, telemetryQueryService);
   const telemetryController = new InternalTelemetryController(telemetryService);
 
   app.use('/api/auth', createAuthRoutes(authController));

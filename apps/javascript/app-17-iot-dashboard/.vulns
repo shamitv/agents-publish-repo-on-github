@@ -21,7 +21,7 @@
       "method": "refreshStatus",
       "line_range": "4-8",
       "description": "Device refresh fetches caller-controlled status URLs with axios and no internal network restrictions.",
-      "severity": "high",
+      "severity": "medium",
       "cwe": "CWE-918"
     },
     {
@@ -43,6 +43,26 @@
       "description": "Internal telemetry returns plaintext device tokens once the leaked telemetry token is supplied.",
       "severity": "medium",
       "cwe": "CWE-312"
+    },
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "src/repositories/TelemetryRepository.js",
+      "method": "queryWithFilter",
+      "line_range": "23-27",
+      "description": "Raw SQL filter string concatenated into telemetry SELECT query allowing SQL injection.",
+      "severity": "medium",
+      "cwe": "CWE-89"
+    },
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "src/controllers/DeviceController.js",
+      "method": "getDeviceTelemetry",
+      "line_range": "56-64",
+      "description": "Device telemetry endpoint returns telemetry data for any device without verifying user ownership.",
+      "severity": "medium",
+      "cwe": "CWE-639"
     }
   ],
   "chained_attacks": [
@@ -80,6 +100,32 @@
           "cwe": "CWE-312"
         }
       ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "IDOR Telemetry Access \u2192 SQL Injection \u2192 Database Exfiltration",
+      "attack_scenario": "An authenticated user exploits IDOR on GET /api/devices/:id/telemetry to read any device's telemetry, then injects SQL via the POST /api/devices/:id/telemetry/query filter parameter to UNION SELECT from the users table, dumping password hashes and device secrets.",
+      "impact": "db_exfiltration",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A01",
+          "description": "Device telemetry endpoint returns telemetry for any device ID without verifying the requesting user's ownership.",
+          "location": "src/controllers/DeviceController.js",
+          "method": "getDeviceTelemetry",
+          "severity": "medium",
+          "cwe": "CWE-639"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A03",
+          "description": "Telemetry query filter parameter is concatenated into raw SQL, enabling UNION SELECT injection against users/devices tables.",
+          "location": "src/repositories/TelemetryRepository.js",
+          "method": "queryWithFilter",
+          "severity": "medium",
+          "cwe": "CWE-89"
+        }
+      ]
     }
   ],
   "decoys": [
@@ -94,6 +140,18 @@
     {
       "location": "src/referenceGuards.js",
       "description": "Reference callback allowlist guard demonstrates safe URL validation."
+    },
+    {
+      "location": "src/services/TelemetryQueryService.js",
+      "description": "getDeviceTelemetryRange() uses parameterized queries for timestamp range filtering."
+    },
+    {
+      "location": "src/controllers/DeviceController.js -> detail()",
+      "description": "Public device detail returns device info by ID but strips deviceSecret field."
+    },
+    {
+      "location": "src/repositories/PgUserRepository.js",
+      "description": "User passwords are hashed with bcrypt before storage."
     }
   ]
 }
