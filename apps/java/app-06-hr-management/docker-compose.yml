@@ -4,6 +4,7 @@ services:
     ports:
       - "8006:8080"
     environment:
+      SPRING_PROFILES_ACTIVE: postgres
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/hrdb
       SPRING_DATASOURCE_DRIVER: org.postgresql.Driver
       SPRING_DATASOURCE_USERNAME: hruser
