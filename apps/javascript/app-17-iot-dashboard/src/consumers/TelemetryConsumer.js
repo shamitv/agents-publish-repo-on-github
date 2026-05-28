@@ -1,8 +1,9 @@
 class TelemetryConsumer {
-  constructor(kafkaConsumer, telemetryRepository, esClient) {
+  constructor(kafkaConsumer, telemetryRepository, esClient, wsServer) {
     this.consumer = kafkaConsumer;
     this.telemetryRepository = telemetryRepository;
     this.esClient = esClient;
+    this.wsServer = wsServer;
     this.running = false;
   }
 
@@ -27,6 +28,16 @@ class TelemetryConsumer {
           payload.temperature,
           payload.humidity
         );
+        if (this.wsServer) {
+          this.wsServer.broadcast({
+            type: 'telemetry_update',
+            device_id: payload.device_id,
+            device_name: payload.device_name || `Device ${payload.device_id}`,
+            temperature: payload.temperature,
+            humidity: payload.humidity,
+            timestamp: new Date().toISOString()
+          });
+        }
         break;
 
       case 'iot-commands':

@@ -23,15 +23,24 @@ assert.ok(exists('src/config/redis.js'));
 assert.ok(exists('src/config/migrate.js'));
 assert.ok(exists('src/mq/EventProducer.js'));
 assert.ok(exists('src/search/DeviceSearchClient.js'));
+assert.ok(exists('src/ws/telemetryServer.js'));
+assert.ok(exists('src/services/DiagnosticsService.js'));
+assert.ok(exists('src/controllers/DiagnosticsController.js'));
+assert.ok(exists('src/routes/diagnosticsRoutes.js'));
+assert.ok(exists('src/public/dashboard.html'));
+assert.ok(exists('src/consumers/TelemetryConsumer.js'));
+assert.ok(exists('src/consumers/ValidatedConsumer.js'));
+assert.ok(exists('src/mq/KafkaProducer.js'));
 
 const entrypoint = read('src/index.js');
 assert.ok(entrypoint.includes('createApp'));
 assert.ok(entrypoint.includes('migrate'));
+assert.ok(entrypoint.includes('TelemetryWsServer'));
 assert.ok(!entrypoint.includes('app.post('));
 assert.ok(!entrypoint.includes('axios.get('));
 
 const manifest = JSON.parse(read('.vulns'));
-assert.equal(manifest.vulnerabilities.length, 6);
+assert.equal(manifest.vulnerabilities.length, 10);
 
 const chain01 = manifest.chained_attacks[0];
 assert.equal(chain01.chain_id, 'chain-01');

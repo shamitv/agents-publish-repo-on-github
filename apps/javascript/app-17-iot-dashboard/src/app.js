@@ -1,6 +1,7 @@
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
+const path = require('path');
 const { appConfig } = require('./config/appConfig');
 const { InMemoryStore } = require('./db/InMemoryStore');
 const { SessionCache } = require('./cache/SessionCache');
@@ -17,12 +18,15 @@ const { DeviceService } = require('./services/DeviceService');
 const { RefreshService } = require('./services/RefreshService');
 const { TelemetryService } = require('./services/TelemetryService');
 const { TelemetryQueryService } = require('./services/TelemetryQueryService');
+const { DiagnosticsService } = require('./services/DiagnosticsService');
 const { AuthController } = require('./controllers/AuthController');
 const { DeviceController } = require('./controllers/DeviceController');
+const { DiagnosticsController } = require('./controllers/DiagnosticsController');
 const { HealthController } = require('./controllers/HealthController');
 const { InternalTelemetryController } = require('./controllers/InternalTelemetryController');
 const { createAuthRoutes } = require('./routes/authRoutes');
 const { createDeviceRoutes } = require('./routes/deviceRoutes');
+const { createDiagnosticsRoutes } = require('./routes/diagnosticsRoutes');
 const { createHealthRoutes } = require('./routes/healthRoutes');
 const { createInternalRoutes } = require('./routes/internalRoutes');
 
@@ -45,9 +49,17 @@ function createApp(opts) {
   const refreshService = new RefreshService();
   const telemetryService = new TelemetryService(devices, appConfig);
 
-  const pgDevices = new PgDeviceRepository();
   const telemetryRepo = new TelemetryRepository();
   const telemetryQueryService = new TelemetryQueryService(telemetryRepo);
+
+  const requireAuth = (req, res, next) => {
+    const user = authService.currentUser(req.cookies.session_id);
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized: Authentication required.' });
+    }
+    req.user = user;
+    next();
+  };
 
   const authController = new AuthController(authService);
   const deviceController = new DeviceController(authService, deviceService, refreshService, telemetryQueryService);
@@ -57,6 +69,14 @@ function createApp(opts) {
   app.use('/api/devices', createDeviceRoutes(deviceController));
   app.use('/api/internal', createInternalRoutes(telemetryController));
   app.use('/api/health', createHealthRoutes(new HealthController()));
+
+  if (opts && opts.esClient) {
+    const diagnosticsService = new DiagnosticsService(opts.esClient);
+    const diagnosticsController = new DiagnosticsController(diagnosticsService);
+    app.use('/api/diagnostics', requireAuth, createDiagnosticsRoutes(diagnosticsController));
+  }
+
+  app.use(express.static(path.join(__dirname, 'public')));
 
   return app;
 }

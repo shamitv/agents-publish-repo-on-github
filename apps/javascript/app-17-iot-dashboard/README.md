@@ -13,6 +13,7 @@ Smart home and IoT device fleet management.
 | Database | PostgreSQL 16 (pg), InMemoryStore fallback |
 | Cache | Redis 7 (ioredis) |
 | HTTP Client | Axios |
+| WebSocket | ws |
 | Containerisation | Docker, Docker Compose |
 
 ## Features
@@ -22,6 +23,8 @@ Smart home and IoT device fleet management.
 - Refresh device status from custom URLs
 - Internal telemetry endpoint for device diagnostics
 - Device telemetry history with filter query support
+- Live WebSocket telemetry dashboard with real-time charts
+- Diagnostics search via Elasticsearch query_string
 
 ## Security Benchmarking
 The vulnerabilities in this application are intentional. Refer to `.vulns` for the complete machine-readable vulnerability manifest.
@@ -73,6 +76,10 @@ An authenticated user exploits missing device ownership checks to read any devic
 | POST | `/api/devices/:id/telemetry/query` | Session | Query telemetry with filter |
 | GET | `/api/devices/:id/telemetry/range` | Session | Query telemetry by time range |
 | GET | `/api/internal/telemetry` | Token | Internal telemetry endpoint |
+| GET | `/api/diagnostics/search` | Session | Elasticsearch device log search (vulnerable to DSL injection) |
+| GET | `/api/diagnostics/search/safe` | Session | Elasticsearch device log search (safe — parameterized match) |
+| WS | `/ws/telemetry` | None | Live device telemetry stream (unauthenticated) |
+| GET | `/dashboard` | None | HTML telemetry dashboard |
 
 ## Running Locally
 ```bash

@@ -83,6 +83,26 @@
       "description": "No audit trail recorded for device command/telemetry event processing in Kafka consumer.",
       "severity": "low",
       "cwe": "CWE-778"
+    },
+    {
+      "owasp_id": "A07",
+      "category": "Identification and Authentication Failures",
+      "location": "src/ws/telemetryServer.js",
+      "method": "constructor",
+      "line_range": "7-8",
+      "description": "WebSocket server accepts connections without any authentication token or session validation.",
+      "severity": "medium",
+      "cwe": "CWE-306"
+    },
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "src/services/DiagnosticsService.js",
+      "method": "searchLogs",
+      "line_range": "7-16",
+      "description": "Raw user-supplied query string concatenated into Elasticsearch query DSL body (query_string injection).",
+      "severity": "medium",
+      "cwe": "CWE-89"
     }
   ],
   "chained_attacks": [
@@ -184,6 +204,14 @@
     {
       "location": "src/services/AuthService.js",
       "description": "Auth events (login/logout) are properly published to event system for audit tracking."
+    },
+    {
+      "location": "src/services/DiagnosticsService.js -> searchLogsSafe()",
+      "description": "Uses parameterized match query instead of raw query_string — not vulnerable to DSL injection."
+    },
+    {
+      "location": "src/controllers/DeviceController.js -> detail()",
+      "description": "REST endpoint returns device detail — protected by session auth middleware, contrasting with unauthenticated WebSocket."
     }
   ]
 }

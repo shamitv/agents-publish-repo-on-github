@@ -1,4 +1,5 @@
 const http = require('http');
+const path = require('path');
 const { createApp } = require('./app');
 const { appConfig } = require('./config/appConfig');
 const { migrate } = require('./config/migrate');
@@ -7,9 +8,11 @@ const { esClient, ensureIndex } = require('./config/elasticsearch');
 const { TelemetryRepository } = require('./repositories/TelemetryRepository');
 const { TelemetryConsumer } = require('./consumers/TelemetryConsumer');
 const { ValidatedConsumer } = require('./consumers/ValidatedConsumer');
+const { TelemetryWsServer } = require('./ws/telemetryServer');
 
 let telemetryConsumer;
 let validatedConsumer;
+let wsServer;
 
 async function main() {
   try {
@@ -37,8 +40,9 @@ async function main() {
   }
 
   const app = createApp({ kafkaProducer, esClient: esClientInstance });
-
   const httpServer = http.createServer(app);
+
+  wsServer = new TelemetryWsServer(httpServer);
 
   httpServer.listen(appConfig.port, async () => {
     console.log(`IoT Device Dashboard listening at http://localhost:${appConfig.port}`);
@@ -47,7 +51,7 @@ async function main() {
       try {
         const kafkaConsumer = createConsumer('iot-dashboard-group');
         const telemetryRepo = new TelemetryRepository();
-        telemetryConsumer = new TelemetryConsumer(kafkaConsumer, telemetryRepo, esClientInstance);
+        telemetryConsumer = new TelemetryConsumer(kafkaConsumer, telemetryRepo, esClientInstance, wsServer);
         await telemetryConsumer.start();
 
         validatedConsumer = new ValidatedConsumer(telemetryRepo);
@@ -66,6 +70,7 @@ async function main() {
       console.log(`Received ${signal}, shutting down...`);
       if (telemetryConsumer) await telemetryConsumer.shutdown();
       if (validatedConsumer) await validatedConsumer.shutdown();
+      if (wsServer) wsServer.close();
       await disconnectProducer();
       httpServer.close(() => process.exit(0));
     };
