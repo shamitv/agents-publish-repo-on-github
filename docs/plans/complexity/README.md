@@ -17,16 +17,16 @@ The goal of this phase is to scale the target applications from simple in-memory
 
 Below is the index of the 8 selected applications, their architectural upgrades, and links to their phase-wise plans:
 
-| App ID | Application Name | Language / Tech Stack | Core Upgrades | Phase Structure | Phase Count |
-| :---: | :--- | :--- | :--- | :---: | :---: |
-| **01** | E-Commerce Product Catalog API | Python (Flask) | Postgres, MongoDB, Elasticsearch, Kafka, MVC, Dashboard | [Plan](realistic/0.1/app-01-ecommerce-catalog/expansion-plan.md) — [Phase 1](realistic/0.1/app-01-ecommerce-catalog/phase-01/plan.md) … [Phase 5](realistic/0.1/app-01-ecommerce-catalog/phase-05/plan.md) | 5 |
-| **05** | Online Learning Management System | Python (Flask) | Postgres, MongoDB, Kafka, Blueprints, Auto-Grading Rules | [Plan](app-05-learning-mgmt/expansion-plan.md) — [Phase 1](app-05-learning-mgmt/phase-01/plan.md) … [Phase 5](app-05-learning-mgmt/phase-05/plan.md) | 5 |
-| **06** | Enterprise HR Management System | Java (Spring Boot) | Postgres, Elasticsearch, Kafka, MVC, Log4j RCE Listener | _Phase structure pending_ | — |
-| **10** | Telecom Billing Platform | Java (Spring Boot) | Postgres, TimescaleDB, Kafka, MVC, Multi-Tier Tariffs | _Phase structure pending_ | — |
-| **11** | Social Media Analytics Dashboard | TypeScript (Express) | Postgres, Timeseries, Elasticsearch, Kafka, MVC, WebSockets | _Phase structure pending_ | — |
-| **14** | Telemedicine Appointment System | TypeScript (Express) | Postgres, MongoDB, Kafka, MVC, Calendar validation | _Phase structure pending_ | — |
-| **17** | IoT Device Dashboard | JavaScript (Express) | Postgres, InfluxDB, OpenSearch, Kafka, MVC, WebSockets | _Phase structure pending_ | — |
-| **36** | Parking Management System | JavaScript (Express) | Postgres, MongoDB, Elasticsearch, Kafka, Dynamic Pricing | _Phase structure pending_ | — |
+| App ID | Application Name | Language / Tech Stack | Core Upgrades | Phase Structure | Phase Count | Status |
+| :---: | :--- | :--- | :--- | :---: | :---: | :--- |
+| **01** | E-Commerce Product Catalog API | Python (Flask) | Postgres, MongoDB, Elasticsearch, Kafka, MVC, Dashboard | [Plan](realistic/0.1/app-01-ecommerce-catalog/expansion-plan.md) — [Phase 1](realistic/0.1/app-01-ecommerce-catalog/phase-01/plan.md) … [Phase 5](realistic/0.1/app-01-ecommerce-catalog/phase-05/plan.md) | 5 | Implemented |
+| **05** | Online Learning Management System | Python (Flask) | Postgres, MongoDB, Kafka, Blueprints, Auto-Grading Rules | [Plan](app-05-learning-mgmt/expansion-plan.md) — [Phase 1](app-05-learning-mgmt/phase-01/plan.md) … [Phase 5](app-05-learning-mgmt/phase-05/plan.md) | 5 | Planned |
+| **06** | Enterprise HR Management System | Java (Spring Boot) | Postgres, Elasticsearch, Kafka, MVC, Log4j RCE Listener | _Phase structure pending_ | — | Pending |
+| **10** | Telecom Billing Platform | Java (Spring Boot) | Postgres, TimescaleDB, Kafka, MVC, Multi-Tier Tariffs | _Phase structure pending_ | — | Pending |
+| **11** | Social Media Analytics Dashboard | TypeScript (Express) | Postgres, Timeseries, Elasticsearch, Kafka, MVC, WebSockets | _Phase structure pending_ | — | Pending |
+| **14** | Telemedicine Appointment System | TypeScript (Express) | Postgres, MongoDB, Kafka, MVC, Calendar validation | _Phase structure pending_ | — | Pending |
+| **17** | IoT Device Dashboard | JavaScript (Express) | Postgres, InfluxDB, OpenSearch, Kafka, MVC, WebSockets | _Phase structure pending_ | — | Pending |
+| **36** | Parking Management System | JavaScript (Express) | Postgres, MongoDB, Elasticsearch, Kafka, Dynamic Pricing | _Phase structure pending_ | — | Pending |
 
 ---
 
