@@ -27,7 +27,7 @@ Below is the index of the selected applications, their architectural upgrades, a
 | **11** | Social Media Analytics Dashboard | TypeScript (Express) | Postgres, Timeseries, Elasticsearch, Kafka, MVC, WebSockets | [Plan](app-11-social-analytics/expansion-plan.md) - [Phase 1](app-11-social-analytics/phase-01/plan.md) ... [Phase 6](app-11-social-analytics/phase-06/plan.md) | 6 | Implemented |
 | **14** | Telemedicine Appointment System | TypeScript (Express) | Postgres, MongoDB, Redis, Kafka, Elasticsearch, MVC, Schedule Validation, Clinical Notes | [Plan](app-14-telemedicine/expansion-plan.md) - [Phase 1](app-14-telemedicine/phase-01/plan.md) ... [Phase 5](app-14-telemedicine/phase-05/plan.md) | 5 | Implemented |
 | **17** | IoT Device Dashboard | JavaScript (Express) | Postgres, InfluxDB, OpenSearch, Kafka, MVC, WebSockets | _Phase structure pending_ | - | Pending |
-| **36** | Parking Management System | JavaScript (Express) | Postgres, MongoDB, Elasticsearch, Kafka, Dynamic Pricing | _Phase structure pending_ | - | Pending |
+| **36** | Parking Management System | JavaScript (Express) | Postgres, MongoDB, Redis, Kafka, Elasticsearch, JWT, Admin Dashboard | [Plan](app-36-parking-mgmt/expansion-plan.md) - [Phase 1](app-36-parking-mgmt/phase-01/plan.md) ... [Phase 5](app-36-parking-mgmt/phase-05/plan.md) | 5 | Planned |
 
 ---
 
