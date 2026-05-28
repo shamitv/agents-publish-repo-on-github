@@ -7,7 +7,7 @@ Replace the Kafka stub with a real `kafka-python` producer/consumer pipeline, wi
 ## Scope
 
 ### Included
-- [ ] Real `KafkaProducer` in `src/config/kafka_client.py`
+- [ ] Replace thread-queue stub transport with real `kafka.KafkaProducer` / `kafka.KafkaConsumer` publish/subscribe -- config connection already set up in Phase 1
 - [ ] Wire `POST /api/submissions` to emit grading events to `grading` topic
 - [ ] Wire `GradingListener` as real Kafka consumer on `grading` topic
 - [ ] Wire `ImportListener` as real Kafka consumer on `course-imports` topic
@@ -48,7 +48,7 @@ Replace the Kafka stub with a real `kafka-python` producer/consumer pipeline, wi
 - `# VULNERABILITY A10: Course content import fetches user-supplied URLs without hostname or private-network validation`
 - `# CHAIN LINK 2 (chain-03): SSRF in import_service.fetch_content() enables internal network pivot using leaked debug topology`
 - `# VULNERABILITY A07: Dashboard session cookie set without httpOnly or secure flags`
-- `# CHAIN LINK 1 (chain-03) uses existing // CHAIN LINK 1 (chain-01) in debug_service.py`
+- `# CHAIN LINK 1 (chain-03): Debug endpoint leaks internal service hostnames and topology, enabling SSRF-based internal pivot`
 
 ## Decoy Patterns
 

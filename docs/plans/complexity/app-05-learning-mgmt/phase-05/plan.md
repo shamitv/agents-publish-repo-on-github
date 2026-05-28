@@ -27,7 +27,7 @@ Finalize chained scenarios (chain-02, chain-03), plant remaining decoy patterns,
 | Decision | Rationale |
 |----------|-----------|
 | chain-02 uses existing A04 + A09; no new code needed | Steps already planted in Phase 2 and Phase 3 |
-| chain-03 uses existing A05 + A10; step 2 planted in Phase 4 | Step 1 is the existing chain-01 step 1 (debug leak) |
+| chain-03 uses A05 (new annotation) + A10 (planted Phase 4) | Step 1 adds a separate CHAIN LINK annotation to debug_service.py alongside the existing chain-01 annotation |
 | Test file updated to assert new annotations exist | Benchmark contract must evolve with the codebase |
 
 ## Vulnerability Planting
@@ -54,7 +54,7 @@ None. All vulnerabilities planted in prior phases:
 
 | Step | OWASP | CWE | Location | Method | Severity | Source Comment |
 |------|-------|-----|----------|--------|----------|----------------|
-| 1 | A05 | CWE-200 | `src/services/debug_service.py` | `collect()` | Low | `// CHAIN LINK 1 (chain-01): Debug endpoint leaks the signing secret and environment...` (shared with chain-01) |
+| 1 | A05 | CWE-200 | `src/services/debug_service.py` | `collect()` | Low | `// CHAIN LINK 1 (chain-03): Debug endpoint leaks internal service hostnames and topology, enabling SSRF-based internal pivot` |
 | 2 | A10 | CWE-918 | `src/services/import_service.py` | `fetch_content()` | Medium | `// CHAIN LINK 2 (chain-03): SSRF in import_service.fetch_content() enables internal network pivot using leaked debug topology` |
 
 ## Decoy Patterns
@@ -76,7 +76,8 @@ None. All vulnerabilities planted in prior phases:
 - `src/controllers/auth_controller.py`: Verify A07 annotation present
 - `src/services/debug_service.py`: No changes (chain-03 step 1 reuses chain-01 step 1)
 - `tests/test_modular_contract.py`: Add assertions for new annotations
-- `.vulns`: Final review — add VULN-04, VULN-05, VULN-06, VULN-07, chain-02, chain-03
+- `eval-report.md`: New file -- difficulty rating table (1-5 scale) + hint leakage grep results
+- `.vulns`: Final review -- add VULN-04, VULN-05, VULN-06, VULN-07, chain-02, chain-03
 - `README.md`: Full rewrite of architecture, endpoints table, chain tables
 - `scenarios.md`: Full chain-02 + chain-03 narratives
 

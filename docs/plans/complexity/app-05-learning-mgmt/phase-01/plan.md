@@ -11,7 +11,7 @@ Replace all stub infrastructure (SQLite, in-memory Kafka mock, simulated MongoDB
 - [ ] Create Docker wait scripts for all services
 - [ ] Switch `src/config/db_sql.py` from SQLite to `psycopg2` PostgreSQL connection pool
 - [ ] Switch `src/config/db_mongo.py` from in-memory mock to `pymongo` real client
-- [ ] Switch `src/config/kafka_client.py` from thread-queue stub to `kafka-python` producer/consumer
+- [ ] Update `src/config/kafka_client.py`: import `kafka-python`, create connection config (broker address, topic list). The thread-queue stub is kept as a fallback transport; full topic wiring happens in Phase 4.
 - [ ] Update `requirements.txt` with `psycopg2-binary`, `pymongo`, `kafka-python`
 - [ ] Update `src/config/settings.py` for Docker-hosted service endpoints
 - [ ] Verify all 14 existing endpoints respond after config swap

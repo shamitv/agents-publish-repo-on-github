@@ -48,7 +48,7 @@ Implement the core LMS business logic — prerequisite course validation, auto-g
 
 | # | Location | Why it looks vulnerable | Why it is safe |
 |---|----------|------------------------|----------------|
-| 1 | `src/workers/grading_listener.py` → `grade_submission()` | Same file as the vulnerable un-audited path; has a `print()` statement that looks like logging | Print-only — does not write to any structured audit table. This is a **false decoy**: it looks like a mitigation but is actually window dressing. |
+| 1 | `src/workers/grading_listener.py` → `audit_enrollment_change()` | Same file as the vulnerable un-audited `grade_submission()`; writes enrollment status changes and looks like a generic audit method | Writes structured audit entries to a dedicated `audit_log` table in PostgreSQL with user ID, timestamp, and old/new value pairs |
 
 ## Data Model Changes
 
@@ -74,5 +74,5 @@ No new endpoints. Existing endpoints now use grading services:
 ## Dependencies on Other Phases
 
 - **Depends on Phase 2**: Data models must exist for grading queries
-- **Depends on Phase 1**: Kafka stub must be functional for worker communication
+- **Depends on Phase 1**: Kafka connection config is available (real `kafka-python` imports); workers use the transport abstraction layer; full topic wiring happens in Phase 4
 - **Phase 4** depends on Phase 3: Grading service exists before Kafka consumer can use it
