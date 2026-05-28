@@ -14,6 +14,15 @@
       "cwe": "CWE-639"
     },
     {
+      "owasp_id": "A04",
+      "category": "Insecure Design",
+      "location": "src/controllers/enrollment_controller.py",
+      "method": "enroll",
+      "description": "Enrollment trusts client-supplied role and course_id without server-side validation of course existence, active status, student prerequisites, or role authorization.",
+      "severity": "medium",
+      "cwe": "CWE-602"
+    },
+    {
       "owasp_id": "A05",
       "category": "Security Misconfiguration",
       "location": "src/services/debug_service.py",
@@ -23,6 +32,15 @@
       "cwe": "CWE-200"
     },
     {
+      "owasp_id": "A07",
+      "category": "Identification and Authentication Failures",
+      "location": "src/controllers/auth_controller.py",
+      "method": "dashboard_login",
+      "description": "Dashboard session cookie set without httpOnly or secure flags, enabling client-side script access.",
+      "severity": "low",
+      "cwe": "CWE-614"
+    },
+    {
       "owasp_id": "A08",
       "category": "Software and Data Integrity Failures",
       "location": "src/workers/import_listener.py",
@@ -30,6 +48,24 @@
       "description": "Course import worker deserializes untrusted pickle bytes without class restrictions.",
       "severity": "critical",
       "cwe": "CWE-502"
+    },
+    {
+      "owasp_id": "A09",
+      "category": "Security Logging and Monitoring Failures",
+      "location": "src/workers/grading_listener.py",
+      "method": "process_submission",
+      "description": "Grading listener writes score changes to grades table without audit log entries.",
+      "severity": "medium",
+      "cwe": "CWE-778"
+    },
+    {
+      "owasp_id": "A10",
+      "category": "Server-Side Request Forgery",
+      "location": "src/services/import_service.py",
+      "method": "fetch_content",
+      "description": "Course content import fetches user-supplied URLs without hostname or private-network validation.",
+      "severity": "high",
+      "cwe": "CWE-918"
     }
   ],
   "chained_attacks": [
@@ -67,6 +103,58 @@
           "cwe": "CWE-639"
         }
       ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Enrollment Role Escalation -> Missing Audit -> Undetected Grade Tampering",
+      "attack_scenario": "An attacker enrolls with a client-supplied INSTRUCTOR role (A04), gaining access to the grade override endpoint. The override writes score changes without audit log entries (A09), hiding the tampering.",
+      "impact": "data_modification",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A04",
+          "description": "Enrollment trusts client-supplied role, enabling privilege escalation to instructor access.",
+          "location": "src/controllers/enrollment_controller.py",
+          "method": "enroll",
+          "severity": "low",
+          "cwe": "CWE-602"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A09",
+          "description": "Grade override writes scores without course-ownership check and without audit log entries.",
+          "location": "src/workers/grading_listener.py",
+          "method": "process_submission",
+          "severity": "low",
+          "cwe": "CWE-778"
+        }
+      ]
+    },
+    {
+      "chain_id": "chain-03",
+      "chain_name": "Debug Config Leak -> SSRF Internal Pivot",
+      "attack_scenario": "An attacker reads the debug config to obtain internal service hostnames and the /admin/internal/metrics path, then uses the SSRF in course import to fetch internal-only metrics data.",
+      "impact": "lateral_movement",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A05",
+          "description": "Debug endpoint leaks internal service hostnames and internal endpoint paths, enabling SSRF targeting.",
+          "location": "src/services/debug_service.py",
+          "method": "collect",
+          "severity": "low",
+          "cwe": "CWE-200"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A10",
+          "description": "SSRF in fetch_content() enables internal network pivot to /admin/internal/metrics using leaked debug topology.",
+          "location": "src/services/import_service.py",
+          "method": "fetch_content",
+          "severity": "medium",
+          "cwe": "CWE-918"
+        }
+      ]
     }
   ],
   "decoys": [
@@ -81,6 +169,22 @@
     {
       "location": "src/repositories/enrollment_repository.py",
       "description": "Enrollment listing scopes rows to the current session's user ID."
+    },
+    {
+      "location": "src/controllers/enrollment_controller.py",
+      "description": "list_enrollments() scopes by session user_id and ignores client-supplied role."
+    },
+    {
+      "location": "src/services/import_service.py",
+      "description": "fetch_metadata() validates hostname against an allowlist before fetching."
+    },
+    {
+      "location": "src/controllers/auth_controller.py",
+      "description": "login() sets session cookie with httpOnly=True, secure=True, samesite='Lax'."
+    },
+    {
+      "location": "src/workers/grading_listener.py",
+      "description": "audit_enrollment_change() writes proper audit_log entries for enrollment changes only."
     }
   ]
 }

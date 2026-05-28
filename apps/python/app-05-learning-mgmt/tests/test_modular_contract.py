@@ -27,19 +27,22 @@ class App05ModularContractTest(unittest.TestCase):
 
     def test_benchmark_annotations_are_present(self):
         source = "\n".join(path.read_text() for path in (ROOT / "src").rglob("*.py"))
-        self.assertIn("VULNERABILITY A01", source)
-        self.assertIn("VULNERABILITY A05", source)
-        self.assertIn("VULNERABILITY A08", source)
-        self.assertIn("CHAIN LINK 1 (chain-01)", source)
-        self.assertIn("CHAIN LINK 2 (chain-01)", source)
-        self.assertIn("CHAIN LINK 3 (chain-01)", source)
+        checked = [
+            "VULNERABILITY A01", "VULNERABILITY A05", "VULNERABILITY A08",
+            "VULNERABILITY A04", "VULNERABILITY A09", "VULNERABILITY A10",
+            "VULNERABILITY A07",
+            "CHAIN LINK 1 (chain-01)", "CHAIN LINK 2 (chain-01)", "CHAIN LINK 3 (chain-01)",
+            "CHAIN LINK 1 (chain-02)", "CHAIN LINK 2 (chain-02)",
+            "CHAIN LINK 1 (chain-03)", "CHAIN LINK 2 (chain-03)",
+        ]
+        for annotation in checked:
+            self.assertIn(annotation, source, f"Missing annotation: {annotation}")
 
     def test_vulnerability_manifest_is_valid(self):
         manifest = json.loads((ROOT / ".vulns").read_text())
         self.assertEqual(manifest["app_id"], "app-05")
-        self.assertEqual(manifest["chained_attacks"][0]["impact"], "db_exfiltration")
-        self.assertEqual(len(manifest["chained_attacks"][0]["components"]), 3)
-        self.assertGreaterEqual(len(manifest["decoys"]), 1)
+        self.assertEqual(len(manifest["chained_attacks"]), 3)
+        self.assertGreaterEqual(len(manifest["decoys"]), 7)
 
 
 if __name__ == "__main__":
