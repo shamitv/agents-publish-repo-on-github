@@ -21,7 +21,7 @@ Below is the index of the 8 selected applications, their architectural upgrades,
 | :---: | :--- | :--- | :--- | :---: | :---: | :--- |
 | **01** | E-Commerce Product Catalog API | Python (Flask) | Postgres, MongoDB, Elasticsearch, Kafka, MVC, Dashboard | [Plan](realistic/0.1/app-01-ecommerce-catalog/expansion-plan.md) — [Phase 1](realistic/0.1/app-01-ecommerce-catalog/phase-01/plan.md) … [Phase 5](realistic/0.1/app-01-ecommerce-catalog/phase-05/plan.md) | 5 | Implemented |
 | **05** | Online Learning Management System | Python (Flask) | Postgres, MongoDB, Kafka, Blueprints, Auto-Grading Rules | [Plan](app-05-learning-mgmt/expansion-plan.md) — [Phase 1](app-05-learning-mgmt/phase-01/plan.md) … [Phase 5](app-05-learning-mgmt/phase-05/plan.md) | 5 | Planned |
-| **06** | Enterprise HR Management System | Java (Spring Boot) | Postgres, Elasticsearch, Kafka, MVC, Log4j RCE Listener | _Phase structure pending_ | — | Pending |
+| **06** | Enterprise HR Management System | Java (Spring Boot) | Postgres, Elasticsearch, Kafka, MVC, Log4j RCE Listener | [Plan](app-06-hr-management/expansion-plan.md) — [Phase 1](app-06-hr-management/phase-01/plan.md) … [Phase 4](app-06-hr-management/phase-04/plan.md) | 4 | Planned |
 | **10** | Telecom Billing Platform | Java (Spring Boot) | Postgres, TimescaleDB, Kafka, MVC, Multi-Tier Tariffs | _Phase structure pending_ | — | Pending |
 | **11** | Social Media Analytics Dashboard | TypeScript (Express) | Postgres, Timeseries, Elasticsearch, Kafka, MVC, WebSockets | _Phase structure pending_ | — | Pending |
 | **14** | Telemedicine Appointment System | TypeScript (Express) | Postgres, MongoDB, Kafka, MVC, Calendar validation | _Phase structure pending_ | — | Pending |
