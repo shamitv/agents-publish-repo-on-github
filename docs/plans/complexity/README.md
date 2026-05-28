@@ -15,18 +15,18 @@ The goal of this phase is to scale the target applications from simple in-memory
 
 ## 2. Directory Index of Application Upgrade Plans
 
-Below is the index of the 8 selected applications, their architectural upgrades, and links to their individual plans and checklists:
+Below is the index of the 8 selected applications, their architectural upgrades, and links to their phase-wise plans:
 
-| App ID | Application Name | Language / Tech Stack | Core Upgrades | Detailed Plan | Implementation Checklist |
+| App ID | Application Name | Language / Tech Stack | Core Upgrades | Phase Structure | Phase Count |
 | :---: | :--- | :--- | :--- | :---: | :---: |
-| **01** | E-Commerce Product Catalog API | Python (Flask) | Postgres, MongoDB, Elasticsearch, Kafka, MVC, Dashboard | [Plan](app-01-ecommerce-catalog/plan.md) | [Checklist](app-01-ecommerce-catalog/todo.md) |
-| **05** | Online Learning Management System | Python (Flask) | Postgres, MongoDB, Kafka, Blueprints, Auto-Grading Rules | [Plan](app-05-learning-mgmt/plan.md) | [Checklist](app-05-learning-mgmt/todo.md) |
-| **06** | Enterprise HR Management System | Java (Spring Boot) | Postgres, Elasticsearch, Kafka, MVC, Log4j RCE Listener | [Plan](app-06-hr-management/plan.md) | [Checklist](app-06-hr-management/todo.md) |
-| **10** | Telecom Billing Platform | Java (Spring Boot) | Postgres, TimescaleDB, Kafka, MVC, Multi-Tier Tariffs | [Plan](app-10-telecom-billing/plan.md) | [Checklist](app-10-telecom-billing/todo.md) |
-| **11** | Social Media Analytics Dashboard | TypeScript (Express) | Postgres, Timeseries, Elasticsearch, Kafka, MVC, WebSockets | [Plan](app-11-social-analytics/plan.md) | [Checklist](app-11-social-analytics/todo.md) |
-| **14** | Telemedicine Appointment System | TypeScript (Express) | Postgres, MongoDB, Kafka, MVC, Calendar validation | [Plan](app-14-telemedicine/plan.md) | [Checklist](app-14-telemedicine/todo.md) |
-| **17** | IoT Device Dashboard | JavaScript (Express) | Postgres, InfluxDB, OpenSearch, Kafka, MVC, WebSockets | [Plan](app-17-iot-dashboard/plan.md) | [Checklist](app-17-iot-dashboard/todo.md) |
-| **36** | Parking Management System | JavaScript (Express) | Postgres, MongoDB, Elasticsearch, Kafka, Dynamic Pricing | [Plan](app-36-parking-mgmt/plan.md) | [Checklist](app-36-parking-mgmt/todo.md) |
+| **01** | E-Commerce Product Catalog API | Python (Flask) | Postgres, MongoDB, Elasticsearch, Kafka, MVC, Dashboard | [Plan](realistic/0.1/app-01-ecommerce-catalog/expansion-plan.md) — [Phase 1](realistic/0.1/app-01-ecommerce-catalog/phase-01/plan.md) … [Phase 5](realistic/0.1/app-01-ecommerce-catalog/phase-05/plan.md) | 5 |
+| **05** | Online Learning Management System | Python (Flask) | Postgres, MongoDB, Kafka, Blueprints, Auto-Grading Rules | [Plan](app-05-learning-mgmt/expansion-plan.md) — [Phase 1](app-05-learning-mgmt/phase-01/plan.md) … [Phase 5](app-05-learning-mgmt/phase-05/plan.md) | 5 |
+| **06** | Enterprise HR Management System | Java (Spring Boot) | Postgres, Elasticsearch, Kafka, MVC, Log4j RCE Listener | _Phase structure pending_ | — |
+| **10** | Telecom Billing Platform | Java (Spring Boot) | Postgres, TimescaleDB, Kafka, MVC, Multi-Tier Tariffs | _Phase structure pending_ | — |
+| **11** | Social Media Analytics Dashboard | TypeScript (Express) | Postgres, Timeseries, Elasticsearch, Kafka, MVC, WebSockets | _Phase structure pending_ | — |
+| **14** | Telemedicine Appointment System | TypeScript (Express) | Postgres, MongoDB, Kafka, MVC, Calendar validation | _Phase structure pending_ | — |
+| **17** | IoT Device Dashboard | JavaScript (Express) | Postgres, InfluxDB, OpenSearch, Kafka, MVC, WebSockets | _Phase structure pending_ | — |
+| **36** | Parking Management System | JavaScript (Express) | Postgres, MongoDB, Elasticsearch, Kafka, Dynamic Pricing | _Phase structure pending_ | — |
 
 ---
 
@@ -50,3 +50,53 @@ Every upgraded application must adhere to the following standards:
 - Flexible structures (catalogs, notes) must be stored in MongoDB.
 - Timeseries logs (telemetry, call records) must use partitioned tables or InfluxDB.
 - Searches must pass through Elasticsearch or OpenSearch queries.
+
+---
+
+## 4. Generic Upgrade Guide (Unplanned Apps)
+
+For the ~42 apps not covered by dedicated complexity plans (apps 02–04, 07–09, 12–13, 15–16, 18–35, 37–50), use the **[Generic Upgrade Guide](generic-upgrade-guide.md)**.
+
+It provides:
+- A **randomized architecture selection** process (roll components from a filtered pool)
+- **Templates** for `expansion-plan.md`, `vuln-inventory.md`, per-phase `plan.md`/`TODO.md`/`status-report.md`, and app `README.md`
+- **Difficulty rating** (1–5 scale) and **hint leakage validation** (keyword scan) in an `eval-report.md`
+- **Language-specific notes** for Python/Flask, Java/Spring Boot, and TypeScript/JavaScript/Express
+- **Commit cadence** and **status report** requirements built into every TODO checklist
+
+---
+
+## 5. Phase-Wise Plan Convention
+
+Each app's plan directory follows a standard structure for consistency across all 8 upgrades:
+
+```
+app-<NN>-<name>/
+├── README.md              # App-level index linking all phases + key documents
+├── expansion-plan.md      # Master plan: architecture, vulnerability strategy, API inventory
+├── vuln-inventory.md      # No-touch zone: existing vulnerabilities, chains, decoys, OWASP gaps
+├── phase-01/
+│   ├── plan.md            # Scope, decisions, vulnerability planting table, decoys
+│   └── TODO.md            # Granular file-level task checklist
+├── phase-02/
+│   ├── plan.md
+│   └── TODO.md
+├── phase-03/
+│   ├── plan.md
+│   └── TODO.md
+└── ...
+```
+
+### Phase Count per App
+
+Phase count is determined by each app's specific scope — not forced to a fixed number:
+
+- **5 phases**: Apps with existing codebases needing infrastructure upgrade + business logic + UI (app-01, app-05)
+- **TBD**: Other apps may need 4–6 phases depending on current code maturity and target complexity
+
+### When Adding a New Phase-Structured Plan
+
+1. Create `expansion-plan.md` and `vuln-inventory.md` at the app directory root
+2. Create `phase-NN/` directories, each with `plan.md` + `TODO.md`
+3. Delete the old flat `plan.md` and `todo.md`
+4. Update this master index table with links to the new phase structure
