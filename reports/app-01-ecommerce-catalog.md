@@ -1,102 +1,91 @@
-# Audit Report: app-01 — E-Commerce Product Catalog API
+# Security Report: app-01 — E-Commerce Product Catalog API
 
-**Language:** Python (Flask)  
-**Business Domain:** Retail / E-Commerce  
-**Date:** 2026-05-24
+**Language:** Python (Flask)
+**Directory:** `apps/python/app-01-ecommerce-catalog`
+
+---
+
+## Application Information
+- **App ID:** app-01
+- **Name:** E-Commerce Product Catalog API
+- **Language:** Python
+- **Framework:** Flask
+
+## Vulnerability Summary
+
+The following vulnerability list represents the ground truth security issues identified for this application:
+
+| ID | OWASP | Category | Severity | Location | CWE |
+|---|---|---|---|---|---|
+| V1 | A01 | Broken Access Control | High | src/controllers/order_controller.py | CWE-639 |
+| V2 | A03 | Injection | High | src/services/search_service.py | CWE-943 |
+| V3 | A09 | Security Logging and Monitoring Failures | Medium | src/consumers/billing_consumer.py | CWE-778 |
 
 ---
 
 ## Standalone Vulnerabilities
 
-### VULN-01: A03 — SQL Injection (Product Search)
+### VULN-01: A01 — Broken Access Control
 
-**Severity:** High  
-**Location:** `app.py:164` — `list_products()`  
-**Line:** `query = f"SELECT id, sku, name, description, category, price, quantity FROM products WHERE name LIKE '%{q}%' OR description LIKE '%{q}%'"`
+- **Severity:** High
+- **Location:** `src/controllers/order_controller.py`:N/A (method: `get_order_details`)
+- **CWE:** [CWE-639](https://cwe.mitre.org/data/definitions/639.html)
 
-**Difficulty: EASY**
+#### Description
+Order retrieval returns any order by path ID after authentication without checking whether the requester owns the order.
 
-- The `q` parameter from `request.args.get('q')` is directly interpolated into an f-string SQL query.
-- The `VULNERABILITY` comment explicitly calls out "SQL Injection target".
-- The error handler returns `query_executed` back to the user — a strong hint.
-- The `debug_query` field is always returned in the JSON response, leaking the crafted query even on success.
+### VULN-02: A03 — Injection
 
-### VULN-02: A01 — Insecure Direct Object Reference (IDOR)
+- **Severity:** High
+- **Location:** `src/services/search_service.py`:N/A (method: `search`)
+- **CWE:** [CWE-943](https://cwe.mitre.org/data/definitions/943.html)
 
-**Severity:** High  
-**Location:** `app.py:247` — `get_order_details()`  
-**Line:** `cursor.execute("SELECT o.id, ... FROM orders o ... WHERE o.id = ?", (order_id,))`
+#### Description
+Product search inserts user input directly into SQL fallback search and Elasticsearch query_string syntax.
 
-**Difficulty: EASY**
+### VULN-03: A09 — Security Logging and Monitoring Failures
 
-- The `order_id` path parameter is taken directly from the URL with no ownership verification.
-- Any authenticated user can view any order by enumerating IDs.
-- The function name `get_order_details` is clear about what it does.
-- The method is unguarded — no check that `order.user_id == session['user_id']`.
+- **Severity:** Medium
+- **Location:** `src/consumers/billing_consumer.py`:N/A (method: `process_order_event`)
+- **CWE:** [CWE-778](https://cwe.mitre.org/data/definitions/778.html)
 
-### VULN-03: A09 — Security Logging & Monitoring Failure
+#### Description
+Billing event processing changes invoice state without structured audit logging.
 
-**Severity:** Medium  
-**Location:** `app.py:320` — `create_order()`
-
-**Difficulty: EASY**
-
-- The `VULNERABILITY` comment at line 319 explicitly states: "Severe Logging Failure. Critical financial checkout and catalog stock deduction complete, but no auditable logs are written!"
-- The comment itself is the strongest hint.
 
 ---
 
-## Chained Attack: chain-01
+## Chained Attack Scenarios
 
-**Chain Name:** User Enumeration → Session Forge → Admin Takeover  
-**Combined Impact:** Account Takeover  
-**Overall Chain Difficulty: EASY**
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-### Link 1: User Enumeration (A01 — Low)
+### CHAIN-01: User Enumeration -> Session Forgery -> Catalog Modification
 
-**Location:** `app.py:137-145` — `user_exists()`  
-**Difficulty: EASY**
+- **Combined Impact:** `data_modification`
+- **Difficulty:** Medium
+- **Subtlety Tags:** 
 
-- Returns `200 {"exists": True}` vs `404 {"exists": False}` based on username existence.
-- No authentication required.
-- The `CHAIN LINK 1` comment at line 134 explicitly explains the purpose.
-- Function is literally named `user_exists`.
+#### Prerequisites
+- None specified
 
-### Link 2: Hardcoded Secret Key (A05 — Medium)
+#### Attack Narrative
+An attacker confirms the admin username through an unauthenticated existence endpoint, uses the hardcoded Flask signing secret to forge an admin session cookie, and writes attacker-controlled product data through an admin endpoint that trusts the session role.
 
-**Location:** `app.py:6` — `app.secret_key`  
-**Difficulty: EASY**
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Unauthenticated username existence endpoint confirms privileged account names. | Low | A01 | CWE-203 | src/controllers/user_controller.py | `user_exists` |
+| 2 | Hardcoded Flask signing secret allows forged admin session cookies. | Medium | A02 | CWE-798 | src/config/settings.py | `SECRET_KEY` |
+| 3 | Admin product mutation endpoint trusts the forgeable session role. | Medium | A01 | CWE-862 | src/controllers/product_controller.py | `create_product` |
 
-- `app.secret_key = 'cyberpunk_secret_key_glow_neon_quantum_core'` is a module-level constant visible to anyone with source access.
-- The string is absurdly descriptive and stands out immediately.
-- Can be used to forge Flask session cookies for any role (including ADMIN).
-
-### Link 3: No CSRF Protection (A05 — Low)
-
-**Location:** All POST endpoints  
-**Difficulty: EASY**
-
-- No CSRF tokens on any state-changing endpoint.
-- A forged admin session cookie is all that's needed to call `POST /api/products` or any other admin action.
 
 ---
 
-## Hints in Code (Beyond Explicit `VULNERABILITY` / `CHAIN LINK` Annotations)
+## Decoys (False-Positive Candidates)
 
-| Hint | Location | Description | Usefulness |
-|------|----------|-------------|------------|
-| `debug_query` in response | `list_products()` return | The JSON response always includes the executed SQL query | **High** — directly reveals SQLi payload success/failure |
-| Verbose error with `query_executed` | SQLi exception handler (line 170) | Returns the full query and error message to the user | **High** — helps attacker refine injection |
-| `'cyberpunk_secret_key_glow_neon_quantum_core'` | Line 6 | Extremely conspicuous hardcoded secret key | **High** — obvious to any code reviewer |
-| `user_exists` function name | Line 138 | Plainly indicates the endpoint's purpose | **Medium** — naming draws attention |
-| Decoy comment: "Secure, parameterized SQL query" | Line 111-113 | Explicitly calls out the login query as "secure" — draws contrast to insecure queries | **Medium** — tells analyst where to look for insecure patterns |
-| `app.run(debug=True)` | Line 330 | Debug mode enabled in production | **Low** — standard Flask misconfig, not a direct hint about other vulns |
-| `CHAIN LINK 1` comment explaining enumeration | Lines 134-136 | Already describes the full chain purpose | **Very High** — the comment itself outlines the attack scenario |
-| `db_conn.rollback()` | Line 326 | Indicates critical state-changing operation happening that could be exploited | **Low** — implicit hint that sensitive writes occur here |
-| `return jsonify({'exists': True}), 404` vs `200` | Lines 144-145 | HTTP status code differentiation is a classic enumeration technique | **Medium** — observable behavior contrast |
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
 
-## Summary
-
-All vulnerabilities and chain links in app-01 are **EASY** difficulty. The code includes extensive explicit annotations (`VULNERABILITY`, `CHAIN LINK`), highly conspicuous hardcoded secrets, verbose error responses that leak SQL, and obvious naming conventions. The strongest hints are the returned `debug_query` field (exposes SQLi attempts) and the hardcoded `secret_key` that any automated scanner would flag immediately. The only subtle aspect is the IDOR, which requires the attacker to enumerate order IDs — but the absence of ownership checks is quickly evident from reading the code.
-
-**Overall Difficulty Score:** 1/5 (Easiest)
+| Location | Description |
+|---|---|
+| src/repositories/user_repository.py | Login uses parameterized SQL despite the nearby vulnerable product search flow. |
+| src/controllers/user_controller.py | The profile endpoint reads the authenticated session user ID rather than accepting arbitrary user IDs. |

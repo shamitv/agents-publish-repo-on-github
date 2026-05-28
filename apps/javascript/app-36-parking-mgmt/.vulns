@@ -7,30 +7,30 @@
     {
       "owasp_id": "A03",
       "category": "Injection",
-      "location": "src/index.js",
-      "method": "GET /api/spots/search",
-      "line_range": "131-143",
-      "description": "User search filters are concatenated directly into a raw SQL query, allowing SQL injection.",
+      "location": "src/search/ParkingSearchClient.js",
+      "method": "searchByQueryString",
+      "line_range": "7-31",
+      "description": "Parking search embeds user input directly in Elasticsearch query_string syntax.",
       "severity": "high",
-      "cwe": "CWE-89"
+      "cwe": "CWE-74"
     },
     {
       "owasp_id": "A04",
       "category": "Insecure Design",
-      "location": "src/index.js",
-      "method": "POST /api/bookings/book",
-      "line_range": "156-177",
-      "description": "The booking endpoint accepts the total cost value directly from the user request payload without validation or backend recalculation, permitting free parking booking.",
+      "location": "src/services/BookingService.js",
+      "method": "book",
+      "line_range": "8-21",
+      "description": "Booking creation accepts totalCost directly from the client without server-side recalculation.",
       "severity": "medium",
       "cwe": "CWE-20"
     },
     {
       "owasp_id": "A09",
       "category": "Security Logging and Monitoring Failures",
-      "location": "src/index.js",
-      "method": "POST /api/bookings/:id/cancel",
-      "line_range": "180-204",
-      "description": "Critical operations such as booking cancellations are performed without logging the action, leaving no audit history.",
+      "location": "src/services/BookingService.js",
+      "method": "cancel",
+      "line_range": "24-36",
+      "description": "Booking cancellation persists a critical booking mutation without publishing a security audit event.",
       "severity": "low",
       "cwe": "CWE-778"
     }
@@ -38,151 +38,52 @@
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "SQL Injection Data Mining \u2192 Zero-Fee Booking Exploitation",
-      "attack_scenario": "An attacker uses SQL Injection on the search endpoint `/api/spots/search?q=Standard' UNION SELECT 1,id,spot_number,price_rate FROM spots --` to extract spot list IDs. They then execute `/api/bookings/book` submitting a total_cost parameter set to 0.0 or negative value, booking premium parking slots for free. They cancel previous orders via `/api/bookings/1/cancel` undetected because cancellations produce no security logs.",
+      "chain_name": "Elasticsearch Query Injection \u2192 Client-Controlled Pricing \u2192 Missing Audit Logs \u2192 Data Modification",
+      "attack_scenario": "An attacker uses Elasticsearch query_string syntax to broaden parking search results, books a premium spot with a client-controlled zero or negative total cost, and cancels bookings without an audit event.",
       "impact": "data_modification",
       "components": [
         {
           "step": 1,
           "owasp_id": "A03",
-          "description": "SQL injection reveals spots and pricing schema.",
-          "location": "src/index.js",
-          "method": "GET /api/spots/search",
+          "description": "Parking search embeds raw user input in Elasticsearch query_string syntax.",
+          "location": "src/search/ParkingSearchClient.js",
+          "method": "searchByQueryString",
           "severity": "medium",
-          "cwe": "CWE-89",
-          "required_evidence": [
-            "src/index.js",
-            "GET /api/spots/search"
-          ],
-          "negative_evidence": []
+          "cwe": "CWE-74"
         },
         {
           "step": 2,
           "owasp_id": "A04",
-          "description": "Booking submission allows passing cost parameters directly without server verification.",
-          "location": "src/index.js",
-          "method": "POST /api/bookings/book",
+          "description": "Booking price is trusted from the client instead of recalculated from spot rate and duration.",
+          "location": "src/services/BookingService.js",
+          "method": "book",
           "severity": "medium",
-          "cwe": "CWE-20",
-          "required_evidence": [
-            "src/index.js",
-            "POST /api/bookings/book"
-          ],
-          "negative_evidence": []
-        }
-      ],
-      "difficulty": "hard",
-      "subtlety_tags": [
-        "cross_file",
-        "stateful_flow",
-        "implicit_trust",
-        "realistic_decoy"
-      ],
-      "chain_prerequisites": [
-        "attacker has or can create a low privilege account",
-        "attacker can combine request input with stored application state"
-      ],
-      "negative_evidence": [
-        "src/referenceGuards.js",
-        "sameOwner",
-        "allowedCallback"
-      ],
-      "vulnerability_family": "injection",
-      "required_evidence": [
-        "src/index.js",
-        "GET /api/spots/search",
-        "POST /api/bookings/book"
-      ]
-    },
-    {
-      "chain_id": "chain-02",
-      "chain_name": "Subtle State Confusion Pivot To Injection",
-      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
-      "impact": "data_modification",
-      "difficulty": "hard",
-      "subtlety_tags": [
-        "cross_file",
-        "stateful_flow",
-        "implicit_trust",
-        "realistic_decoy",
-        "secondary_chain"
-      ],
-      "required_evidence": [
-        "src/index.js",
-        "POST /api/bookings/:id/cancel",
-        "POST /api/bookings/book",
-        "GET /api/spots/search"
-      ],
-      "chain_prerequisites": [
-        "attacker has or can create a low privilege account",
-        "attacker can combine request input with stored application state"
-      ],
-      "negative_evidence": [
-        "src/referenceGuards.js",
-        "sameOwner",
-        "allowedCallback"
-      ],
-      "vulnerability_family": "injection",
-      "components": [
-        {
-          "step": 1,
-          "owasp_id": "A09",
-          "description": "Critical operations such as booking cancellations are performed without logging the action, leaving no audit history.",
-          "location": "src/index.js",
-          "method": "POST /api/bookings/:id/cancel",
-          "severity": "low",
-          "cwe": "CWE-778",
-          "required_evidence": [
-            "src/index.js",
-            "POST /api/bookings/:id/cancel"
-          ],
-          "negative_evidence": []
-        },
-        {
-          "step": 2,
-          "owasp_id": "A04",
-          "description": "The booking endpoint accepts the total cost value directly from the user request payload without validation or backend recalculation, permitting free parking booking.",
-          "location": "src/index.js",
-          "method": "POST /api/bookings/book",
-          "severity": "medium",
-          "cwe": "CWE-20",
-          "required_evidence": [
-            "src/index.js",
-            "POST /api/bookings/book"
-          ],
-          "negative_evidence": []
+          "cwe": "CWE-20"
         },
         {
           "step": 3,
-          "owasp_id": "A03",
-          "description": "User search filters are concatenated directly into a raw SQL query, allowing SQL injection.",
-          "location": "src/index.js",
-          "method": "GET /api/spots/search",
-          "severity": "high",
-          "cwe": "CWE-89",
-          "required_evidence": [
-            "src/index.js",
-            "GET /api/spots/search"
-          ],
-          "negative_evidence": []
+          "owasp_id": "A09",
+          "description": "Booking cancellation is persisted without a security audit event.",
+          "location": "src/services/BookingService.js",
+          "method": "cancel",
+          "severity": "low",
+          "cwe": "CWE-778"
         }
       ]
     }
   ],
   "decoys": [
     {
-      "location": "src/index.js",
-      "description": "Proper security auditing logs printed during spot registrations in POST /api/admin/spots."
+      "location": "src/services/SpotService.js",
+      "description": "Admin spot creation publishes a security audit event and logs the spot registration."
     },
     {
-      "location": "src/index.js",
-      "description": "Proper parameterized query logic in GET /api/spots/:id to fetch parking spot details safely."
+      "location": "src/controllers/SpotController.js",
+      "description": "Spot detail lookup uses repository findById rather than constructing a query string."
+    },
+    {
+      "location": "src/referenceGuards.js",
+      "description": "Reference callback allowlist guard demonstrates safe URL validation."
     }
-  ],
-  "benchmark_profile": {
-    "version": "v0.9",
-    "target_difficulty": "hard",
-    "upgrade_style": "in-place mixed difficulty ladder",
-    "decoy_file": "src/referenceGuards.js"
-  }
+  ]
 }

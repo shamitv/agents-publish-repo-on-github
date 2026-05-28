@@ -47,8 +47,8 @@ public class SecurityConfig {
                 .passwordParameter("password")
                 .permitAll()
             )
-            // Session fixation Protection configured as 'none' to allow benchmarking session hijacking
             .sessionManagement(session -> session
+                // VULNERABILITY A07: Session fixation protection is disabled, so login keeps the old session ID.
                 .sessionFixation(fixation -> fixation.none())
             )
             .logout(logout -> logout

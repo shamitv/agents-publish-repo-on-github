@@ -12,4 +12,5 @@ public class PayrollDTO {
     private String employeeName;
     private BigDecimal baseSalary;
     private String departmentName;
+    private String ssnEncrypted;
 }

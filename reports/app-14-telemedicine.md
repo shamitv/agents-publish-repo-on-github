@@ -1,117 +1,101 @@
-# Security Report: app-14-telemedicine
+# Security Report: app-14 — Telemedicine Appointment System
 
-## Application Information
-
-- **App ID**: app-14
-- **App Name**: Telemedicine Platform
-- **Language**: TypeScript
-- **Framework**: Express
-- **Source**: `apps/typescript/app-14-telemedicine/`
+**Language:** Typescript (Express)
+**Directory:** `apps/typescript/app-14-telemedicine`
 
 ---
+
+## Application Information
+- **App ID:** app-14
+- **Name:** Telemedicine Appointment System
+- **Language:** Typescript
+- **Framework:** Express
 
 ## Vulnerability Summary
 
+The following vulnerability list represents the ground truth security issues identified for this application:
+
 | ID | OWASP | Category | Severity | Location | CWE |
 |---|---|---|---|---|---|
-| V1 | A01 | Broken Access Control | Medium | `src/index.ts` → `GET /api/medical-records/:id` (lines 168-185) | CWE-639 |
-| V2 | A02 | Cryptographic Failures | High | `src/index.ts` → `GET /api/admin/database/export` (lines 144-153) | CWE-312 |
-| V3 | A07 | Identification and Authentication Failures | Medium | `src/index.ts` → `POST /api/auth/login` (lines 104-137) | CWE-328 |
-
-### V1: IDOR on Medical Records
-
-**OWASP Category**: A01 — Broken Access Control
-
-**Description**: Viewing patient medical records by ID lacks verification of user ownership, allowing any authenticated provider to retrieve details of another patient's records.
-
-**Endpoint**: `GET /api/medical-records/:id`
-
-**CWE**: CWE-639 (Authorization Bypass Through User-Controlled Key)
-
-**Impact**: Medium — Any authenticated user can view another patient's sensitive medical records by enumerating record IDs.
-
-**Detection**: Look for absence of ownership checks where the `:id` parameter is used without verifying the requesting user's role or relationship to the patient.
+| V1 | A07 | Identification and Authentication Failures | High | src/services/TokenService.ts | CWE-347 |
+| V2 | A01 | Broken Access Control | High | src/services/AppointmentService.ts | CWE-639 |
+| V3 | A02 | Cryptographic Failures | Medium | src/config/appConfig.ts | CWE-321 |
+| V4 | A07 | Identification and Authentication Failures | Medium | src/controllers/AuthController.ts | CWE-1004 |
 
 ---
 
-### V2: Plaintext Medical Data Export
+## Standalone Vulnerabilities
 
-**OWASP Category**: A02 — Cryptographic Failures
+### VULN-01: A07 — Identification and Authentication Failures
 
-**Description**: An administrative database export endpoint returns all patient medical records including sensitive PII in plaintext format with no encryption or access scoping.
+- **Severity:** High
+- **Location:** `src/services/TokenService.ts`:12-18 (method: `verify`)
+- **CWE:** [CWE-347](https://cwe.mitre.org/data/definitions/347.html)
 
-**Endpoint**: `GET /api/admin/database/export`
+#### Description
+JWT validation decodes token payloads without verifying signatures, allowing forged claims.
 
-**CWE**: CWE-312 (Cleartext Storage of Sensitive Information)
+### VULN-02: A01 — Broken Access Control
 
-**Impact**: High — Any admin user can download the full patient database dump containing names, addresses, medical conditions, and treatment notes in plaintext.
+- **Severity:** High
+- **Location:** `src/services/AppointmentService.ts`:25-39 (method: `getAppointmentDetail`)
+- **CWE:** [CWE-639](https://cwe.mitre.org/data/definitions/639.html)
 
-**Detection**: Look for an admin export endpoint that reads all rows from the database and returns them as-is without redaction, encryption, or aggregation.
+#### Description
+Appointment detail lookup returns physician notes by ID without patient or doctor ownership checks.
+
+### VULN-03: A02 — Cryptographic Failures
+
+- **Severity:** Medium
+- **Location:** `src/config/appConfig.ts`:10-17 (method: `appConfig`)
+- **CWE:** [CWE-321](https://cwe.mitre.org/data/definitions/321.html)
+
+#### Description
+JWT signing secret defaults to a weak hardcoded value.
+
+### VULN-04: A07 — Identification and Authentication Failures
+
+- **Severity:** Medium
+- **Location:** `src/controllers/AuthController.ts`:23-29 (method: `login`)
+- **CWE:** [CWE-1004](https://cwe.mitre.org/data/definitions/1004.html)
+
+#### Description
+Session token cookie is set without httpOnly or secure flags.
+
 
 ---
 
-### V3: Unsalted MD5 Password Hashing
+## Chained Attack Scenarios
 
-**OWASP Category**: A07 — Identification and Authentication Failures
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-**Description**: User account passwords are hashed using unsalted MD5 and stored in the database, allowing brute-force or rainbow table cracking.
+### CHAIN-01: Weak JWT Validation → Patient Notes IDOR → DB Exfiltration
 
-**Endpoint**: `POST /api/auth/login`
+- **Combined Impact:** `db_exfiltration`
+- **Difficulty:** Medium
+- **Subtlety Tags:** 
 
-**CWE**: CWE-328 (Use of Weak Hash)
+#### Prerequisites
+- None specified
 
-**Impact**: Medium — If the password database is compromised, an attacker can crack passwords offline using precomputed rainbow tables or brute-force techniques.
+#### Attack Narrative
+An attacker forges a JWT payload because the server decodes tokens without signature validation, then enumerates appointment IDs to retrieve confidential physician notes.
 
-**Detection**: Search for `md5()` usage in password hashing/verification logic instead of bcrypt, scrypt, or argon2.
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | TokenService.verify decodes JWT payloads without validating the signature. | Medium | A07 | CWE-347 | src/services/TokenService.ts | `verify` |
+| 2 | Appointment details are loaded by ID and include physician notes without ownership checks. | Medium | A01 | CWE-639 | src/services/AppointmentService.ts | `getAppointmentDetail` |
 
----
-
-## Chained Attack Scenario
-
-### Chain: "MD5 Password Cracking → Medical Records IDOR Exfiltration"
-
-**Impact**: `db_exfiltration`
-
-**Overview**: An attacker cracks a provider's MD5-hashed password, logs into their account, and exfiltrates sensitive patient medical records via IDOR.
-
-**Components**:
-
-| Step | Issue | Severity | OWASP | CWE | Location |
-|---|---|---|---|---|---|
-| 1 | Weak unsalted MD5 password hashing enables offline credential cracking | Medium | A07 | CWE-328 | `POST /api/auth/login` |
-| 2 | Medical records endpoint lacks authorization checks for record ownership | Medium | A01 | CWE-639 | `GET /api/medical-records/:id` |
-
-**Attack Narrative**:
-1. The attacker obtains the users table (e.g., through SQL injection on another endpoint or data breach), retrieves the unsalted MD5 hash for `dr_smith`, and cracks the password offline.
-2. Using the cracked credentials, the attacker logs in as `dr_smith` and calls `GET /api/medical-records/2` through IDOR to access another provider's patient medical records.
-3. The attacker exfiltrates sensitive medical records across the platform without authorization.
-
-**Combined Impact**: Database exfiltration — An attacker can steal sensitive patient medical records by cracking weak passwords and exploiting missing access controls.
 
 ---
 
 ## Decoys (False-Positive Candidates)
 
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
+
 | Location | Description |
 |---|---|
-| `src/index.ts` | Proper user scoping constraints in `GET /api/patients` limiting results to assigned patients only |
-| `src/index.ts` | Proper parameterized query logic in `POST /api/appointments` to book appointments safely |
-
----
-
-## Detection Commands
-
-```bash
-# Find IDOR on medical records
-grep -n "medical-records.*:id\|findOne\|findById" apps/typescript/app-14-telemedicine/src/index.ts
-
-# Find plaintext data export
-grep -n "export\|database\|admin" apps/typescript/app-14-telemedicine/src/index.ts
-
-# Find weak password hashing
-grep -n "md5\|hash\|password" apps/typescript/app-14-telemedicine/src/index.ts
-```
-
----
-
-*Report generated from `.vulns` manifest for app-14-telemedicine*
+| src/repositories/UserRepository.ts | Registered patient passwords are hashed with BCrypt before storage. |
+| src/services/AppointmentService.ts | Appointment list view removes doctorNotes for patient and doctor summaries. |
+| src/referenceGuards.ts | Reference ownership and callback guards demonstrate safe comparison and allowlist patterns. |

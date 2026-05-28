@@ -1,92 +1,112 @@
-# Audit Report: app-46 — Charity Donation Platform
+# Security Report: app-46 — Charity Donation Platform
 
-**Language:** Python (Flask)  
-**Business Domain:** Non-profit / Donations  
-**Date:** 2026-05-24
+**Language:** Python (Flask)
+**Directory:** `apps/python/app-46-charity-donations`
+
+---
+
+## Application Information
+- **App ID:** app-46
+- **Name:** Charity Donation Platform
+- **Language:** Python
+- **Framework:** Flask
+
+## Vulnerability Summary
+
+The following vulnerability list represents the ground truth security issues identified for this application:
+
+| ID | OWASP | Category | Severity | Location | CWE |
+|---|---|---|---|---|---|
+| V1 | A02 | Cryptographic Failures | High | app.py | CWE-798 |
+| V2 | A03 | Injection | High | app.py | CWE-89 |
+| V3 | A09 | Security Logging & Monitoring Failures | Medium | app.py | CWE-778 |
 
 ---
 
 ## Standalone Vulnerabilities
 
-### VULN-01: A02 — Cryptographic Failures (Hardcoded Stripe Key)
+### VULN-01: A02 — Cryptographic Failures
 
-**Severity:** High  
-**Location:** `app.py:9-11` — `STRIPE_KEY`  
-**Lines:**
-```python
-# VULNERABILITY A02: Hardcoded Stripe payment gateway API key in source code.
-STRIPE_API_KEY = "sk_live_mock_charity_1234567890abcdef"
-```
+- **Severity:** High
+- **Location:** `app.py`:9-11 (method: `STRIPE_KEY`)
+- **CWE:** [CWE-798](https://cwe.mitre.org/data/definitions/798.html)
 
-**Difficulty: EASY**
+#### Description
+Stripe payment gateway API key is hardcoded directly in the application source code.
 
-- Comment explicitly marks it as `VULNERABILITY A02`
-- Module-level constant visible immediately on reading source
-- Leaks payment gateway credentials usable for refunds, balance lookups, etc.
+### VULN-02: A03 — Injection
 
-### VULN-02: A03 — Injection (SQL Injection)
+- **Severity:** High
+- **Location:** `app.py`:128-150 (method: `search_donations`)
+- **CWE:** [CWE-89](https://cwe.mitre.org/data/definitions/89.html)
 
-**Severity:** High  
-**Location:** `app.py:128-150` — `search_donations()`  
-**Lines:**
-```python
-# VULNERABILITY A03: Raw SQL query concatenates user input.
-cursor.execute(f"SELECT * FROM donations WHERE donor_name LIKE '%{query}%' OR campaign LIKE '%{query}%'")
-```
-
-**Difficulty: EASY**
-
-- Comment explicitly marks it as `VULNERABILITY A03`
-- f-string concatenation of user input into SQL query
-- UNION-based injection can extract donor PII and transaction IDs
+#### Description
+User search query is concatenated directly into a raw SQL query inside search_donations(), causing SQL injection.
 
 ### VULN-03: A09 — Security Logging & Monitoring Failures
 
-**Severity:** Medium  
-**Location:** `app.py:152-187` — `process_refund()`  
-**Lines:**
-```python
-# VULNERABILITY A09: Refund operations generate no audit logs.
-```
+- **Severity:** Medium
+- **Location:** `app.py`:152-187 (method: `process_refund`)
+- **CWE:** [CWE-778](https://cwe.mitre.org/data/definitions/778.html)
 
-**Difficulty: EASY**
+#### Description
+High-value financial refund operations are performed silently without producing any audit log records.
 
-- Comment explicitly marks it as `VULNERABILITY A09`
-- High-value financial operations (refunds) leave no trace
 
 ---
 
-## Chained Attack: chain-01
+## Chained Attack Scenarios
 
-**Chain Name:** API Key Exposure → SQLi Donor Dump → Silent Refund Fraud  
-**Combined Impact:** DB Exfiltration  
-**Overall Chain Difficulty: MEDIUM**
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-### Link 1: Stripe API Key Hardcoded (A02 — Medium)
+### CHAIN-01: API Key Exposure → SQLi Donor Dump → Silent Refund Fraud
 
-**Difficulty: EASY**
+- **Combined Impact:** `db_exfiltration`
+- **Difficulty:** Expert
+- **Subtlety Tags:** `cross_file` `state_confusion` `parser_or_config_reasoning` `implicit_trust` `realistic_decoy`
 
-- Attacker extracts `sk_live_mock_charity_...` from source
-- Provides Stripe API access for refund processing
+#### Prerequisites
+- attacker can influence a multi-step workflow
+- attacker can observe or reuse application state across requests
 
-### Link 2: SQL Injection for Donor/Transaction Enumeration (A03 — Medium)
+#### Attack Narrative
+An attacker reads the hardcoded Stripe key from the source code. They then use the SQL injection vulnerability on the search donation endpoint to extract transaction IDs and donor information. Lastly, using the leaked Stripe credentials and transaction details, they trigger a refund to themselves silently due to missing audit logs.
 
-**Difficulty: EASY**
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Stripe API key hardcoded in source. | Medium | A02 | CWE-798 | app.py | `STRIPE_KEY` |
+| 2 | SQL injection in search donation query reveals private database records. | Medium | A03 | CWE-89 | app.py | `search_donations` |
+| 3 | Refunding donation generates no audit logs. | Low | A09 | CWE-778 | app.py | `process_refund` |
 
-- Attacker uses SQLi to extract transaction IDs, donor emails, amounts
-- Cross-references with Stripe data from Link 1
+### CHAIN-02: Subtle State Confusion Pivot To Injection
 
-### Link 3: Silent Refund via Missing Audit Logs (A09 — Low)
+- **Combined Impact:** `db_exfiltration`
+- **Difficulty:** Expert
+- **Subtlety Tags:** `cross_file` `state_confusion` `parser_or_config_reasoning` `implicit_trust` `realistic_decoy` `secondary_chain`
 
-**Difficulty: EASY**
+#### Prerequisites
+- attacker can influence a multi-step workflow
+- attacker can observe or reuse application state across requests
 
-- Attacker triggers refunds using Stripe key and transaction IDs
-- No audit trail recorded
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
+
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | High-value financial refund operations are performed silently without producing any audit log records. | Medium | A09 | CWE-778 | app.py | `process_refund` |
+| 2 | User search query is concatenated directly into a raw SQL query inside search_donations(), causing SQL injection. | High | A03 | CWE-89 | app.py | `search_donations` |
+| 3 | Stripe payment gateway API key is hardcoded directly in the application source code. | High | A02 | CWE-798 | app.py | `STRIPE_KEY` |
+
 
 ---
 
-## Summary
+## Decoys (False-Positive Candidates)
 
-App-46 is a Flask charity platform with hardcoded Stripe key, SQL injection in donation search, and silent refund processing. The chain: extract API key, dump transaction IDs via SQLi, process silent refunds.
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
 
-**Overall Difficulty Score:** 1/5 (Easy)
+| Location | Description |
+|---|---|
+| app.py | CSRF validation check on /api/donations ensuring requests include a valid X-CSRF-Token matching the user's session. |
+| app.py | Proper parameterized SQL queries for retrieving campaigns by title/description. |

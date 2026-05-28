@@ -1,117 +1,112 @@
-# Security Report: app-35-compliance-tracker
+# Security Report: app-35 — Compliance Document Tracker
 
-## Application Information
-
-- **App ID**: app-35
-- **App Name**: Compliance Document Tracker
-- **Language**: TypeScript
-- **Framework**: Express
-- **Source**: `apps/typescript/app-35-compliance-tracker/`
+**Language:** Typescript (Express)
+**Directory:** `apps/typescript/app-35-compliance-tracker`
 
 ---
+
+## Application Information
+- **App ID:** app-35
+- **Name:** Compliance Document Tracker
+- **Language:** Typescript
+- **Framework:** Express
 
 ## Vulnerability Summary
 
+The following vulnerability list represents the ground truth security issues identified for this application:
+
 | ID | OWASP | Category | Severity | Location | CWE |
 |---|---|---|---|---|---|
-| V1 | A01 | Broken Access Control | Medium | `src/index.ts` → `GET /api/documents/:id` (lines 160-175) | CWE-639 |
-| V2 | A02 | Cryptographic Failures | High | `src/index.ts` → `GET /api/admin/documents/export` (lines 144-157) | CWE-312 |
-| V3 | A07 | Identification and Authentication Failures | Medium | `src/index.ts` → `POST /api/auth/login` (lines 103-138) | CWE-328 |
-
-### V1: IDOR on Compliance Documents
-
-**OWASP Category**: A01 — Broken Access Control
-
-**Description**: Viewing compliance document details by ID lacks verification of user ownership, allowing any authenticated user to retrieve another organization's sensitive compliance documents.
-
-**Endpoint**: `GET /api/documents/:id`
-
-**CWE**: CWE-639 (Authorization Bypass Through User-Controlled Key)
-
-**Impact**: Medium — Any authenticated user can enumerate document IDs to view audit reports, regulatory filings, and confidential compliance data from other organizations.
-
-**Detection**: Look for absence of ownership checks where the `:id` parameter is used without verifying `req.user.orgId` against the document's organization ID.
+| V1 | A01 | Broken Access Control | Medium | src/index.ts | CWE-639 |
+| V2 | A05 | Security Misconfiguration | Medium | src/index.ts | CWE-209 |
+| V3 | A08 | Software and Data Integrity Failures | High | src/index.ts | CWE-502 |
 
 ---
 
-### V2: Plaintext Compliance Data Export
+## Standalone Vulnerabilities
 
-**OWASP Category**: A02 — Cryptographic Failures
+### VULN-01: A01 — Broken Access Control
 
-**Description**: An administrative document export endpoint returns all compliance documents including sensitive regulatory data in plaintext format with no encryption or access scoping.
+- **Severity:** Medium
+- **Location:** `src/index.ts`:153-166 (method: `GET /api/documents/:id`)
+- **CWE:** [CWE-639](https://cwe.mitre.org/data/definitions/639.html)
 
-**Endpoint**: `GET /api/admin/documents/export`
+#### Description
+Retrieving document details by ID from the database fails to verify if the requesting user owns the document or possesses administrative permissions, allowing unauthorized access to arbitrary documents.
 
-**CWE**: CWE-312 (Cleartext Storage of Sensitive Information)
+### VULN-02: A05 — Security Misconfiguration
 
-**Impact**: High — Any admin user can download the full compliance document database containing audit findings, financial records, and regulatory submissions in plaintext.
+- **Severity:** Medium
+- **Location:** `src/index.ts`:216-230 (method: `GET /api/admin/debug`)
+- **CWE:** [CWE-209](https://cwe.mitre.org/data/definitions/209.html)
 
-**Detection**: Look for an admin export endpoint that reads all rows from the database and returns them as-is without redaction, encryption, or aggregation.
+#### Description
+The debug endpoint leaks process environment details and a hardcoded administrative recovery API token when dev parameter is supplied.
+
+### VULN-03: A08 — Software and Data Integrity Failures
+
+- **Severity:** High
+- **Location:** `src/index.ts`:169-193 (method: `POST /api/documents`)
+- **CWE:** [CWE-502](https://cwe.mitre.org/data/definitions/502.html)
+
+#### Description
+Document metadata is deserialized using the insecure eval() function, allowing execution of arbitrary system code via malicious metadata input.
+
 
 ---
 
-### V3: Unsalted MD5 Password Hashing
+## Chained Attack Scenarios
 
-**OWASP Category**: A07 — Identification and Authentication Failures
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-**Description**: User account passwords are hashed using unsalted MD5 and stored in the database, allowing brute-force or rainbow table cracking.
+### CHAIN-01: Dev Mode Config Leak → Admin Document Retrieval Bypass
 
-**Endpoint**: `POST /api/auth/login`
+- **Combined Impact:** `account_takeover`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy`
 
-**CWE**: CWE-328 (Use of Weak Hash)
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-**Impact**: Medium — If the password database is compromised, an attacker can crack passwords offline using precomputed rainbow tables or brute-force techniques.
+#### Attack Narrative
+An attacker sends a request to the debug endpoint `/api/admin/debug?dev=true` to leak the developer administration token `ADMIN-DEV-TOKEN-KEY-8871`. Using this token in the `x-admin-token` header, the attacker authenticates as admin and accesses `/api/documents/1` to view sensitive customer compliance documents.
 
-**Detection**: Search for `md5()` usage in password hashing/verification logic instead of bcrypt, scrypt, or argon2.
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Development debug settings leak administration API key. | Medium | A05 | CWE-209 | src/index.ts | `GET /api/admin/debug` |
+| 2 | Documents details retrieval allows the attacker authenticated with the leaked API key to fetch arbitrary documents. | Medium | A01 | CWE-639 | src/index.ts | `GET /api/documents/:id` |
 
----
+### CHAIN-02: Subtle Deserialization Pivot To Idor
 
-## Chained Attack Scenario
+- **Combined Impact:** `account_takeover`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy` `secondary_chain`
 
-### Chain: "MD5 Password Cracking → IDOR Compliance Document Exfiltration"
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-**Impact**: `db_exfiltration`
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
 
-**Overview**: An attacker cracks an admin's MD5-hashed password, logs into their account, and exfiltrates compliance documents from other organizations via IDOR.
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Document metadata is deserialized using the insecure eval() function, allowing execution of arbitrary system code via malicious metadata input. | High | A08 | CWE-502 | src/index.ts | `POST /api/documents` |
+| 2 | The debug endpoint leaks process environment details and a hardcoded administrative recovery API token when dev parameter is supplied. | Medium | A05 | CWE-209 | src/index.ts | `GET /api/admin/debug` |
+| 3 | Retrieving document details by ID from the database fails to verify if the requesting user owns the document or possesses administrative permissions, allowing unauthorized access to arbitrary documents. | Medium | A01 | CWE-639 | src/index.ts | `GET /api/documents/:id` |
 
-**Components**:
-
-| Step | Issue | Severity | OWASP | CWE | Location |
-|---|---|---|---|---|---|
-| 1 | Weak unsalted MD5 password hashing enables offline credential cracking | Medium | A07 | CWE-328 | `POST /api/auth/login` |
-| 2 | Document endpoint lacks authorization checks for organization ownership | Medium | A01 | CWE-639 | `GET /api/documents/:id` |
-
-**Attack Narrative**:
-1. The attacker obtains the users table (e.g., through SQL injection on another endpoint), retrieves the unsalted MD5 hash for `compliance_admin`, and cracks the password offline.
-2. Using the cracked credentials, the attacker logs in as `compliance_admin` and calls `GET /api/documents/5` through IDOR to access compliance documents from other organizations.
-3. The attacker exfiltrates sensitive audit reports and regulatory filings across the platform.
-
-**Combined Impact**: Database exfiltration — An attacker can steal sensitive compliance documents by cracking weak passwords and exploiting missing access controls.
 
 ---
 
 ## Decoys (False-Positive Candidates)
 
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
+
 | Location | Description |
 |---|---|
-| `src/index.ts` | Proper user scoping constraints in `GET /api/documents` limiting results to own organization only |
-| `src/index.ts` | Proper parameterized query logic in `POST /api/documents/upload` to upload documents safely |
-
----
-
-## Detection Commands
-
-```bash
-# Find IDOR on document details
-grep -n "documents.*:id\|findOne\|findById" apps/typescript/app-35-compliance-tracker/src/index.ts
-
-# Find plaintext data export
-grep -n "export\|database\|admin" apps/typescript/app-35-compliance-tracker/src/index.ts
-
-# Find weak password hashing
-grep -n "md5\|hash\|password" apps/typescript/app-35-compliance-tracker/src/index.ts
-```
-
----
-
-*Report generated from `.vulns` manifest for app-35-compliance-tracker*
+| src/index.ts | Proper Bcrypt hashing for password storage and credentials verification during login. |
+| src/index.ts | Proper authorization check in GET /api/users/me strictly validating caller profile limits. |
+| src/index.ts | Safe JSON deserialization logic using JSON.parse in POST /api/documents/safe. |

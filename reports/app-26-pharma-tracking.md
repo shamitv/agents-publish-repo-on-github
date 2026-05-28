@@ -1,83 +1,111 @@
-# Audit Report: app-26 — Pharmaceutical Drug Tracking
+# Security Report: app-26 — Pharmaceutical Drug Tracking
 
-**Language:** Java (Spring Boot)  
-**Business Domain:** Pharma / Supply Chain  
-**Date:** 2026-05-24
+**Language:** Java (Spring-boot)
+**Directory:** `apps/java/app-26-pharma-tracking`
+
+---
+
+## Application Information
+- **App ID:** app-26
+- **Name:** Pharmaceutical Drug Tracking
+- **Language:** Java
+- **Framework:** Spring-boot
+
+## Vulnerability Summary
+
+The following vulnerability list represents the ground truth security issues identified for this application:
+
+| ID | OWASP | Category | Severity | Location | CWE |
+|---|---|---|---|---|---|
+| V1 | A01 | Broken Access Control | Medium | src/main/java/com/pharma/tracking/controller/BatchController.java | CWE-639 |
+| V2 | A02 | Cryptographic Failures | Medium | src/main/java/com/pharma/tracking/service/CustodyService.java | CWE-328 |
+| V3 | A08 | Software and Data Integrity Failures | Critical | src/main/java/com/pharma/tracking/service/BatchImportService.java | CWE-502 |
 
 ---
 
 ## Standalone Vulnerabilities
 
-### VULN-01: A01 — Broken Access Control (IDOR on Batch Details)
+### VULN-01: A01 — Broken Access Control
 
-**Severity:** Medium  
-**Location:** `BatchController.java:21-27` — `getBatchDetails()`  
-**Lines:**
-```java
-// VULNERABILITY A01: IDOR on batch lookup allows any authenticated user to view any batch's details
-```
+- **Severity:** Medium
+- **Location:** `src/main/java/com/pharma/tracking/controller/BatchController.java`:21-27 (method: `getBatchDetails`)
+- **CWE:** [CWE-639](https://cwe.mitre.org/data/definitions/639.html)
 
-**Difficulty: EASY**
+#### Description
+IDOR on batch lookup allows any authenticated user to view details of any batch without checks
 
-- Comment explicitly marks it as `VULNERABILITY A01`
-- Any authenticated user can view any batch's details
-- No organization ownership check
+### VULN-02: A02 — Cryptographic Failures
 
-### VULN-02: A02 — Cryptographic Failures (Weak MD5 Signature)
+- **Severity:** Medium
+- **Location:** `src/main/java/com/pharma/tracking/service/CustodyService.java`:18-31 (method: `generateCustodySignature`)
+- **CWE:** [CWE-328](https://cwe.mitre.org/data/definitions/328.html)
 
-**Severity:** Medium  
-**Location:** `CustodyService.java:18-31` — `generateCustodySignature()`  
-**Lines:**
-```java
-// VULNERABILITY A02: Weak MD5 hashing algorithm without secret key used to sign custody transfers
-```
+#### Description
+Weak MD5 hashing algorithm without a secret key is used to sign custody transfers, allowing forged signatures
 
-**Difficulty: EASY**
+### VULN-03: A08 — Software and Data Integrity Failures
 
-- Comment explicitly marks it as `VULNERABILITY A02`
-- MD5 used for signing without a secret key
-- Forged signatures trivially generated
+- **Severity:** Critical
+- **Location:** `src/main/java/com/pharma/tracking/service/BatchImportService.java`:17-26 (method: `importBatch`)
+- **CWE:** [CWE-502](https://cwe.mitre.org/data/definitions/502.html)
 
-### VULN-03: A08 — Software Integrity (Java Deserialization)
+#### Description
+Insecure Java deserialization on batch import endpoint allows execution of arbitrary code via malicious payloads
 
-**Severity:** Critical  
-**Location:** `BatchImportService.java:17-26` — `importBatch()`  
-**Lines:**
-```java
-// VULNERABILITY A08: Insecure Java deserialization on batch import allows arbitrary code execution
-```
-
-**Difficulty: EASY**
-
-- Comment explicitly marks it as `VULNERABILITY A08`
-- `ObjectInputStream.readObject()` on untrusted input
-- No class filtering, enabling RCE
 
 ---
 
-## Chained Attack: chain-01
+## Chained Attack Scenarios
 
-**Chain Name:** IDOR Batch Enumeration → Forged Custody Signature → Supply Chain Tampering  
-**Combined Impact:** Data Modification  
-**Overall Chain Difficulty: MEDIUM**
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-### Link 1: IDOR on Batch Endpoint (A01 — Medium)
+### CHAIN-01: IDOR Batch Enumeration → Forged Custody Signature → Supply Chain Tampering
 
-**Difficulty: EASY**
+- **Combined Impact:** `data_modification`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy`
 
-- Leaks shipment details from other organizations
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-### Link 2: Weak Custody Signature (A02 — Medium)
+#### Attack Narrative
+Attacker logs in, uses IDOR to search all batch shipment details, and generates a fake MD5 custody signature to divert or inject custom chain-of-custody transfer entries.
 
-**Difficulty: EASY**
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | IDOR batch endpoint leaks details of batches not belonging to the current user's organization. | Medium | A01 | CWE-639 | src/main/java/com/pharma/tracking/controller/BatchController.java | `getBatchDetails` |
+| 2 | Weak custody signature algorithm allows generating valid transfer signatures off-platform. | Medium | A02 | CWE-328 | src/main/java/com/pharma/tracking/service/CustodyService.java | `generateCustodySignature` |
 
-- MD5 without secret key allows off-platform signature generation
-- Forged custody transfer entries injected
+### CHAIN-02: Subtle Deserialization Pivot To Idor
+
+- **Combined Impact:** `data_modification`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy` `secondary_chain`
+
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
+
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
+
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Insecure Java deserialization on batch import endpoint allows execution of arbitrary code via malicious payloads | Critical | A08 | CWE-502 | src/main/java/com/pharma/tracking/service/BatchImportService.java | `importBatch` |
+| 2 | Weak MD5 hashing algorithm without a secret key is used to sign custody transfers, allowing forged signatures | Medium | A02 | CWE-328 | src/main/java/com/pharma/tracking/service/CustodyService.java | `generateCustodySignature` |
+| 3 | IDOR on batch lookup allows any authenticated user to view details of any batch without checks | Medium | A01 | CWE-639 | src/main/java/com/pharma/tracking/controller/BatchController.java | `getBatchDetails` |
+
 
 ---
 
-## Summary
+## Decoys (False-Positive Candidates)
 
-App-26 is a Spring Boot pharma tracker with IDOR on batch details, weak MD5 custody signatures, and Java deserialization in batch import. Chain: enumerate batches → forge signatures → tamper with supply chain.
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
 
-**Overall Difficulty Score:** 2/5 (Easy-Medium)
+| Location | Description |
+|---|---|
+| src/main/java/com/pharma/tracking/config/SecurityConfig.java | Strong password encryption (BCrypt) used for storing user credentials |
+| src/main/java/com/pharma/tracking/controller/InspectionController.java | createInspection endpoint restricts creation of inspection logs to the INSPECTOR role |

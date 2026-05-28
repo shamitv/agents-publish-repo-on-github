@@ -17,6 +17,7 @@ public class PaymentService {
     }
     @Transactional
     public Payment processPayment(Long invoiceId, Double amount, String method) {
+        // VULNERABILITY A04: Payment processing lacks replay, idempotency, and rate-limit checks.
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found"));
         Payment payment = new Payment();

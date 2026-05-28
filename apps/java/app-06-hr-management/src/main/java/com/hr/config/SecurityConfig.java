@@ -41,11 +41,13 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(); // Safe decoy pattern
+        // DECOY: BCryptPasswordEncoder with default strength is safe
+        return new BCryptPasswordEncoder();
     }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        // API security config uses default 30-minute session timeout — not the vulnerable 24h dashboard session
         http
             .csrf(csrf -> csrf.disable())
             .headers(headers -> headers.frameOptions(frame -> frame.disable())) // Enable H2 Console
@@ -53,6 +55,7 @@ public class SecurityConfig {
                 .requestMatchers(
                     new AntPathRequestMatcher("/"),
                     new AntPathRequestMatcher("/login"),
+                    new AntPathRequestMatcher("/api/health"),
                     new AntPathRequestMatcher("/h2-console/**"),
                     new AntPathRequestMatcher("/css/**"),
                     new AntPathRequestMatcher("/js/**")

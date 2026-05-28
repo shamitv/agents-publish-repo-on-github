@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instructor Dashboard - Learning Management System</title>
+<link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+<nav><h1>👨‍🏫 Instructor Dashboard</h1><div id="user-info"></div><button onclick="logout()">Logout</button></nav>
+<main>
+<section id="my-courses"><h2>My Courses</h2><div id="courses-list"></div></section>
+<section id="grading-queue"><h2>Grading Queue</h2><div id="queue"></div></section>
+<section id="grade-override"><h2>Override Grade</h2>
+<form id="override-form">
+<input type="number" name="student_id" placeholder="Student ID" required>
+<input type="number" name="course_id" placeholder="Course ID" required>
+<input type="number" name="quiz_id" placeholder="Quiz ID" required>
+<input type="number" name="new_score" placeholder="New Score" required>
+<button type="submit">Override</button>
+</form>
+</section>
+</main>
+<script src="/static/js/dashboard.js"></script>
+</body>
+</html>

@@ -5,32 +5,42 @@
   "framework": "express",
   "vulnerabilities": [
     {
+      "owasp_id": "A07",
+      "category": "Identification and Authentication Failures",
+      "location": "src/services/TokenService.ts",
+      "method": "verify",
+      "line_range": "12-18",
+      "description": "JWT validation decodes token payloads without verifying signatures, allowing forged claims.",
+      "severity": "high",
+      "cwe": "CWE-347"
+    },
+    {
       "owasp_id": "A01",
       "category": "Broken Access Control",
-      "location": "src/index.ts",
-      "method": "GET /api/appointments/:id",
-      "line_range": "204-229",
-      "description": "Appointment details endpoint retrieves private physician notes and patient PII by ID without checking if the requesting user is the patient or doctor assigned to the appointment.",
+      "location": "src/services/AppointmentService.ts",
+      "method": "getAppointmentDetail",
+      "line_range": "25-39",
+      "description": "Appointment detail lookup returns physician notes by ID without patient or doctor ownership checks.",
       "severity": "high",
       "cwe": "CWE-639"
     },
     {
       "owasp_id": "A02",
       "category": "Cryptographic Failures",
-      "location": "src/index.ts",
-      "method": "generateJWT",
-      "line_range": "11-13",
-      "description": "Authentication tokens are signed with a weak, hardcoded secret ('healthcare123') using HS256, allowing offline key cracking or token forgery.",
-      "severity": "high",
-      "cwe": "CWE-327"
+      "location": "src/config/appConfig.ts",
+      "method": "appConfig",
+      "line_range": "10-17",
+      "description": "JWT signing secret defaults to a weak hardcoded value.",
+      "severity": "medium",
+      "cwe": "CWE-321"
     },
     {
       "owasp_id": "A07",
       "category": "Identification and Authentication Failures",
-      "location": "src/index.ts",
+      "location": "src/controllers/AuthController.ts",
       "method": "login",
-      "line_range": "151-158",
-      "description": "Session token cookie is set with httpOnly: false, permitting client-side scripts to access it and exposing users to session hijacking via XSS.",
+      "line_range": "23-29",
+      "description": "Session token cookie is set without httpOnly or secure flags.",
       "severity": "medium",
       "cwe": "CWE-1004"
     }
@@ -38,150 +48,43 @@
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "Weak JWT Signatures \u2192 IDOR Records Exfiltration",
-      "attack_scenario": "An attacker cracks or guesses the weak JWT secret offline, then crafts a custom JWT asserting a doctor role. Using this forged token, they query the appointment details endpoint to exfiltrate private patient records and doctor consultation notes via IDOR.",
+      "chain_name": "Weak JWT Validation \u2192 Patient Notes IDOR \u2192 DB Exfiltration",
+      "attack_scenario": "An attacker forges a JWT payload because the server decodes tokens without signature validation, then enumerates appointment IDs to retrieve confidential physician notes.",
       "impact": "db_exfiltration",
-      "components": [
-        {
-          "step": 1,
-          "owasp_id": "A02",
-          "description": "JWT signed with weak secret key.",
-          "location": "src/index.ts",
-          "method": "login",
-          "severity": "medium",
-          "cwe": "CWE-327",
-          "required_evidence": [
-            "src/index.ts",
-            "login"
-          ],
-          "negative_evidence": []
-        },
-        {
-          "step": 2,
-          "owasp_id": "A01",
-          "description": "IDOR on appointment endpoint reveals sensitive notes and details.",
-          "location": "src/index.ts",
-          "method": "GET /api/appointments/:id",
-          "severity": "medium",
-          "cwe": "CWE-639",
-          "required_evidence": [
-            "src/index.ts",
-            "GET /api/appointments/:id"
-          ],
-          "negative_evidence": []
-        }
-      ],
-      "difficulty": "medium",
-      "subtlety_tags": [
-        "cross_file",
-        "direct_data_flow",
-        "realistic_decoy"
-      ],
-      "chain_prerequisites": [
-        "attacker can reach the public request path",
-        "attacker can control one request parameter or body field"
-      ],
-      "negative_evidence": [
-        "src/referenceGuards.ts",
-        "sameOwner",
-        "allowedCallback"
-      ],
-      "vulnerability_family": "idor",
-      "required_evidence": [
-        "src/index.ts",
-        "login",
-        "GET /api/appointments/:id"
-      ]
-    },
-    {
-      "chain_id": "chain-02",
-      "chain_name": "Subtle Auth Session Pivot To Idor",
-      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
-      "impact": "db_exfiltration",
-      "difficulty": "hard",
-      "subtlety_tags": [
-        "cross_file",
-        "stateful_flow",
-        "implicit_trust",
-        "realistic_decoy",
-        "secondary_chain"
-      ],
-      "required_evidence": [
-        "src/index.ts",
-        "login",
-        "generateJWT",
-        "GET /api/appointments/:id"
-      ],
-      "chain_prerequisites": [
-        "attacker has or can create a low privilege account",
-        "attacker can combine request input with stored application state"
-      ],
-      "negative_evidence": [
-        "src/referenceGuards.ts",
-        "sameOwner",
-        "allowedCallback"
-      ],
-      "vulnerability_family": "idor",
       "components": [
         {
           "step": 1,
           "owasp_id": "A07",
-          "description": "Session token cookie is set with httpOnly: false, permitting client-side scripts to access it and exposing users to session hijacking via XSS.",
-          "location": "src/index.ts",
-          "method": "login",
+          "description": "TokenService.verify decodes JWT payloads without validating the signature.",
+          "location": "src/services/TokenService.ts",
+          "method": "verify",
           "severity": "medium",
-          "cwe": "CWE-1004",
-          "required_evidence": [
-            "src/index.ts",
-            "login"
-          ],
-          "negative_evidence": []
+          "cwe": "CWE-347"
         },
         {
           "step": 2,
-          "owasp_id": "A02",
-          "description": "Authentication tokens are signed with a weak, hardcoded secret ('healthcare123') using HS256, allowing offline key cracking or token forgery.",
-          "location": "src/index.ts",
-          "method": "generateJWT",
-          "severity": "high",
-          "cwe": "CWE-327",
-          "required_evidence": [
-            "src/index.ts",
-            "generateJWT"
-          ],
-          "negative_evidence": []
-        },
-        {
-          "step": 3,
           "owasp_id": "A01",
-          "description": "Appointment details endpoint retrieves private physician notes and patient PII by ID without checking if the requesting user is the patient or doctor assigned to the appointment.",
-          "location": "src/index.ts",
-          "method": "GET /api/appointments/:id",
-          "severity": "high",
-          "cwe": "CWE-639",
-          "required_evidence": [
-            "src/index.ts",
-            "GET /api/appointments/:id"
-          ],
-          "negative_evidence": []
+          "description": "Appointment details are loaded by ID and include physician notes without ownership checks.",
+          "location": "src/services/AppointmentService.ts",
+          "method": "getAppointmentDetail",
+          "severity": "medium",
+          "cwe": "CWE-639"
         }
       ]
     }
   ],
   "decoys": [
     {
-      "location": "src/index.ts",
-      "description": "Proper Bcrypt hashing for password storage and credentials check during login."
+      "location": "src/repositories/UserRepository.ts",
+      "description": "Registered patient passwords are hashed with BCrypt before storage."
     },
     {
-      "location": "src/index.ts",
-      "description": "Scoped list view `/api/appointments` restricting standard patient users to only see their own appointments."
+      "location": "src/services/AppointmentService.ts",
+      "description": "Appointment list view removes doctorNotes for patient and doctor summaries."
+    },
+    {
+      "location": "src/referenceGuards.ts",
+      "description": "Reference ownership and callback guards demonstrate safe comparison and allowlist patterns."
     }
-  ],
-  "benchmark_profile": {
-    "version": "v0.9",
-    "target_difficulty": "medium",
-    "upgrade_style": "in-place mixed difficulty ladder",
-    "decoy_file": "src/referenceGuards.ts"
-  }
+  ]
 }

@@ -1,112 +1,112 @@
-# Audit Report: app-03 — Banking Transaction Service
+# Security Report: app-03 — Banking Transaction Service
 
-**Language:** Python (FastAPI)  
-**Business Domain:** Banking / Financial Services  
-**Date:** 2026-05-24
+**Language:** Python (Fastapi)
+**Directory:** `apps/python/app-03-banking-service`
+
+---
+
+## Application Information
+- **App ID:** app-03
+- **Name:** Banking Transaction Service
+- **Language:** Python
+- **Framework:** Fastapi
+
+## Vulnerability Summary
+
+The following vulnerability list represents the ground truth security issues identified for this application:
+
+| ID | OWASP | Category | Severity | Location | CWE |
+|---|---|---|---|---|---|
+| V1 | A02 | Cryptographic Failures | High | app.py | CWE-798 |
+| V2 | A03 | Injection | High | app.py | CWE-943 |
+| V3 | A04 | Insecure Design | Medium | app.py | CWE-307 |
 
 ---
 
 ## Standalone Vulnerabilities
 
-### VULN-01: A02 — Cryptographic Failures (Hardcoded API Keys)
+### VULN-01: A02 — Cryptographic Failures
 
-**Severity:** High  
-**Location:** `app.py:16-17` — module-level constants  
-**Lines:** 
-```python
-GATEWAY_API_KEY = "sk_prod_51Nz82B910xKjWp29aL82n0Qp8wLm92p10z"
-THIRD_PARTY_BANK_SECRET = "sec_core_clearing_house_88921aZ01"
-```
+- **Severity:** High
+- **Location:** `app.py`:20-35 (method: `API_KEYS_CONFIG`)
+- **CWE:** [CWE-798](https://cwe.mitre.org/data/definitions/798.html)
 
-**Difficulty: EASY**
+#### Description
+Sensitive payment gateway API keys (GATEWAY_API_KEY) are hardcoded directly into the backend source code file rather than being loaded securely from external, encrypted environment variables
 
-- The comment at line 15 explicitly states: "OWASP VULNERABILITY A02: Hardcoded API keys inside source configurations"
-- The key names (`GATEWAY_API_KEY`, `THIRD_PARTY_BANK_SECRET`) are self-describing.
-- Values are clearly fake production-like secrets (prefixed with `sk_prod_`, `sec_core_`).
-- Module-level constants visible immediately upon opening the file.
+### VULN-02: A03 — Injection
 
-### VULN-02: A03 — NoSQL Injection
+- **Severity:** High
+- **Location:** `app.py`:115-135 (method: `list_transactions`)
+- **CWE:** [CWE-943](https://cwe.mitre.org/data/definitions/943.html)
 
-**Severity:** High  
-**Location:** `app.py:189-231` — `list_transactions()`  
-**Lines:** The `filter` query parameter is parsed via `json.loads()` and passed directly to `db.transactions.find()`.
+#### Description
+Transaction filter endpoint parses raw, unvalidated JSON input from the user and supplies it directly to the PyMongo/mongomock find() engine, allowing arbitrary NoSQL operator injection ($ne, $gt) to leak private wire accounts
 
-**Difficulty: MEDIUM**
+### VULN-03: A04 — Insecure Design
 
-- Requires understanding of MongoDB NoSQL injection operators (`$ne`, `$gt`, `$regex`).
-- The `VULNERABILITY` comment at line 198-199 explains the issue.
-- Returned `debug_nosql_query` field leaks the injected query back to the user.
-- Error messages include "NoSQL JSON error:" and "NoSQL execution error:" — giving the attacker feedback.
-- The merge logic at line 207 (`query_log = filter_query`) overrides the default, allowing attackers to query any user's transactions.
+- **Severity:** Medium
+- **Location:** `app.py`:150-180 (method: `dispatch_transfer`)
+- **CWE:** [CWE-307](https://cwe.mitre.org/data/definitions/307.html)
 
-### VULN-03: A04 — Insecure Design (No Rate Limiting)
+#### Description
+wire transfer dispatch endpoint contains no rate-limiting, request throttling, or checkout limits, allowing malicious bots or automated scripts to trigger infinite consecutive transfers and drain accounts
 
-**Severity:** Medium  
-**Location:** `app.py:234-280` — `dispatch_transfer()`  
-**Description:** Wire transfer endpoint has no rate limiting, amount caps, or cooldown periods.
-
-**Difficulty: EASY**
-
-- The `VULNERABILITY` comment at line 240-242 explicitly describes the issue.
-- No throttle mechanism exists in the code — it's self-evident from reading.
-- The endpoint processes transfers immediately with only a balance check.
-- Without rate limiting, an attacker can drain any account instantly.
 
 ---
 
-## Chained Attack: chain-01
+## Chained Attack Scenarios
 
-**Chain Name:** Unauthenticated Account Harvest → Cookie Interception → Unlimited Fund Drain  
-**Combined Impact:** Data Modification (Fund Theft)  
-**Overall Chain Difficulty: MEDIUM**
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-### Link 1: Unauthenticated Admin Endpoint (A01 — Medium)
+### CHAIN-01: Unauthenticated Account Harvest → Cookie Interception → Unlimited Fund Drain
 
-**Location:** `app.py:286-289` — `admin_list_users()`  
-**Difficulty: EASY**
+- **Combined Impact:** `data_modification`
+- **Difficulty:** Medium
+- **Subtlety Tags:** `cross_file` `direct_data_flow` `realistic_decoy`
 
-- `CHAIN LINK 1 (chain-01)` comment at lines 282-285 explicitly explains this is an exposed admin tool.
-- Endpoint has no authentication decorator whatsoever — it's wide open.
-- Returns all users' account numbers and routing numbers.
-- The function name `admin_list_users` advertises its purpose.
+#### Prerequisites
+- attacker can reach the public request path
+- attacker can control one request parameter or body field
 
-### Link 2: Missing `secure` Flag on Session Cookie (A05 — Low)
+#### Attack Narrative
+Attacker calls the unauthenticated /api/admin/users endpoint to harvest account numbers, intercepts a victim session cookie that travels without the Secure flag over plain HTTP, then uses that cookie to drain the victim's balance via the rate-limit-free transfer endpoint.
 
-**Location:** `app.py:134-139` — `login()`  
-**Difficulty: MEDIUM**
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | GET /api/admin/users endpoint is publicly accessible without authentication, returning all users' account and routing numbers | Medium | A01 | CWE-284 | app.py | `admin_list_users` |
+| 2 | Session cookie is set with httponly=True but without secure=True, allowing it to be transmitted over plain HTTP and intercepted by a network attacker | Low | A05 | CWE-614 | app.py | `login` |
+| 3 | Transfer endpoint applies no rate limiting, per-request amount cap, or daily transaction ceiling, allowing a stolen session to drain the full balance instantly | High | A04 | CWE-799 | app.py | `dispatch_transfer` |
 
-- Cookie is set with `httponly=True` and `samesite="lax"` but **no `secure=True`**.
-- The absence of `secure=True` is harder to spot because the decoy comment says "Safe, HTTPOnly session cookies" — directing attention to `httponly` rather than the missing `secure`.
-- Requires a network position to intercept (Man-in-the-Middle) or lacking HTTPS in general.
-- This is the subtlest link in the chain.
+### CHAIN-02: Subtle Auth Session Pivot To Injection
 
-### Link 3: No Rate Limiting on Transfers (A04 — High)
+- **Combined Impact:** `data_modification`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy` `secondary_chain`
 
-**Location:** `app.py:234-280` — `dispatch_transfer()`  
-**Difficulty: EASY**
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-- Same as VULN-03. Once an attacker has a valid session, they can drain all funds in one or multiple transfer calls.
-- No transaction limits, daily caps, or velocity checks.
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
+
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | wire transfer dispatch endpoint contains no rate-limiting, request throttling, or checkout limits, allowing malicious bots or automated scripts to trigger infinite consecutive transfers and drain accounts | Medium | A04 | CWE-307 | app.py | `dispatch_transfer` |
+| 2 | Transaction filter endpoint parses raw, unvalidated JSON input from the user and supplies it directly to the PyMongo/mongomock find() engine, allowing arbitrary NoSQL operator injection ($ne, $gt) to leak private wire accounts | High | A03 | CWE-943 | app.py | `list_transactions` |
+| 3 | Sensitive payment gateway API keys (GATEWAY_API_KEY) are hardcoded directly into the backend source code file rather than being loaded securely from external, encrypted environment variables | High | A02 | CWE-798 | app.py | `API_KEYS_CONFIG` |
+
 
 ---
 
-## Hints in Code (Beyond Explicit `VULNERABILITY` / `CHAIN LINK` Annotations)
+## Decoys (False-Positive Candidates)
 
-| Hint | Location | Description | Usefulness |
-|------|----------|-------------|------------|
-| `debug_nosql_query` in response | `list_transactions()` line 231 | Returns the executed MongoDB query object | **High** — confirms injection payloads |
-| Verbose NoSQL error messages | Lines 209, 215 | Returns `"NoSQL JSON error: ..."` and `"NoSQL execution error: ..."` | **High** — helps attacker refine injection |
-| `GATEWAY_API_KEY` / `THIRD_PARTY_BANK_SECRET` naming | Lines 16-17 | Self-describing variable names with production-like values | **High** — obvious hardcoded secrets |
-| `mongomock` imports | Line 3 | Uses in-memory mock DB — indicates test-like environment | **Low** — suggests no real auth infrastructure |
-| Passwords stored in plaintext | Lines 31, 40, 49, 57 | `"password": "alice123"` in MongoDB — plaintext credentials | **Medium** — combined with admin endpoint, enables credential theft |
-| Decoy comment: "Safe, HTTPOnly session cookies" | Line 133 | Draws attention to cookie security, making the missing `secure=True` less obvious | **Medium** — misdirection that a reviewer might accept at face value |
-| Decoy comment: "Safe, parameterized username lookup" | (referenced in .vulns) | Points to login query as secure | **Low** — contrasts with NoSQL injection in transactions |
-| `admin_list_users` function name | Line 286 | Function name implies admin-level access | **Medium** — the lack of auth on an admin-named function is suspicious |
-| Raw `json.loads(filter)` on user input | Line 204 | Direct parsing of user input as JSON — unusual for a query parameter | **Medium** — stands out from typical endpoint patterns |
-| `response.set_cookie()` without `secure=` | Lines 134-139 | `secure=True` is conspicuously absent from the cookie kwargs | **High** — the omission is visible when compared to typical secure cookie patterns |
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
 
-## Summary
-
-App-03 has two **EASY** standalone vulns (hardcoded keys, no rate limiting) and one **MEDIUM** vuln (NoSQL injection requiring knowledge of MongoDB operators). The chain is **MEDIUM** because Link 2 (missing `secure` flag) is subtle and Link 1 requires discovering the unauthenticated admin endpoint. The strongest hints are the `debug_nosql_query` response field (gives direct feedback on injection attempts) and the conspicuously named `GATEWAY_API_KEY` with a fake production value. The passwords stored in plaintext in MongoDB compound the impact of the unauthenticated admin endpoint.
-
-**Overall Difficulty Score:** 2/5 (Easy-Medium, with NoSQL injection requiring knowledge of MongoDB operator syntax)
+| Location | Description |
+|---|---|
+| app.py | Safe, cryptographically signed HTTP cookies for session auth handshakes — secure auth decoy |
+| app.py | Safe, parameterized username lookup on login — secure query decoy |

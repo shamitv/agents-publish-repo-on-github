@@ -1,108 +1,111 @@
-# Audit Report: app-25 — Supply Chain Inventory Tracker
+# Security Report: app-25 — Supply Chain Inventory Tracker
 
-**Language:** Python (Flask)  
-**Business Domain:** Logistics / Supply Chain  
-**Date:** 2026-05-24
+**Language:** Python (Flask)
+**Directory:** `apps/python/app-25-supply-chain`
+
+---
+
+## Application Information
+- **App ID:** app-25
+- **Name:** Supply Chain Inventory Tracker
+- **Language:** Python
+- **Framework:** Flask
+
+## Vulnerability Summary
+
+The following vulnerability list represents the ground truth security issues identified for this application:
+
+| ID | OWASP | Category | Severity | Location | CWE |
+|---|---|---|---|---|---|
+| V1 | A06 | Vulnerable and Outdated Components | High | requirements.txt | CWE-502 |
+| V2 | A07 | Identification and Authentication Failures | Medium | app.py | CWE-256 |
+| V3 | A10 | Server-Side Request Forgery | Medium | app.py | CWE-918 |
 
 ---
 
 ## Standalone Vulnerabilities
 
-### VULN-01: A06 — Vulnerable and Outdated Components (PyYAML RCE)
+### VULN-01: A06 — Vulnerable and Outdated Components
 
-**Severity:** High  
-**Location:** `requirements.txt:3` — `PyYAML==5.3.1`  
-**Lines:**
-```
-PyYAML==5.3.1
-```
+- **Severity:** High
+- **Location:** `requirements.txt`:3-3 (method: `PyYAML`)
+- **CWE:** [CWE-502](https://cwe.mitre.org/data/definitions/502.html)
 
-**Difficulty: MEDIUM**
+#### Description
+Pins vulnerable PyYAML==5.3.1 which permits arbitrary code execution (RCE) via yaml.load() when parsing untrusted serialization inputs.
 
-- Comment at `app.py:143-146` marks it as `VULNERABILITY A06`
-- PyYAML 5.3.1 is vulnerable to arbitrary code execution via `yaml.load()` (CVE-2020-14343)
-- The `import_inventory()` endpoint uses `yaml.load(resp.text)` on fetched content
-- No explicit annotation on the requirements.txt line itself — requires connecting the dependency pin to the unsafe usage
+### VULN-02: A07 — Identification and Authentication Failures
 
-### VULN-02: A07 — Identification and Authentication Failures (Plaintext Passwords)
+- **Severity:** Medium
+- **Location:** `app.py`:87-92 (method: `login`)
+- **CWE:** [CWE-256](https://cwe.mitre.org/data/definitions/256.html)
 
-**Severity:** Medium  
-**Location:** `app.py:8-9, 43-48, 87-91` — login and seed data  
-**Lines:**
-```python
-# VULNERABILITY A07: Simple plaintext query comparison for passwords.
-cursor.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password))
-```
+#### Description
+Passwords are stored in plaintext in the database and queried directly without hashing, and the session cookie lacks the Secure flag.
 
-**Difficulty: EASY**
+### VULN-03: A10 — Server-Side Request Forgery
 
-- Comment at lines 8-9 and 87 explicitly marks it as `VULNERABILITY A07`
-- Passwords are stored as plaintext in the `users` table
-- Login query compares raw input against stored plaintext: `WHERE username = ? AND password = ?`
-- Session cookie lacks `secure` flag (default Flask session behavior)
-- Seed data also stores plaintext passwords at line 43-48
+- **Severity:** Medium
+- **Location:** `app.py`:119-141 (method: `check_supplier_api`)
+- **CWE:** [CWE-918](https://cwe.mitre.org/data/definitions/918.html)
 
-### VULN-03: A10 — Server-Side Request Forgery (SSRF)
+#### Description
+Supplier API check endpoint allows fetching user-supplied URLs without restricting requests to external public IPs, causing SSRF.
 
-**Severity:** Medium  
-**Location:** `app.py:119-141` — `check_supplier_api()`  
-**Lines:**
-```python
-# VULNERABILITY A10: Server-Side Request Forgery (SSRF).
-# CHAIN LINK 1 (chain-01): Supplier health check endpoint fetches arbitrary user-supplied URLs
-resp = requests.get(url, timeout=5)
-```
-
-**Difficulty: EASY**
-
-- Comment at lines 119-121 explicitly marks it as `VULNERABILITY A10`
-- Takes a user-supplied `url` query parameter with zero validation
-- Fetches the URL with `requests.get()` and returns response body, headers, and status code
-- Can access internal services (e.g., `http://169.254.169.254/`, `http://localhost:5000/`)
 
 ---
 
-## Chained Attack: chain-01
+## Chained Attack Scenarios
 
-**Chain Name:** SSRF → YAML Deserialization → Lateral Movement  
-**Combined Impact:** Lateral Movement  
-**Overall Chain Difficulty: MEDIUM**
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-### Link 1: SSRF to Fetch Internal Content (A10 — Medium)
+### CHAIN-01: SSRF → YAML Deserialization → Lateral Movement
 
-**Location:** `app.py:119-141` — `check_supplier_api()`  
-**Difficulty: EASY**
+- **Combined Impact:** `lateral_movement`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy`
 
-- Comment at line 120 marks it as `CHAIN LINK 1 (chain-01)`
-- Attacker uses `check_supplier_api` or `import_inventory` to fetch from internal network
-- Can discover internal services, cloud metadata endpoints, or local resources
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-### Link 2: Unsafe YAML Deserialization for RCE (A06 — Medium)
+#### Attack Narrative
+An attacker uses the SSRF vulnerability in the supplier health check endpoint to fetch an internal URL. By pointing the inventory import endpoint to an internal server or using the SSRF capability to retrieve a payload, they feed a malicious YAML document to yaml.load(), triggering unsafe deserialization and arbitrary code execution.
 
-**Location:** `app.py:143-179` — `import_inventory()`  
-**Difficulty: MEDIUM**
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | SSRF endpoint fetches arbitrary URL. | Medium | A10 | CWE-918 | app.py | `check_supplier_api` |
+| 2 | Deserializes fetched contents with unsafe yaml.load(), executing arbitrary system commands. | Medium | A06 | CWE-502 | app.py | `import_inventory` |
 
-- Comment at lines 143-146 marks it as `CHAIN LINK 2 (chain-01)`
-- PyYAML 5.3.1's `yaml.load()` is unsafe — executes arbitrary Python objects during parsing
-- Attacker hosts a malicious YAML payload at an attacker-controlled URL accessible from the server
-- Using SSRF capability, the attacker feeds this URL to `import_inventory`
-- Malicious YAML like `!!python/object/apply:os.system ["id"]` triggers code execution
+### CHAIN-02: Subtle Ssrf Pivot To Deserialization
+
+- **Combined Impact:** `lateral_movement`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy` `secondary_chain`
+
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
+
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
+
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Supplier API check endpoint allows fetching user-supplied URLs without restricting requests to external public IPs, causing SSRF. | Medium | A10 | CWE-918 | app.py | `check_supplier_api` |
+| 2 | Passwords are stored in plaintext in the database and queried directly without hashing, and the session cookie lacks the Secure flag. | Medium | A07 | CWE-256 | app.py | `login` |
+| 3 | Pins vulnerable PyYAML==5.3.1 which permits arbitrary code execution (RCE) via yaml.load() when parsing untrusted serialization inputs. | High | A06 | CWE-502 | requirements.txt | `PyYAML` |
+
 
 ---
 
-## Hints in Code (Beyond Explicit Annotations)
+## Decoys (False-Positive Candidates)
 
-| Hint | Location | Description | Usefulness |
-|------|----------|-------------|------------|
-| `PyYAML==5.3.1` | requirements.txt | Pinned vulnerable version | **High** — known CVE for RCE |
-| `yaml.load(resp.text)` | Line 165 | Unsafe deserialization of fetched content | **High** — dangerous pattern |
-| `requests.get(url, timeout=5)` | Lines 133, 159 | User-controlled URL fetching | **High** — SSRF enabler |
-| `"SELECT * FROM users WHERE username = ? AND password = ?"` | Line 88-90 | Plaintext password comparison | **High** — no hash verification |
-| Decoy: `yaml.safe_load()` in config endpoint | Lines 189-191 | Safe YAML pattern used for admin config | **Medium** — contrast with unsafe load |
-| Decoy: parameterized SQL for warehouse lookup | Lines 204-206 | Safe query pattern on warehouse endpoint | **Low** — no SQLi present |
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
 
-## Summary
-
-App-25 is a Flask supply chain tracker with three vulnerabilities. The SSRF in `check_supplier_api` allows fetching arbitrary URLs. The pinned PyYAML 5.3.1 enables RCE via `yaml.load()` when processing fetched content. Plaintext password storage makes credential theft trivial. The chained attack is potent: use SSRF to access internal resources or fetch attacker-hosted content, then exploit PyYAML deserialization for RCE and lateral movement. The PyYAML vulnerability is MEDIUM difficulty since it requires connecting the dependency version to the unsafe usage pattern.
-
-**Overall Difficulty Score:** 2/5 (Easy-Medium — one vulnerability requires version-aware knowledge)
+| Location | Description |
+|---|---|
+| app.py | Safe loading of YAML config using yaml.safe_load() on local administrator config data. |
+| app.py | Proper parameterized SQL queries for retrieving warehouse records by warehouse ID. |

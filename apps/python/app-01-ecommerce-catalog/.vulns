@@ -7,196 +7,225 @@
     {
       "owasp_id": "A01",
       "category": "Broken Access Control",
-      "location": "app.py",
+      "location": "services/catalog-service/src/controllers/order_controller.py",
       "method": "get_order_details",
-      "line_range": "150-165",
-      "description": "Order retrieval endpoint returns order data solely based on the order_id path variable, performing no owner validation checks between the authenticated user and the requested order's client",
+      "description": "Order retrieval returns any order by path ID after authentication without checking whether the requester owns the order.",
       "severity": "high",
       "cwe": "CWE-639"
     },
     {
       "owasp_id": "A03",
       "category": "Injection",
-      "location": "app.py",
-      "method": "list_products",
-      "line_range": "110-125",
-      "description": "Product search query parameter is concatenated directly into a raw SQLite SELECT statement without parameterization, permitting SQL injection bypasses",
+      "location": "services/catalog-service/src/services/search_service.py",
+      "method": "search",
+      "description": "Product search inserts user input directly into SQL fallback search and Elasticsearch query_string syntax.",
       "severity": "high",
-      "cwe": "CWE-89"
+      "cwe": "CWE-943"
     },
     {
       "owasp_id": "A09",
-      "category": "Security Logging & Monitoring Failures",
-      "location": "app.py",
-      "method": "create_order",
-      "line_range": "180-200",
-      "description": "High-value and sensitive financial activities, including order checkouts, payment state mappings, and catalog stock alterations, are executed without producing any structured audit logs or trace monitoring records",
+      "category": "Security Logging and Monitoring Failures",
+      "location": "services/catalog-service/src/consumers/billing_consumer.py",
+      "method": "process_order_event",
+      "description": "Billing event processing changes invoice state without structured audit logging.",
       "severity": "medium",
       "cwe": "CWE-778"
+    },
+    {
+      "owasp_id": "A04",
+      "category": "Insecure Design",
+      "location": "packages/domain/validators.py",
+      "method": "validate_supplier_id",
+      "description": "Supplier ID validation accepts zero, negative, and non-numeric values, enabling forged supplier identity injection.",
+      "severity": "medium",
+      "cwe": "CWE-602"
+    },
+    {
+      "owasp_id": "A07",
+      "category": "Identification and Authentication Failures",
+      "location": "services/supplier-portal-api/src/services/auth_service.py",
+      "method": "login",
+      "description": "Supplier portal login accepts any password for any known supplier ID with no credential verification.",
+      "severity": "medium",
+      "cwe": "CWE-287"
+    },
+    {
+      "owasp_id": "A10",
+      "category": "Server-Side Request Forgery",
+      "location": "services/reporting-service/src/services/webhook_retry.py",
+      "method": "create_delivery",
+      "description": "Webhook delivery system makes outbound HTTP requests to unvalidated user-supplied URLs, enabling SSRF to internal services and cloud metadata endpoints.",
+      "severity": "high",
+      "cwe": "CWE-918"
+    },
+    {
+      "owasp_id": "A06",
+      "category": "Vulnerable and Outdated Components",
+      "location": "apps/typescript/app-01-supplier-portal/src/pages/ReportsPage.tsx",
+      "method": "ReportNotesCell",
+      "description": "Report notes rendered via dangerouslySetInnerHTML without sanitization — XSS payload executes in supplier's browser session.",
+      "severity": "high",
+      "cwe": "CWE-79"
+    },
+    {
+      "owasp_id": "A08",
+      "category": "Software and Data Integrity Failures",
+      "location": "services/reporting-service/src/services/cache_service.py",
+      "method": "load_cache_from_disk",
+      "description": "Cache persistence uses pickle.load() on a user-writable file — if an attacker can write a malicious pickle payload to the cache file, deserialization executes arbitrary code.",
+      "severity": "high",
+      "cwe": "CWE-502"
     }
   ],
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "User Enumeration \u2192 Session Forge \u2192 Admin Takeover",
-      "attack_scenario": "Attacker confirms admin username via unauthenticated existence endpoint, then forges a Flask session cookie using the hardcoded secret_key visible in source code, gaining admin-level access without any credentials.",
-      "impact": "account_takeover",
+      "chain_name": "User Enumeration -> Session Forgery -> Catalog Modification",
+      "attack_scenario": "An attacker confirms the admin username through an unauthenticated existence endpoint, uses the hardcoded Flask signing secret to forge an admin session cookie, and writes attacker-controlled product data through an admin endpoint that trusts the session role.",
+      "impact": "data_modification",
       "components": [
         {
           "step": 1,
           "owasp_id": "A01",
-          "description": "GET /api/users/exists returns 200/404 per username, confirming valid accounts without authentication",
-          "location": "app.py",
+          "description": "Unauthenticated username existence endpoint confirms privileged account names.",
+          "location": "services/catalog-service/src/controllers/user_controller.py",
           "method": "user_exists",
           "severity": "low",
-          "cwe": "CWE-204",
-          "required_evidence": [
-            "app.py",
-            "user_exists"
-          ],
-          "negative_evidence": []
+          "cwe": "CWE-203"
         },
         {
           "step": 2,
-          "owasp_id": "A05",
-          "description": "Flask secret_key is a hardcoded string in source code, allowing any party with source access to forge valid signed session cookies for any user or role",
-          "location": "app.py",
-          "method": "app_config",
+          "owasp_id": "A02",
+          "description": "Hardcoded Flask signing secret allows forged admin session cookies.",
+          "location": "services/catalog-service/src/config/settings.py",
+          "method": "SECRET_KEY",
           "severity": "medium",
-          "cwe": "CWE-798",
-          "required_evidence": [
-            "app.py",
-            "app_config"
-          ],
-          "negative_evidence": []
+          "cwe": "CWE-798"
         },
         {
           "step": 3,
-          "owasp_id": "A05",
-          "description": "No CSRF tokens on any state-changing endpoint \u2014 the forged session cookie is sufficient to invoke admin-only mutations",
-          "location": "app.py",
-          "method": "all_post_endpoints",
-          "severity": "low",
-          "cwe": "CWE-352",
-          "required_evidence": [
-            "app.py",
-            "all_post_endpoints"
-          ],
-          "negative_evidence": []
+          "owasp_id": "A01",
+          "description": "Admin product mutation endpoint trusts the forgeable session role.",
+          "location": "services/catalog-service/src/controllers/product_controller.py",
+          "method": "create_product",
+          "severity": "medium",
+          "cwe": "CWE-862"
         }
-      ],
-      "difficulty": "medium",
-      "subtlety_tags": [
-        "cross_file",
-        "direct_data_flow",
-        "realistic_decoy"
-      ],
-      "chain_prerequisites": [
-        "attacker can reach the public request path",
-        "attacker can control one request parameter or body field"
-      ],
-      "negative_evidence": [
-        "reference_guards.py",
-        "same_owner",
-        "allowed_callback"
-      ],
-      "vulnerability_family": "auth_session",
-      "required_evidence": [
-        "app.py",
-        "user_exists",
-        "app_config",
-        "all_post_endpoints"
       ]
     },
     {
       "chain_id": "chain-02",
-      "chain_name": "Subtle State Confusion Pivot To Idor",
-      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
-      "impact": "account_takeover",
-      "difficulty": "hard",
-      "subtlety_tags": [
-        "cross_file",
-        "stateful_flow",
-        "implicit_trust",
-        "realistic_decoy",
-        "secondary_chain"
-      ],
-      "required_evidence": [
-        "app.py",
-        "create_order",
-        "list_products",
-        "get_order_details"
-      ],
-      "chain_prerequisites": [
-        "attacker has or can create a low privilege account",
-        "attacker can combine request input with stored application state"
-      ],
-      "negative_evidence": [
-        "reference_guards.py",
-        "same_owner",
-        "allowed_callback"
-      ],
-      "vulnerability_family": "idor",
+      "chain_name": "Weak Supplier ID Validation -> Catalog Poisoning via Bulk Upload",
+      "attack_scenario": "An attacker exploits weak supplier ID validation to inject forged supplier IDs into bulk catalog uploads, bypassing ownership checks. Step 1: weak validator accepts any supplier ID. Step 2: bulk CSV upload trusts supplierId from request body without verifying the authenticated supplier owns that ID.",
+      "impact": "data_modification",
       "components": [
         {
           "step": 1,
-          "owasp_id": "A09",
-          "description": "High-value and sensitive financial activities, including order checkouts, payment state mappings, and catalog stock alterations, are executed without producing any structured audit logs or trace monitoring records",
-          "location": "app.py",
-          "method": "create_order",
-          "severity": "medium",
-          "cwe": "CWE-778",
-          "required_evidence": [
-            "app.py",
-            "create_order"
-          ],
-          "negative_evidence": []
+          "owasp_id": "A04",
+          "description": "Supplier ID validator accepts zero, negative, and non-numeric values without error.",
+          "location": "packages/domain/validators.py",
+          "method": "validate_supplier_id_chain",
+          "severity": "low",
+          "cwe": "CWE-602"
         },
         {
           "step": 2,
-          "owasp_id": "A03",
-          "description": "Product search query parameter is concatenated directly into a raw SQLite SELECT statement without parameterization, permitting SQL injection bypasses",
-          "location": "app.py",
-          "method": "list_products",
-          "severity": "high",
-          "cwe": "CWE-89",
-          "required_evidence": [
-            "app.py",
-            "list_products"
-          ],
-          "negative_evidence": []
+          "owasp_id": "A01",
+          "description": "Bulk CSV upload trusts supplierId from request body without ownership verification.",
+          "location": "services/catalog-service/src/controllers/bulk_upload_controller.py",
+          "method": "bulk_upload_products",
+          "severity": "medium",
+          "cwe": "CWE-639"
+        }
+      ]
+    },
+    {
+      "chain_id": "chain-03",
+      "chain_name": "Custom Widget XSS -> Flag Metadata XSS -> Exfiltration",
+      "attack_scenario": "Step 1: Custom dashboard widget renderer accepts raw HTML without sanitization, allowing script injection. Step 2: Feature flag detail page renders flag description via dangerouslySetInnerHTML in the admin console. Combined: attacker stages XSS in custom widget to steal session, navigates to admin console as privileged user, flag metadata XSS fires and exfiltrates audit data.",
+      "impact": "db_exfiltration",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A06",
+          "description": "Custom dashboard widget renders raw HTML templates with no CSP or sanitization, enabling stored XSS.",
+          "location": "apps/typescript/app-01-supplier-portal/src/components/DashboardWidgets.tsx",
+          "method": "CustomWidgetRenderer",
+          "severity": "low",
+          "cwe": "CWE-79"
         },
         {
-          "step": 3,
-          "owasp_id": "A01",
-          "description": "Order retrieval endpoint returns order data solely based on the order_id path variable, performing no owner validation checks between the authenticated user and the requested order's client",
-          "location": "app.py",
-          "method": "get_order_details",
-          "severity": "high",
-          "cwe": "CWE-639",
-          "required_evidence": [
-            "app.py",
-            "get_order_details"
-          ],
-          "negative_evidence": []
+          "step": 2,
+          "owasp_id": "A06",
+          "description": "Admin flag detail page renders flag description via dangerouslySetInnerHTML without sanitization, enabling stored XSS in admin console context.",
+          "location": "apps/typescript/app-01-supplier-portal/src/pages/admin/FlagDetail.tsx",
+          "method": "AdminFlagDetailPage",
+          "severity": "low",
+          "cwe": "CWE-79"
         }
       ]
     }
   ],
   "decoys": [
     {
-      "location": "app.py",
-      "description": "Safe, parameterized user retrieval query during auth logins \u2014 secure SQL decoy"
+      "location": "services/catalog-service/src/repositories/user_repository.py",
+      "description": "Login uses parameterized SQL despite the nearby vulnerable product search flow."
     },
     {
-      "location": "app.py",
-      "description": "Flask session cookies are cryptographically signed with high-entropy key \u2014 secure cookie decoy"
+      "location": "services/catalog-service/src/controllers/user_controller.py",
+      "description": "The profile endpoint reads the authenticated session user ID rather than accepting arbitrary user IDs."
+    },
+    {
+      "location": "packages/domain/validators.py",
+      "description": "validate_date_range uses strict fromisoformat parsing and start-before-end check, co-located with the vulnerable validate_supplier_id."
+    },
+    {
+      "location": "packages/utils/pagination.py",
+      "description": "parse_pagination clamps page >= 1 and limit in [1, 100], preventing integer abuse."
+    },
+    {
+      "location": "services/catalog-service/src/controllers/product_controller.py",
+      "description": "get_my_products scopes results to authenticated supplier_id from session, co-located with vulnerable bulk upload."
+    },
+    {
+      "location": "services/supplier-portal-api/src/services/auth_service.py",
+      "description": "verify_token performs HMAC session verification, co-located with the vulnerable login that accepts any password."
+    },
+    {
+      "location": "services/reporting-service/src/services/aggregation_service.py",
+      "description": "build_sales_filters uses parameterized SQL placeholders, adjacent to the aggregation functions."
+    },
+    {
+      "location": "services/reporting-service/src/services/export_service.py",
+      "description": "sanitize_filename uses regex whitelist and rejects path traversal characters, co-located with export generation functions."
+    },
+    {
+      "location": "services/reporting-service/src/services/audit_service.py",
+      "description": "Audit logging uses atomic write-then-rename pattern with JSONL format, preventing log injection."
+    },
+    {
+      "location": "apps/typescript/app-01-supplier-portal/src/components/ReportNotes.tsx",
+      "description": "Safe report notes renderer using textContent assignment instead of innerHTML, co-located with the vulnerable dangerouslySetInnerHTML in ReportsPage."
+    },
+    {
+      "location": "apps/typescript/app-01-supplier-portal/src/pages/Webhooks.tsx",
+      "description": "Client-side URL validation (validateUrlInput) provides defense-in-depth, co-located with webhook registration form."
+    },
+    {
+      "location": "apps/typescript/app-01-supplier-portal/src/components/SessionProvider.tsx",
+      "description": "Short-lived token simulation with periodic auto-refresh via interval, co-located with the token-in-URL vulnerability in api.ts."
+    },
+    {
+      "location": "services/reporting-service/src/services/cache_service.py",
+      "description": "save_cache_to_disk uses json.dump() (safe), co-located with the vulnerable pickle.load() in load_cache_from_disk."
+    },
+    {
+      "location": "services/reporting-service/src/services/scheduler.py",
+      "description": "validate_cron_expression validates cron syntax — looks like a security guard but is never called in the scheduler flow."
+    },
+    {
+      "location": "services/reporting-service/src/services/webhook_retry.py",
+      "description": "sign_webhook_payload uses hmac.compare_digest for timing-safe HMAC signing."
     }
-  ],
-  "benchmark_profile": {
-    "version": "v0.9",
-    "target_difficulty": "medium",
-    "upgrade_style": "in-place mixed difficulty ladder",
-    "decoy_file": "reference_guards.py"
-  }
+  ]
 }

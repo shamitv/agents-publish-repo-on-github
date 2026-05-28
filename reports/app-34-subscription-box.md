@@ -1,117 +1,112 @@
-# Security Report: app-34-subscription-box
+# Security Report: app-34 — Subscription Box Service
 
-## Application Information
-
-- **App ID**: app-34
-- **App Name**: Subscription Box Service
-- **Language**: TypeScript
-- **Framework**: Express
-- **Source**: `apps/typescript/app-34-subscription-box/`
+**Language:** Typescript (Express)
+**Directory:** `apps/typescript/app-34-subscription-box`
 
 ---
+
+## Application Information
+- **App ID:** app-34
+- **Name:** Subscription Box Service
+- **Language:** Typescript
+- **Framework:** Express
 
 ## Vulnerability Summary
 
+The following vulnerability list represents the ground truth security issues identified for this application:
+
 | ID | OWASP | Category | Severity | Location | CWE |
 |---|---|---|---|---|---|
-| V1 | A01 | Broken Access Control | Medium | `src/index.ts` → `GET /api/subscriptions/:id` (lines 156-168) | CWE-639 |
-| V2 | A03 | Injection | High | `src/index.ts` → `POST /api/subscriptions` (lines 171-186) | CWE-89 |
-| V3 | A09 | Security Logging and Monitoring Failures | Low | `src/index.ts` → `POST /api/admin/subscriptions/:id/cancel` (lines 189-205) | CWE-778 |
-
-### V1: IDOR on Subscription Details
-
-**OWASP Category**: A01 — Broken Access Control
-
-**Description**: Viewing subscription details by ID lacks verification of user ownership, allowing any authenticated user to retrieve another customer's subscription information.
-
-**Endpoint**: `GET /api/subscriptions/:id`
-
-**CWE**: CWE-639 (Authorization Bypass Through User-Controlled Key)
-
-**Impact**: Medium — Any authenticated user can enumerate subscription IDs to view sensitive billing details, shipping addresses, and box preferences.
-
-**Detection**: Look for absence of ownership checks where the `:id` parameter is used without verifying `req.user.id` against the subscription's customer ID.
+| V1 | A03 | Injection | High | src/index.ts | CWE-89 |
+| V2 | A07 | Identification and Authentication Failures | Medium | src/index.ts | CWE-328 |
+| V3 | A09 | Security Logging and Monitoring Failures | Low | src/index.ts | CWE-778 |
 
 ---
 
-### V2: SQL Injection on Subscription Creation
+## Standalone Vulnerabilities
 
-**OWASP Category**: A03 — Injection
+### VULN-01: A03 — Injection
 
-**Description**: The subscription creation endpoint concatenates user input directly into a raw SQL query, enabling SQL injection.
+- **Severity:** High
+- **Location:** `src/index.ts`:173-185 (method: `GET /api/packages/search`)
+- **CWE:** [CWE-89](https://cwe.mitre.org/data/definitions/89.html)
 
-**Endpoint**: `POST /api/subscriptions`
+#### Description
+The search query parameter is directly concatenated into a raw SQL query statement, leading to SQL injection.
 
-**CWE**: CWE-89 (SQL Injection)
+### VULN-02: A07 — Identification and Authentication Failures
 
-**Impact**: High — An attacker can inject SQL via the `plan` or `address` parameters during subscription creation, extracting arbitrary data from the database.
+- **Severity:** Medium
+- **Location:** `src/index.ts`:136-159 (method: `POST /api/auth/login`)
+- **CWE:** [CWE-328](https://cwe.mitre.org/data/definitions/328.html)
 
-**Detection**: Search for raw string concatenation with user-supplied parameters inside `db.run()` or `db.all()` calls in the subscription creation handler.
+#### Description
+User account passwords are encrypted using unsalted MD5 hashing and saved in the database, allowing brute-force or rainbow table cracking.
+
+### VULN-03: A09 — Security Logging and Monitoring Failures
+
+- **Severity:** Low
+- **Location:** `src/index.ts`:199-231 (method: `POST /api/subscriptions/update`)
+- **CWE:** [CWE-778](https://cwe.mitre.org/data/definitions/778.html)
+
+#### Description
+Critical security events such as subscription modifications or payment level updates are not logged, disabling security event visibility.
+
 
 ---
 
-### V3: Missing Audit Log on Subscription Cancellation
+## Chained Attack Scenarios
 
-**OWASP Category**: A09 — Security Logging and Monitoring Failures
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-**Description**: Cancelling active subscriptions at the admin level produces no audit logs, leaving state modifications untracked.
+### CHAIN-01: Package Search SQLi → Unsalted MD5 Credential Cracking
 
-**Endpoint**: `POST /api/admin/subscriptions/:id/cancel`
+- **Combined Impact:** `account_takeover`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy`
 
-**CWE**: CWE-778 (Insufficient Logging)
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-**Impact**: Low — Malicious or accidental cancellation of customer subscriptions cannot be traced or investigated.
+#### Attack Narrative
+An attacker uses a SQL union injection query on `/api/packages/search?q=coffee' UNION SELECT 1,username,password_hash,role FROM users --` to dump the users table. They retrieve the unsalted MD5 hash `a57e4e138a08d3744952bd0176cd1f91` for the admin_agent user. By performing offline MD5 decryption/lookup, they crack the admin password ('adminpass2026') and take over the admin session.
 
-**Detection**: Check the cancel handler for any logging, audit trail, or notification mechanism before/after performing the cancellation operation.
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Union-based SQL injection on package search exposes internal database tables. | Medium | A03 | CWE-89 | src/index.ts | `GET /api/packages/search` |
+| 2 | Admin passwords stored as unsalted MD5 hashes are cracked offline, enabling account takeover. | Medium | A07 | CWE-328 | src/index.ts | `POST /api/auth/login` |
 
----
+### CHAIN-02: Subtle State Confusion Pivot To Injection
 
-## Chained Attack Scenario
+- **Combined Impact:** `account_takeover`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy` `secondary_chain`
 
-### Chain: "Subscription SQLi → IDOR Subscription Exfiltration"
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-**Impact**: `db_exfiltration`
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
 
-**Overview**: An attacker exploits SQL injection during subscription creation to dump the database, then uses IDOR to exfiltrate other customers' subscription details.
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Critical security events such as subscription modifications or payment level updates are not logged, disabling security event visibility. | Low | A09 | CWE-778 | src/index.ts | `POST /api/subscriptions/update` |
+| 2 | User account passwords are encrypted using unsalted MD5 hashing and saved in the database, allowing brute-force or rainbow table cracking. | Medium | A07 | CWE-328 | src/index.ts | `POST /api/auth/login` |
+| 3 | The search query parameter is directly concatenated into a raw SQL query statement, leading to SQL injection. | High | A03 | CWE-89 | src/index.ts | `GET /api/packages/search` |
 
-**Components**:
-
-| Step | Issue | Severity | OWASP | CWE | Location |
-|---|---|---|---|---|---|
-| 1 | SQL injection during subscription creation exposes the database | Medium | A03 | CWE-89 | `POST /api/subscriptions` |
-| 2 | Subscription detail endpoint permits IDOR exfiltration of customer data | Medium | A01 | CWE-639 | `GET /api/subscriptions/:id` |
-
-**Attack Narrative**:
-1. The attacker sends a subscription creation request with a crafted `plan` parameter: `Premium' UNION SELECT 1,username,password_hash,address,card_last4 FROM users --`.
-2. The query returns user credentials and payment card details in the response, which the attacker captures.
-3. Using the obtained credentials, the attacker logs in and calls `GET /api/subscriptions/3` through IDOR to enumerate other customers' subscription data including addresses and preferences.
-
-**Combined Impact**: Database exfiltration — An attacker can dump user credentials and exfiltrate other customers' subscription data by chaining SQL injection with IDOR.
 
 ---
 
 ## Decoys (False-Positive Candidates)
 
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
+
 | Location | Description |
 |---|---|
-| `src/index.ts` | Proper parameterized query logic in `GET /api/boxes` to list available boxes safely |
-| `src/index.ts` | Proper Bcrypt hashing for password storage and validation |
-
----
-
-## Detection Commands
-
-```bash
-# Find SQL injection on subscription creation
-grep -n "INSERT.*\+.*req\|db\.run.*req" apps/typescript/app-34-subscription-box/src/index.ts
-
-# Find IDOR on subscription details
-grep -n "subscriptions.*:id\|findOne\|findById" apps/typescript/app-34-subscription-box/src/index.ts
-
-# Find missing audit logs on cancellation
-grep -n "cancel\|subscription\|log\|audit" apps/typescript/app-34-subscription-box/src/index.ts
-```
-
----
-
-*Report generated from `.vulns` manifest for app-34-subscription-box*
+| src/index.ts | Proper parameterized query logic in GET /api/packages/:id to retrieve single packages safely. |
+| src/index.ts | Proper security auditing logs printed during user profile updates in POST /api/user/profile. |
+| src/index.ts | Proper session token security with cryptographically secure generation using crypto.randomBytes. |

@@ -1,97 +1,92 @@
-# Audit Report: app-05 — Online Learning Management System
+# Security Report: app-05 — Online Learning Management System
 
-**Language:** Python (Flask)  
-**Business Domain:** Education Technology (EdTech)  
-**Date:** 2026-05-24
+**Language:** Python (Flask)
+**Directory:** `apps/python/app-05-learning-mgmt`
+
+---
+
+## Application Information
+- **App ID:** app-05
+- **Name:** Online Learning Management System
+- **Language:** Python
+- **Framework:** Flask
+
+## Vulnerability Summary
+
+The following vulnerability list represents the ground truth security issues identified for this application:
+
+| ID | OWASP | Category | Severity | Location | CWE |
+|---|---|---|---|---|---|
+| V1 | A01 | Broken Access Control | High | src/services/submission_service.py | CWE-639 |
+| V2 | A05 | Security Misconfiguration | Medium | src/services/debug_service.py | CWE-200 |
+| V3 | A08 | Software and Data Integrity Failures | Critical | src/workers/import_listener.py | CWE-502 |
 
 ---
 
 ## Standalone Vulnerabilities
 
-### VULN-01: A01 — Insecure Direct Object Reference (IDOR)
+### VULN-01: A01 — Broken Access Control
 
-**Severity:** High  
-**Location:** `app.py:251-281` — `get_submission()`  
-**Line:** `cursor.execute("SELECT s.id, s.answers, s.score, s.submitted_at, q.title as quiz_title, u.username as student_name FROM submissions s ... WHERE s.id = ?", (submission_id,))`
+- **Severity:** High
+- **Location:** `src/services/submission_service.py`:N/A (method: `get_submission`)
+- **CWE:** [CWE-639](https://cwe.mitre.org/data/definitions/639.html)
 
-**Difficulty: EASY**
+#### Description
+Quiz submission retrieval returns any submission by ID without verifying that the requesting user owns the submission.
 
-- The `submission_id` path parameter is taken directly from the URL with no ownership verification.
-- Any authenticated user can view any submission by enumerating IDs.
-- No check that `student_id == session['user_id']` is performed.
-- The `VULNERABILITY A01` comment explicitly calls out the IDOR.
+### VULN-02: A05 — Security Misconfiguration
 
-### VULN-02: A05 — Security Misconfiguration (Exposed Debug Endpoint)
+- **Severity:** Medium
+- **Location:** `src/services/debug_service.py`:N/A (method: `collect`)
+- **CWE:** [CWE-200](https://cwe.mitre.org/data/definitions/200.html)
 
-**Severity:** Medium  
-**Location:** `app.py:306-321` — `debug_config()`  
-**Line:** `GET /api/debug/config` returns `app.secret_key`, full environment variables, database path, and server working directory
+#### Description
+Unauthenticated debug endpoint exposes the Flask secret key, environment variables, and runtime details.
 
-**Difficulty: EASY**
+### VULN-03: A08 — Software and Data Integrity Failures
 
-- No authentication required — completely unauthenticated endpoint.
-- Returns the Flask `secret_key` directly, enabling session cookie forgery.
-- Also leaks all environment variables, Python version, and server working directory.
-- The `VULNERABILITY A05` comment explicitly marks it.
+- **Severity:** Critical
+- **Location:** `src/workers/import_listener.py`:N/A (method: `load_course`)
+- **CWE:** [CWE-502](https://cwe.mitre.org/data/definitions/502.html)
 
-### VULN-03: A08 — Insecure Deserialization (Pickle RCE)
+#### Description
+Course import worker deserializes untrusted pickle bytes without class restrictions.
 
-**Severity:** Critical  
-**Location:** `app.py:325-358` — `import_course()`  
-**Line:** `course_obj = pickle.loads(raw_bytes)` — deserializes user-supplied base64-encoded pickle data
-
-**Difficulty: EASY**
-
-- Unvalidated `pickle.loads()` on attacker-controlled input allows arbitrary code execution.
-- The data arrives as base64-encoded user input from `data.get('course_data', '')`.
-- Role check exists (INSTRUCTOR/ADMIN required), but session can be forged via VULN-02.
-- The `VULNERABILITY A08` comment explicitly marks it as picke deserialization RCE.
 
 ---
 
-## Chained Attack: chain-01
+## Chained Attack Scenarios
 
-**Chain Name:** Config Leak → Session Forgery → Pickle RCE → Data Exfiltration  
-**Combined Impact:** Database Exfiltration  
-**Overall Chain Difficulty: EASY**
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-### Link 1: Debug Config Endpoint (A05 — Low)
+### CHAIN-01: Config Leak -> Session Forgery -> Quiz Submission Exfiltration
 
-**Location:** `app.py:306-321` — `debug_config()`  
-**Difficulty: EASY**
+- **Combined Impact:** `db_exfiltration`
+- **Difficulty:** Medium
+- **Subtlety Tags:** 
 
-- Unauthenticated `GET /api/debug/config` returns the Flask `secret_key`.
-- The `CHAIN LINK 1` comment at line 311 explicitly explains this enables session cookie forgery.
-- Also exposes environment variables which may contain additional secrets.
+#### Prerequisites
+- None specified
 
-### Link 2: Pickle Deserialization (A08 — Medium)
+#### Attack Narrative
+An attacker reads the unauthenticated debug configuration response to recover the Flask signing secret, forges an instructor or admin session accepted by the session trust helper, and then uses the quiz submission IDOR to read other students' submissions.
 
-**Location:** `app.py:325-358` — `import_course()`  
-**Difficulty: EASY**
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Debug endpoint exposes secrets and environment values without authentication. | Low | A05 | CWE-200 | src/services/debug_service.py | `collect` |
+| 2 | Session trust logic accepts forged role values once the signing secret is known. | Medium | A02 | CWE-347 | src/services/auth_service.py | `current_user` |
+| 3 | Submission lookup returns records by ID without student ownership checks. | Medium | A01 | CWE-639 | src/services/submission_service.py | `get_submission` |
 
-- `pickle.loads(raw_bytes)` on attacker-controlled input allows arbitrary code execution.
-- Requires INSTRUCTOR or ADMIN role, but the secret_key from Link 1 can be used to forge a session with `role=ADMIN`.
-- The `CHAIN LINK 2` comment at line 330 explicitly explains this is the RCE step after forging admin session.
 
 ---
 
-## Hints in Code (Beyond Explicit `VULNERABILITY` / `CHAIN LINK` Annotations)
+## Decoys (False-Positive Candidates)
 
-| Hint | Location | Description | Usefulness |
-|------|----------|-------------|------------|
-| Hardcoded `app.secret_key` | Line 8 | `'lms_secret_key_quantum_learn_2026'` is a highly conspicuous string | **High** — obvious to any code reviewer |
-| `CHAIN LINK 1` comment explaining session forgery | Lines 10-11 | Directly explains the attack chain | **Very High** — the comment itself outlines the scenario |
-| `debug_config` function name | Line 307 | Clearly indicates debug/configuration exposure | **Medium** — naming draws attention |
-| No auth check on debug endpoint | Lines 306-321 | Entire method has no `if 'user_id' not in session` guard | **High** — absence of auth is obvious |
-| `CHAIN LINK 2` comment explaining pickle RCE | Lines 329-331 | Directly explains this is the RCE step after forging admin | **Very High** — explicit chain documentation |
-| `pickle.loads(raw_bytes)` | Line 343 | The dangerous call is on its own line with a comment | **High** — picke deserialization is a well-known code smell |
-| Decoy: Secure parameterized login query | Lines 128-131 | Parameterized SQL for login — draws contrast to the picke risk | **Medium** — tells analyst secure patterns exist nearby |
-| Decoy: Instructor role check on course creation | Lines 183-184 | Proper role guard — contrasts with the exposed debug endpoint | **Medium** — shows where auth is done properly vs not |
-| Decoy: Enrollment scoped to current user | Lines 211-214 | Secure data scoping — contrasts with IDOR on submissions | **Medium** — highlights the missing ownership check |
-| `app.run(debug=True)` | Line 413 | Debug mode enabled in production | **Low** — standard Flask misconfig |
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
 
-## Summary
-
-App-05 features three clear vulnerabilities with a clean 2-step chained attack. The debug endpoint leaking the Flask `secret_key` is the most obvious entry point, enabling session forgery that bypasses the role check on the picke deserialization endpoint. All vulnerabilities are explicitly annotated with `VULNERABILITY` and `CHAIN LINK` comments. Three decoy safe patterns (parameterized login, role-guarded course creation, user-scoped enrollment listing) are placed nearby as false-positive tests for detection agents.
-
-**Overall Difficulty Score:** 1/5 (Easiest)
+| Location | Description |
+|---|---|
+| src/repositories/user_repository.py | Login uses parameterized SQL despite nearby intentionally vulnerable flows. |
+| src/controllers/course_controller.py | Course creation requires INSTRUCTOR or ADMIN role before writing records. |
+| src/repositories/enrollment_repository.py | Enrollment listing scopes rows to the current session's user ID. |

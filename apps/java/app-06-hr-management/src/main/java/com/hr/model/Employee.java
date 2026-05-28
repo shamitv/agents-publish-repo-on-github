@@ -49,7 +49,7 @@ public class Employee implements Serializable {
     @Builder.Default
     private boolean isActive = true;
 
-    // Encrypted SSN storage helper
+    // VULNERABILITY A02: SSNs use reversible XOR with a hardcoded key.
     private static final int XOR_KEY = 0xDEADBEEF;
 
     public void setRawSsn(String rawSsn) {
@@ -74,6 +74,7 @@ public class Employee implements Serializable {
             return null;
         }
         try {
+            // CHAIN LINK 2 (chain-01): The hardcoded XOR key decrypts SSNs exposed through payroll records.
             byte[] bytes = Base64.getDecoder().decode(this.ssnEncrypted);
             byte[] keyBytes = ByteBuffer.allocate(4).putInt(XOR_KEY).array();
             for (int i = 0; i < bytes.length; i++) {

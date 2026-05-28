@@ -1,64 +1,73 @@
 # Parking Management System
 
 ## Overview
-A JavaScript Express application representing a parking reservation dashboard where users can find available spaces, book reservations, and cancel tickets.
+A JavaScript Express parking reservation service for searching spaces, registering spots, booking reservations, and canceling tickets.
 
 ## Business Domain
-Logistics & Parking Services
+Logistics and parking services.
 
 ## Tech Stack
-- JavaScript (Node.js)
-- Express
-- SQLite (in-memory)
+| Layer | Technology |
+|-------|------------|
+| Backend | Node.js, Express, JavaScript |
+| Database / Cache | In-memory repositories and session cache, PostgreSQL and Redis in Docker Compose |
+| Search / Events | Elasticsearch-style parking search client, in-process event producer/consumer, Elasticsearch and Redpanda in Docker Compose |
+| Containerisation | Docker, Docker Compose |
 
 ## Features
-
-For chained vulnerability scenarios, see [scenarios.md](scenarios.md).
-- User registration and login
-- Register new spots (Decoy: secure admin logs)
-- Search available parking spots (vulnerable to SQLi)
-- Parameterized spot profiles details (Decoy: secure parameters)
-- Reserve parking spots (vulnerable to insecure cost verification)
-- Cancel parking reservations (vulnerable to missing cancel logs)
+- Customer registration and login
+- Admin parking spot registration with audit event publishing
+- Elasticsearch-style parking spot search
+- Public spot detail lookup by ID
+- Booking creation and cancellation
+- Session cache, search client, and event producer modules
 
 ## Security Benchmarking
-The vulnerabilities in this application are intentional. Refer to [.vulns](file:///d:/work/secure-code-hunt/apps/javascript/app-36-parking-mgmt/.vulns) for the complete list of vulnerability targets.
+The vulnerabilities in this application are intentional. Refer to `.vulns` for the complete machine-readable vulnerability manifest.
 
 ---
 
+## Chained Vulnerability Scenario
+
+### Chain: "Elasticsearch Query Injection → Client-Controlled Pricing → Missing Audit Logs → Data Modification"
+
+An attacker broadens parking spot search results through query-string syntax, creates a booking using a client-controlled zero or negative total cost, and cancels reservations without an audit event.
+
+| Step | Issue | Severity (standalone) | OWASP | Location |
+|------|-------|-----------------------|-------|----------|
+| 1 | User input is embedded directly in Elasticsearch `query_string` syntax | Medium | A03 | `src/search/ParkingSearchClient.js` → `searchByQueryString()` |
+| 2 | Booking price is trusted from the client instead of recalculated server-side | Medium | A04 | `src/services/BookingService.js` → `book()` |
+| 3 | Booking cancellation is persisted without a security audit event | Low | A09 | `src/services/BookingService.js` → `cancel()` |
+
+**Attack narrative**: The attacker submits a broad Elasticsearch query-string payload such as `* OR type:Premium` to enumerate premium spots, posts a booking with `total_cost` set to `0` or a negative value, and later cancels bookings without producing a security audit record.
+
+**Combined Impact**: The attacker can write unauthorized booking and cancellation changes, resulting in high-impact data modification.
+
+---
 
 ## API Endpoints
-
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST   | `/api/auth/register` | None | Register new customer account |
-| POST   | `/api/auth/login` | None | Authenticate customer |
-| POST   | `/api/auth/logout` | Session | Clear session |
-| GET    | `/api/spots/search` | None | Search parking spots (vulnerable to SQLi) |
-| GET    | `/api/spots/:id` | None | Get specific spot details (Decoy: parameterized SQL) |
-| POST   | `/api/admin/spots` | Session (Admin) | Register new parking spots (Decoy: secure logs) |
-| POST   | `/api/bookings/book` | Session | Book a parking spot (vulnerable to Insecure Design cost bypass) |
-| POST   | `/api/bookings/:id/cancel` | Session | Cancel parking reservation (vulnerable to missing logs) |
+| POST | `/api/auth/register` | None | Register new customer account |
+| POST | `/api/auth/login` | None | Authenticate customer |
+| POST | `/api/auth/logout` | Session | Clear session |
+| GET | `/api/health` | None | Container health check |
+| GET | `/api/spots/search` | None | Search parking spots |
+| GET | `/api/spots/:id` | None | Get specific spot details |
+| POST | `/api/admin/spots` | Session (Admin) | Register new parking spots |
+| POST | `/api/bookings/book` | Session | Book a parking spot |
+| POST | `/api/bookings/:id/cancel` | Session | Cancel parking reservation |
 
 ## Running Locally
-
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-2. Start the application:
-   ```bash
-   npm start
-   ```
-3. The server runs on port `8036`.
+```bash
+cd apps/javascript/app-36-parking-mgmt
+npm install
+npm start
+# API served at http://localhost:8036
+```
 
 ## Running via Docker
-
-1. Build the image:
-   ```bash
-   docker build -t app-36-parking-mgmt .
-   ```
-2. Run the container:
-   ```bash
-   docker run -p 8036:8036 app-36-parking-mgmt
-   ```
+```bash
+docker compose up --build
+# API served at http://localhost:8036
+```

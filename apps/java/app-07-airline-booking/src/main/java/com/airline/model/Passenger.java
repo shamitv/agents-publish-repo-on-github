@@ -33,4 +33,8 @@ public class Passenger {
 
     @Builder.Default
     private String role = "PASSENGER"; // PASSENGER, AIRLINE_STAFF
+
+    public String getFullName() {
+        return firstName + " " + lastName;
+    }
 }

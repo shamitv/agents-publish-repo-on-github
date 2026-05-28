@@ -237,3 +237,39 @@ Every app README **must** contain the following sections in this order:
 - Do **not** add real authentication infrastructure; keep mock DBs and simple session cookies.
 - Do **not** introduce actual network calls to external services in test code.
 - Do **not** use `Math.random()` for anything security-relevant — use `crypto.randomBytes` or `SecureRandom` unless the intent is to plant a weak-randomness vulnerability.
+
+---
+
+## Testing & Deployment Workflow
+
+### Environment variables
+
+Every app that uses environment variables (database URLs, secret keys, service hosts, etc.) **must** include a `.env.example` file at the app root listing every expected variable with a placeholder value. Example:
+
+```
+# .env.example
+DATABASE_URL=postgresql://user:pass@host:5432/db
+SECRET_KEY=change-me
+MONGO_URI=mongodb://host:27017/db
+KAFKA_BROKER=host:9092
+```
+
+Agents must reference this file when wiring configuration to avoid environment-variable drift.
+
+### Testing on the VM
+
+- **VM**: `192.168.96.110` (credentials in repo `.env` — never commit this file)
+- Agents **must** verify app correctness by deploying Docker-enabled apps to this VM and running end-to-end smoke tests against the live containers.
+- Use `paramiko` (or equivalent SSH library) from the local development environment to upload sources, trigger `docker compose build`, and issue HTTP requests from within the VM.
+- Always wait for all containers to report `healthy` before running tests.
+
+### Tear-down
+
+Agents **must** tear down all Docker components after tests complete by running on the VM:
+
+```
+docker compose down -v
+docker system prune -a -f --volumes
+```
+
+This removes containers, images, volumes, and networks created during the test cycle. Do **not** leave lingering resources on the VM.

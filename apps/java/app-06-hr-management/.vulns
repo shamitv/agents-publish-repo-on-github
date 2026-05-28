@@ -9,8 +9,8 @@
       "category": "Broken Access Control",
       "location": "src/main/java/com/hr/controller/PayrollController.java",
       "method": "getPayroll",
-      "line_range": "17-23",
-      "description": "Payroll endpoint returns salary data for any employee to any authenticated user without role or ownership check",
+      "line_range": "19-26",
+      "description": "Payroll endpoint returns salary data and encrypted SSNs for any employee to any authenticated user without role or ownership check",
       "severity": "high",
       "cwe": "CWE-639"
     },
@@ -19,7 +19,7 @@
       "category": "Software and Data Integrity Failures",
       "location": "src/main/java/com/hr/service/EmployeeImportService.java",
       "method": "importEmployees",
-      "line_range": "18-26",
+      "line_range": "17-26",
       "description": "Bulk employee import uses ObjectInputStream.readObject() on untrusted upload without class filtering",
       "severity": "critical",
       "cwe": "CWE-502"
@@ -28,164 +28,139 @@
       "owasp_id": "A02",
       "category": "Cryptographic Failures",
       "location": "src/main/java/com/hr/model/Employee.java",
-      "method": "setRawSsn",
-      "line_range": "42-69",
+      "method": "getRawSsn",
+      "line_range": "52-87",
       "description": "SSN encryption uses reversible XOR cipher with hard-coded key 0xDEADBEEF",
       "severity": "high",
       "cwe": "CWE-327"
+    },
+    {
+      "owasp_id": "A08",
+      "category": "Software and Data Integrity Failures",
+      "location": "src/main/java/com/hr/messaging/PayrollAuditConsumer.java",
+      "method": "consume",
+      "line_range": "15-18",
+      "description": "Kafka audit consumer logs externally supplied event content through Log4j 2.14.1",
+      "severity": "high",
+      "cwe": "CWE-917"
+    },
+    {
+      "owasp_id": "A04",
+      "category": "Insecure Design",
+      "location": "src/main/java/com/hr/service/OnboardingWorkflowService.java",
+      "method": "transition",
+      "line_range": "32-39",
+      "description": "Onboarding state machine accepts any targetState without validating prerequisite steps allowing Draft to Active bypass",
+      "severity": "medium",
+      "cwe": "CWE-602"
+    },
+    {
+      "owasp_id": "A03",
+      "category": "Injection",
+      "location": "src/main/java/com/hr/search/EmployeeSearchClient.java",
+      "method": "searchEmployeesRaw",
+      "line_range": "62-78",
+      "description": "Employee search concatenates user input directly into Elasticsearch query_string syntax without sanitization",
+      "severity": "high",
+      "cwe": "CWE-943"
+    },
+    {
+      "owasp_id": "A09",
+      "category": "Security Logging and Monitoring Failures",
+      "location": "src/main/java/com/hr/service/OnboardingWorkflowService.java",
+      "method": "transition",
+      "line_range": "40-42",
+      "description": "Onboarding state transitions persist in PostgreSQL without writing audit log entries",
+      "severity": "medium",
+      "cwe": "CWE-778"
+    },
+    {
+      "owasp_id": "A01",
+      "category": "Broken Access Control",
+      "location": "src/main/java/com/hr/controller/EmployeeController.java",
+      "method": "getEmployeeAudit",
+      "line_range": "88-99",
+      "description": "Employee audit endpoint returns passwordHash for any employee by ID without authorization check",
+      "severity": "medium",
+      "cwe": "CWE-639"
     }
   ],
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "Credential Hash Harvest \u2192 Offline Crack \u2192 Payroll + SSN Exfiltration",
-      "attack_scenario": "A low-privilege employee iterates the audit endpoint to collect password hashes for all employees, cracks the hashes offline using a wordlist attack, re-authenticates as an HR Admin, then dumps all payroll records and decrypts SSNs using the hardcoded XOR key.",
+      "chain_name": "Payroll IDOR \u2192 Weak SSN Encryption \u2192 DB Exfiltration",
+      "attack_scenario": "A low-privilege employee iterates the payroll endpoint for other employee IDs, collects encrypted SSNs in each payroll response, then reverses the XOR encryption using the hardcoded key in the Employee model.",
       "impact": "db_exfiltration",
       "components": [
         {
           "step": 1,
           "owasp_id": "A01",
-          "description": "GET /api/employees/{id}/audit exposes passwordHash for any employee to any authenticated user \u2014 no role or ownership check",
-          "location": "src/main/java/com/hr/controller/EmployeeController.java",
-          "method": "getEmployeeAudit",
+          "description": "GET /api/payroll/{employeeId} returns another employee's payroll record and encrypted SSN to any authenticated user",
+          "location": "src/main/java/com/hr/controller/PayrollController.java",
+          "method": "getPayroll",
           "severity": "medium",
-          "cwe": "CWE-639",
-          "required_evidence": [
-            "src/main/java/com/hr/controller/EmployeeController.java",
-            "getEmployeeAudit"
-          ],
-          "negative_evidence": []
+          "cwe": "CWE-639"
         },
         {
           "step": 2,
           "owasp_id": "A02",
-          "description": "Seed data uses short common passwords; hashes crackable offline with a standard wordlist, providing access to higher-privilege accounts",
-          "location": "src/main/java/com/hr/config/DataInitializer.java",
-          "method": "seed",
-          "severity": "low",
-          "cwe": "CWE-521",
-          "required_evidence": [
-            "src/main/java/com/hr/config/DataInitializer.java",
-            "seed"
-          ],
-          "negative_evidence": []
-        },
-        {
-          "step": 3,
-          "owasp_id": "A01",
-          "description": "Payroll endpoint returns salary and encrypted SSN for any employee to any authenticated session without role or ownership validation",
-          "location": "src/main/java/com/hr/controller/PayrollController.java",
-          "method": "getPayroll",
-          "severity": "high",
-          "cwe": "CWE-639",
-          "required_evidence": [
-            "src/main/java/com/hr/controller/PayrollController.java",
-            "getPayroll"
-          ],
-          "negative_evidence": []
+          "description": "The Employee model uses a hardcoded XOR key, allowing exposed encrypted SSNs to be decrypted offline",
+          "location": "src/main/java/com/hr/model/Employee.java",
+          "method": "getRawSsn",
+          "severity": "medium",
+          "cwe": "CWE-327"
         }
-      ],
-      "difficulty": "medium",
-      "subtlety_tags": [
-        "cross_file",
-        "direct_data_flow",
-        "realistic_decoy"
-      ],
-      "chain_prerequisites": [
-        "attacker can reach the public request path",
-        "attacker can control one request parameter or body field"
-      ],
-      "negative_evidence": [
-        "src/main/java/com/hr/support/ReferenceGuards.java",
-        "ReferenceGuards.sameOwner",
-        "ReferenceGuards.allowedCallback"
-      ],
-      "vulnerability_family": "idor",
-      "required_evidence": [
-        "src/main/java/com/hr/controller/EmployeeController.java",
-        "getEmployeeAudit",
-        "src/main/java/com/hr/config/DataInitializer.java",
-        "seed",
-        "src/main/java/com/hr/controller/PayrollController.java",
-        "getPayroll"
       ]
     },
     {
       "chain_id": "chain-02",
-      "chain_name": "Subtle Crypto Pivot To Idor",
-      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
-      "impact": "db_exfiltration",
-      "difficulty": "hard",
-      "subtlety_tags": [
-        "cross_file",
-        "stateful_flow",
-        "implicit_trust",
-        "realistic_decoy",
-        "direct_data_flow",
-        "secondary_chain"
-      ],
-      "required_evidence": [
-        "src/main/java/com/hr/model/Employee.java",
-        "setRawSsn",
-        "src/main/java/com/hr/service/EmployeeImportService.java",
-        "importEmployees",
-        "src/main/java/com/hr/controller/PayrollController.java",
-        "getPayroll"
-      ],
-      "chain_prerequisites": [
-        "attacker has or can create a low privilege account",
-        "attacker can combine request input with stored application state",
-        "attacker can reach the public request path",
-        "attacker can control one request parameter or body field"
-      ],
-      "negative_evidence": [
-        "src/main/java/com/hr/support/ReferenceGuards.java",
-        "ReferenceGuards.sameOwner",
-        "ReferenceGuards.allowedCallback"
-      ],
-      "vulnerability_family": "idor",
+      "chain_name": "State Bypass \u2192 Missing Audit \u2192 Data Modification",
+      "attack_scenario": "An HR_ADMIN bypasses the Background Check state by directly requesting Active transition, then the unauthorized state change is never recorded in an audit log leaving no forensic trail.",
+      "impact": "data_modification",
       "components": [
         {
           "step": 1,
-          "owasp_id": "A02",
-          "description": "SSN encryption uses reversible XOR cipher with hard-coded key 0xDEADBEEF",
-          "location": "src/main/java/com/hr/model/Employee.java",
-          "method": "setRawSsn",
-          "severity": "high",
-          "cwe": "CWE-327",
-          "required_evidence": [
-            "src/main/java/com/hr/model/Employee.java",
-            "setRawSsn"
-          ],
-          "negative_evidence": []
+          "owasp_id": "A04",
+          "description": "State machine allows bypassing Background Check by requesting Active directly from Draft",
+          "location": "src/main/java/com/hr/service/OnboardingWorkflowService.java",
+          "method": "transition",
+          "severity": "low",
+          "cwe": "CWE-602"
         },
         {
           "step": 2,
-          "owasp_id": "A08",
-          "description": "Bulk employee import uses ObjectInputStream.readObject() on untrusted upload without class filtering",
-          "location": "src/main/java/com/hr/service/EmployeeImportService.java",
-          "method": "importEmployees",
-          "severity": "critical",
-          "cwe": "CWE-502",
-          "required_evidence": [
-            "src/main/java/com/hr/service/EmployeeImportService.java",
-            "importEmployees"
-          ],
-          "negative_evidence": []
+          "owasp_id": "A09",
+          "description": "Onboarding state change applied without audit event leaving no trail of who bypassed the Background Check",
+          "location": "src/main/java/com/hr/service/OnboardingWorkflowService.java",
+          "method": "transition",
+          "severity": "low",
+          "cwe": "CWE-778"
+        }
+      ]
+    },
+    {
+      "chain_id": "chain-03",
+      "chain_name": "Password Hash Leak \u2192 Weak Session \u2192 Account Takeover",
+      "attack_scenario": "An attacker reads any employee's passwordHash via the unauthenticated audit endpoint, cracks the hash offline, then exploits the 24-hour dashboard session idle timeout to brute-force login as that user.",
+      "impact": "account_takeover",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A01",
+          "description": "Employee audit endpoint returns passwordHash for any employee by ID without authorization",
+          "location": "src/main/java/com/hr/controller/EmployeeController.java",
+          "method": "getEmployeeAudit",
+          "severity": "low",
+          "cwe": "CWE-639"
         },
         {
-          "step": 3,
-          "owasp_id": "A01",
-          "description": "Payroll endpoint returns salary data for any employee to any authenticated user without role or ownership check",
-          "location": "src/main/java/com/hr/controller/PayrollController.java",
-          "method": "getPayroll",
-          "severity": "high",
-          "cwe": "CWE-639",
-          "required_evidence": [
-            "src/main/java/com/hr/controller/PayrollController.java",
-            "getPayroll"
-          ],
-          "negative_evidence": []
+          "step": 2,
+          "owasp_id": "A07",
+          "description": "Dashboard session idle timeout is set to 24 hours enabling prolonged brute-force after credential exposure",
+          "location": "src/main/java/com/hr/controller/WebController.java",
+          "method": "dashboard",
+          "severity": "low",
+          "cwe": "CWE-613"
         }
       ]
     }
@@ -198,12 +173,26 @@
     {
       "location": "src/main/java/com/hr/repository/EmployeeRepository.java",
       "description": "Spring Data JPA parameterised queries \u2014 NOT injectable"
+    },
+    {
+      "location": "src/main/java/com/hr/controller/PayrollController.java",
+      "description": "Payroll report endpoint requires HR_ADMIN authorization and should not be flagged as an IDOR"
+    },
+    {
+      "location": "src/main/java/com/hr/controller/OnboardingController.java",
+      "description": "listOnboarding() filters results by the authenticated user's email \u2014 not an IDOR"
+    },
+    {
+      "location": "src/main/java/com/hr/controller/EmployeeController.java",
+      "description": "getEmployee() uses @PreAuthorize requiring HR_ADMIN or same-user ownership \u2014 not an IDOR"
+    },
+    {
+      "location": "src/main/java/com/hr/search/EmployeeSearchClient.java",
+      "description": "searchEmployees() escapes query input using proper parameterization \u2014 NOT injectable"
+    },
+    {
+      "location": "src/main/java/com/hr/config/SecurityConfig.java",
+      "description": "API security config uses default session timeout (30 min) \u2014 not the vulnerable 24h dashboard session"
     }
-  ],
-  "benchmark_profile": {
-    "version": "v0.9",
-    "target_difficulty": "medium",
-    "upgrade_style": "in-place mixed difficulty ladder",
-    "decoy_file": "src/main/java/com/hr/support/ReferenceGuards.java"
-  }
+  ]
 }

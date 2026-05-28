@@ -1,118 +1,111 @@
-# Security Report: app-41-library-reservation
+# Security Report: app-41 — Library Book Reservation System
 
-## Application Information
-
-- **App ID**: app-41
-- **App Name**: Library Book Reservation System
-- **Language**: JavaScript
-- **Framework**: Express
-- **Source**: `apps/javascript/app-41-library-reservation/`
+**Language:** Javascript (Express)
+**Directory:** `apps/javascript/app-41-library-reservation`
 
 ---
+
+## Application Information
+- **App ID:** app-41
+- **Name:** Library Book Reservation System
+- **Language:** Javascript
+- **Framework:** Express
 
 ## Vulnerability Summary
 
+The following vulnerability list represents the ground truth security issues identified for this application:
+
 | ID | OWASP | Category | Severity | Location | CWE |
 |---|---|---|---|---|---|
-| V1 | A01 | Broken Access Control | Medium | `src/index.js` → `GET /api/reservations/:id` (lines 146-162) | CWE-639 |
-| V2 | A03 | Injection | High | `src/index.js` → `GET /api/books/search` (lines 165-177) | CWE-89 |
-| V3 | A07 | Identification and Authentication Failures | Medium | `src/index.js` → `POST /api/auth/login` (lines 100-123) | CWE-328 |
-
-### V1: IDOR on Reservation Details
-
-**OWASP Category**: A01 — Broken Access Control
-
-**Description**: Viewing book reservation logs by ID lacks verification of user ownership, allowing any authenticated borrower to retrieve details of another borrower's history.
-
-**Endpoint**: `GET /api/reservations/:id`
-
-**CWE**: CWE-639 (Authorization Bypass Through User-Controlled Key)
-
-**Impact**: Medium — Any authenticated user can view another user's private reservation history including book titles, dates, and personal notes.
-
-**Detection**: Look for absence of ownership checks in the reservation detail handler where the `:id` parameter is used without verifying `req.user.id` matches the reservation's user ID.
+| V1 | A01 | Broken Access Control | Medium | src/index.js | CWE-639 |
+| V2 | A03 | Injection | High | src/index.js | CWE-89 |
+| V3 | A07 | Identification and Authentication Failures | Medium | src/index.js | CWE-328 |
 
 ---
 
-### V2: SQL Injection on Book Search
+## Standalone Vulnerabilities
 
-**OWASP Category**: A03 — Injection
+### VULN-01: A01 — Broken Access Control
 
-**Description**: User search parameter is directly concatenated into SQL query statement, exposing the database to SQL injection.
+- **Severity:** Medium
+- **Location:** `src/index.js`:146-162 (method: `GET /api/reservations/:id`)
+- **CWE:** [CWE-639](https://cwe.mitre.org/data/definitions/639.html)
 
-**Endpoint**: `GET /api/books/search`
+#### Description
+Viewing book reservation logs by ID lacks verification of user ownership, allowing any authenticated borrower to retrieve details of another borrower's history.
 
-**CWE**: CWE-89 (SQL Injection)
+### VULN-02: A03 — Injection
 
-**Impact**: High — An attacker can extract arbitrary data from the database including user credentials, passwords, and other sensitive records via UNION-based SQL injection.
+- **Severity:** High
+- **Location:** `src/index.js`:165-177 (method: `GET /api/books/search`)
+- **CWE:** [CWE-89](https://cwe.mitre.org/data/definitions/89.html)
 
-**Detection**: Search for raw string concatenation with user-supplied `q` parameter inside `db.all()` or `db.query()` calls in the book search handler.
+#### Description
+User search parameter is directly concatenated into SQL query statement, exposing the database to SQL injection.
+
+### VULN-03: A07 — Identification and Authentication Failures
+
+- **Severity:** Medium
+- **Location:** `src/index.js`:100-123 (method: `POST /api/auth/login`)
+- **CWE:** [CWE-328](https://cwe.mitre.org/data/definitions/328.html)
+
+#### Description
+User account passwords are encrypted using unsalted MD5 hashing and saved in the database, allowing brute-force or rainbow table cracking.
+
 
 ---
 
-### V3: Unsalted MD5 Password Hashing
+## Chained Attack Scenarios
 
-**OWASP Category**: A07 — Identification and Authentication Failures
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-**Description**: User account passwords are encrypted using unsalted MD5 hashing and saved in the database, allowing brute-force or rainbow table cracking.
+### CHAIN-01: Book Search SQLi → Unsalted MD5 librarian account cracking
 
-**Endpoint**: `POST /api/auth/login`
+- **Combined Impact:** `account_takeover`
+- **Difficulty:** Expert
+- **Subtlety Tags:** `cross_file` `state_confusion` `parser_or_config_reasoning` `implicit_trust` `realistic_decoy`
 
-**CWE**: CWE-328 (Use of Weak Hash)
+#### Prerequisites
+- attacker can influence a multi-step workflow
+- attacker can observe or reuse application state across requests
 
-**Impact**: Medium — If the password database is compromised, an attacker can crack passwords offline using precomputed rainbow tables or brute-force techniques.
+#### Attack Narrative
+An attacker uses SQL Injection on the search endpoint `/api/books/search?q=1984' UNION SELECT 1,username,password_hash,role FROM users --` to dump the users table. They retrieve the unsalted MD5 hash `db59fe16fcdcc4e70e3047d9539f37c3` for the admin_librarian user. By performing offline MD5 decryption/lookup, they crack the admin password ('librarianSecure2026!') and take over the admin session, using it to exfiltrate private reader reservation details via IDOR.
 
-**Detection**: Search for `md5()` usage in password hashing/verification logic instead of bcrypt, scrypt, or argon2.
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Union-based SQL injection on book search exposes internal database tables. | Medium | A03 | CWE-89 | src/index.js | `GET /api/books/search` |
+| 2 | Admin passwords stored as unsalted MD5 hashes are cracked offline, enabling account takeover. | Medium | A07 | CWE-328 | src/index.js | `POST /api/auth/login` |
 
----
+### CHAIN-02: Subtle Auth Session Pivot To Idor
 
-## Chained Attack Scenario
+- **Combined Impact:** `account_takeover`
+- **Difficulty:** Expert
+- **Subtlety Tags:** `cross_file` `state_confusion` `parser_or_config_reasoning` `implicit_trust` `realistic_decoy` `secondary_chain`
 
-### Chain: "Book Search SQLi → Unsalted MD5 librarian account cracking"
+#### Prerequisites
+- attacker can influence a multi-step workflow
+- attacker can observe or reuse application state across requests
 
-**Impact**: `account_takeover`
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
 
-**Overview**: An attacker uses SQL injection on the book search endpoint to dump the users table, cracks the admin librarian's unsalted MD5 password offline, and takes over the admin account.
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | User account passwords are encrypted using unsalted MD5 hashing and saved in the database, allowing brute-force or rainbow table cracking. | Medium | A07 | CWE-328 | src/index.js | `POST /api/auth/login` |
+| 2 | User search parameter is directly concatenated into SQL query statement, exposing the database to SQL injection. | High | A03 | CWE-89 | src/index.js | `GET /api/books/search` |
+| 3 | Viewing book reservation logs by ID lacks verification of user ownership, allowing any authenticated borrower to retrieve details of another borrower's history. | Medium | A01 | CWE-639 | src/index.js | `GET /api/reservations/:id` |
 
-**Components**:
-
-| Step | Issue | Severity | OWASP | CWE | Location |
-|---|---|---|---|---|---|
-| 1 | Union-based SQL injection on book search exposes internal database tables | Medium | A03 | CWE-89 | `GET /api/books/search` |
-| 2 | Admin passwords stored as unsalted MD5 hashes are cracked offline, enabling account takeover | Medium | A07 | CWE-328 | `POST /api/auth/login` |
-
-**Attack Narrative**:
-1. The attacker sends `GET /api/books/search?q=1984' UNION SELECT 1,username,password_hash,role FROM users --` to dump the users table via SQL injection.
-2. They retrieve the unsalted MD5 hash `db59fe16fcdcc4e70e3047d9539f37c3` for the `admin_librarian` user.
-3. By performing offline MD5 decryption/lookup, they crack the admin password `librarianSecure2026!` and log in as the admin.
-4. Using the admin session, they exfiltrate private reader reservation details via IDOR on `GET /api/reservations/:id`.
-
-**Combined Impact**: Account takeover — An attacker can crack the librarian admin password and access all reservation records in the system.
 
 ---
 
 ## Decoys (False-Positive Candidates)
 
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
+
 | Location | Description |
 |---|---|
-| `src/index.js` | Proper parameterized query logic in `GET /api/books/:id` to retrieve single books safely |
-| `src/index.js` | Proper user scoping constraints in `GET /api/reservations` limiting output database entries to active customer only |
-
----
-
-## Detection Commands
-
-```bash
-# Find SQL injection on book search
-grep -n "SELECT.*\+.*req\.query\|db\.all.*req" apps/javascript/app-41-library-reservation/src/index.js
-
-# Find weak password hashing
-grep -n "md5\|hash\|password" apps/javascript/app-41-library-reservation/src/index.js
-
-# Find IDOR on reservations
-grep -n "reservations.*:id\|findById\|findOne" apps/javascript/app-41-library-reservation/src/index.js
-```
-
----
-
-*Report generated from `.vulns` manifest for app-41-library-reservation*
+| src/index.js | Proper parameterized query logic in GET /api/books/:id to retrieve single books safely. |
+| src/index.js | Proper user scoping constraints in GET /api/reservations limiting output database entries to active customer only. |

@@ -1,91 +1,101 @@
-# Audit Report: app-06 — Enterprise HR Management System
+# Security Report: app-06 — Enterprise HR Management System
 
-**Language:** Java (Spring Boot)  
-**Business Domain:** HR / Enterprise  
-**Date:** 2026-05-24
+**Language:** Java (Spring-boot)
+**Directory:** `apps/java/app-06-hr-management`
+
+---
+
+## Application Information
+- **App ID:** app-06
+- **Name:** Enterprise HR Management System
+- **Language:** Java
+- **Framework:** Spring-boot
+
+## Vulnerability Summary
+
+The following vulnerability list represents the ground truth security issues identified for this application:
+
+| ID | OWASP | Category | Severity | Location | CWE |
+|---|---|---|---|---|---|
+| V1 | A01 | Broken Access Control | High | src/main/java/com/hr/controller/PayrollController.java | CWE-639 |
+| V2 | A08 | Software and Data Integrity Failures | Critical | src/main/java/com/hr/service/EmployeeImportService.java | CWE-502 |
+| V3 | A02 | Cryptographic Failures | High | src/main/java/com/hr/model/Employee.java | CWE-327 |
+| V4 | A08 | Software and Data Integrity Failures | High | src/main/java/com/hr/messaging/PayrollAuditConsumer.java | CWE-917 |
 
 ---
 
 ## Standalone Vulnerabilities
 
-### VULN-01: A01 — Broken Access Control (IDOR on Payroll)
+### VULN-01: A01 — Broken Access Control
 
-**Severity:** High  
-**Location:** `PayrollController.java:17-23` — `getPayroll()`  
-**Lines:**
-```java
-// VULNERABILITY A01: Payroll endpoint returns salary data for any employee to any authenticated user without role or ownership check
-```
+- **Severity:** High
+- **Location:** `src/main/java/com/hr/controller/PayrollController.java`:19-26 (method: `getPayroll`)
+- **CWE:** [CWE-639](https://cwe.mitre.org/data/definitions/639.html)
 
-**Difficulty: EASY**
+#### Description
+Payroll endpoint returns salary data and encrypted SSNs for any employee to any authenticated user without role or ownership check
 
-- Comment explicitly marks it as `VULNERABILITY A01`
-- Any authenticated user can view any employee's payroll
-- No role or ownership validation
+### VULN-02: A08 — Software and Data Integrity Failures
 
-### VULN-02: A08 — Software Integrity (Java Deserialization)
+- **Severity:** Critical
+- **Location:** `src/main/java/com/hr/service/EmployeeImportService.java`:17-26 (method: `importEmployees`)
+- **CWE:** [CWE-502](https://cwe.mitre.org/data/definitions/502.html)
 
-**Severity:** Critical  
-**Location:** `EmployeeImportService.java:18-26` — `importEmployees()`  
-**Lines:**
-```java
-// VULNERABILITY A08: Bulk employee import uses ObjectInputStream.readObject() on untrusted upload without class filtering
-```
+#### Description
+Bulk employee import uses ObjectInputStream.readObject() on untrusted upload without class filtering
 
-**Difficulty: EASY**
+### VULN-03: A02 — Cryptographic Failures
 
-- Comment explicitly marks it as `VULNERABILITY A08`
-- Uses `ObjectInputStream.readObject()` on user-supplied data
-- No class filtering, enabling arbitrary code execution
+- **Severity:** High
+- **Location:** `src/main/java/com/hr/model/Employee.java`:52-87 (method: `getRawSsn`)
+- **CWE:** [CWE-327](https://cwe.mitre.org/data/definitions/327.html)
 
-### VULN-03: A02 — Cryptographic Failures (Weak XOR Encryption)
+#### Description
+SSN encryption uses reversible XOR cipher with hard-coded key 0xDEADBEEF
 
-**Severity:** High  
-**Location:** `Employee.java:42-69` — `setRawSsn()`  
-**Lines:**
-```java
-// VULNERABILITY A02: SSN encryption uses reversible XOR cipher with hard-coded key 0xDEADBEEF
-```
+### VULN-04: A08 — Software and Data Integrity Failures
 
-**Difficulty: EASY**
+- **Severity:** High
+- **Location:** `src/main/java/com/hr/messaging/PayrollAuditConsumer.java`:15-18 (method: `consume`)
+- **CWE:** [CWE-917](https://cwe.mitre.org/data/definitions/917.html)
 
-- Comment explicitly marks it as `VULNERABILITY A02`
-- XOR cipher with hardcoded key `0xDEADBEEF`
-- Reversible encryption, trivially decrypted
+#### Description
+Kafka audit consumer logs externally supplied event content through Log4j 2.14.1
+
 
 ---
 
-## Chained Attack: chain-01
+## Chained Attack Scenarios
 
-**Chain Name:** Credential Hash Harvest → Offline Crack → Payroll + SSN Exfiltration  
-**Combined Impact:** Database Exfiltration  
-**Overall Chain Difficulty: MEDIUM**
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-### Link 1: IDOR on Audit Endpoint (A01 — Medium)
+### CHAIN-01: Payroll IDOR → Weak SSN Encryption → DB Exfiltration
 
-**Difficulty: EASY**
+- **Combined Impact:** `db_exfiltration`
+- **Difficulty:** Medium
+- **Subtlety Tags:** 
 
-- `GET /api/employees/{id}/audit` exposes password hash for any employee
-- No role or ownership check
+#### Prerequisites
+- None specified
 
-### Link 2: Weak Passwords in Seed Data (A02 — Low)
+#### Attack Narrative
+A low-privilege employee iterates the payroll endpoint for other employee IDs, collects encrypted SSNs in each payroll response, then reverses the XOR encryption using the hardcoded key in the Employee model.
 
-**Difficulty: EASY**
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | GET /api/payroll/{employeeId} returns another employee's payroll record and encrypted SSN to any authenticated user | Medium | A01 | CWE-639 | src/main/java/com/hr/controller/PayrollController.java | `getPayroll` |
+| 2 | The Employee model uses a hardcoded XOR key, allowing exposed encrypted SSNs to be decrypted offline | Medium | A02 | CWE-327 | src/main/java/com/hr/model/Employee.java | `getRawSsn` |
 
-- Seed data uses short common passwords
-- Hashes crackable offline with standard wordlists
-
-### Link 3: IDOR on Payroll (A01 — High)
-
-**Difficulty: EASY**
-
-- Dumps payroll records and encrypted SSNs
-- XOR key is hardcoded, trivially decryptable
 
 ---
 
-## Summary
+## Decoys (False-Positive Candidates)
 
-App-06 is a Spring Boot HR manager with IDOR on payroll, Java deserialization in employee import, and XOR-based SSN encryption. Chain: harvest hashes → crack offline → dump payroll data.
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
 
-**Overall Difficulty Score:** 2/5 (Easy-Medium)
+| Location | Description |
+|---|---|
+| src/main/java/com/hr/config/SecurityConfig.java | BCryptPasswordEncoder with default strength — this is SAFE and should NOT be flagged |
+| src/main/java/com/hr/repository/EmployeeRepository.java | Spring Data JPA parameterised queries — NOT injectable |
+| src/main/java/com/hr/controller/PayrollController.java | Payroll report endpoint requires HR_ADMIN authorization and should not be flagged as an IDOR |

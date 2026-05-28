@@ -67,8 +67,6 @@ public class BookingController {
             return ResponseEntity.badRequest().build();
         }
     }
-    // any authenticated passenger can view any booking by its PNR.
-    // returned to the client; if rendered via innerHTML it executes as XSS.
     @GetMapping("/{pnr}/boarding-summary")
     public ResponseEntity<?> getBoardingSummary(
             @PathVariable String pnr,
@@ -79,8 +77,8 @@ public class BookingController {
         return bookingService.getBookingByPnr(pnr)
                 .map(booking -> ResponseEntity.ok(Map.of(
                         "pnr", booking.getPnr(),
-                        // Vulnerable: no ownership check performed before returning data
-                        // Vulnerable: passengerDisplay contains raw passenger name for HTML rendering (XSS)
+                        // CHAIN LINK 2 (chain-01): Boarding summary returns booking data without owner validation.
+                        // CHAIN LINK 3 (chain-01): Passenger name is returned as raw HTML for staff rendering.
                         "passengerDisplay", "<strong>Passenger:</strong> " + booking.getPassenger().getFullName(),
                         "flight", booking.getFlight().getFlightNumber(),
                         "seatNumber", booking.getSeat().getSeatNumber(),

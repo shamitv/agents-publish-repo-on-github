@@ -20,6 +20,10 @@ public class BillingController {
         this.paymentService = paymentService;
     }
 
+    // CHAIN LINK 2 (chain-02): Invoice endpoint lacks per-customer access control —
+    // any authenticated user can query any customer's invoices by ID.
+    // VULNERABILITY A01: BillingController exposes all customer invoices with no
+    // ownership enforcement.
     @GetMapping("/invoices")
     public ResponseEntity<List<Invoice>> getCustomerInvoices(@RequestParam Long customerId) {
         return ResponseEntity.ok(billingService.getInvoicesByCustomer(customerId));

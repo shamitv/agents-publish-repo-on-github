@@ -1,117 +1,111 @@
-# Security Report: app-37-crop-planner
+# Security Report: app-37 — Agricultural Crop Planner
 
-## Application Information
-
-- **App ID**: app-37
-- **App Name**: Agricultural Crop Planner
-- **Language**: JavaScript
-- **Framework**: Express
-- **Source**: `apps/javascript/app-37-crop-planner/`
+**Language:** Javascript (Express)
+**Directory:** `apps/javascript/app-37-crop-planner`
 
 ---
+
+## Application Information
+- **App ID:** app-37
+- **Name:** Agricultural Crop Planner
+- **Language:** Javascript
+- **Framework:** Express
 
 ## Vulnerability Summary
 
+The following vulnerability list represents the ground truth security issues identified for this application:
+
 | ID | OWASP | Category | Severity | Location | CWE |
 |---|---|---|---|---|---|
-| V1 | A05 | Security Misconfiguration | Medium | `src/index.js` → `GET /api/system/config` (lines 208-228) | CWE-209 |
-| V2 | A06 | Vulnerable and Outdated Components | High | `src/index.js` → `POST /api/crop-plan/import-layout` (lines 157-190) | CWE-22 |
-| V3 | A10 | Server-Side Request Forgery (SSRF) | High | `src/index.js` → `GET /api/weather/proxy` (lines 193-205) | CWE-918 |
-
-### V1: Diagnostics Endpoint Leaks Configuration Secrets
-
-**OWASP Category**: A05 — Security Misconfiguration
-
-**Description**: An open diagnostics route leaks system node settings and an administrative weather integration API token key when active debug query options are provided.
-
-**Endpoint**: `GET /api/system/config`
-
-**CWE**: CWE-209 (Information Exposure Through an Error Message)
-
-**Impact**: Medium — An attacker can retrieve the weather service API token `CROP-DEV-WEATHER-API-TOKEN-2026`, which can be used to authenticate against internal services.
-
-**Detection**: Look for a debug endpoint that conditionally returns configuration objects including environment variables or hardcoded secrets based on a query parameter like `?debug=true`.
+| V1 | A05 | Security Misconfiguration | Medium | src/index.js | CWE-209 |
+| V2 | A06 | Vulnerable and Outdated Components | High | src/index.js | CWE-22 |
+| V3 | A10 | Server-Side Request Forgery (SSRF) | High | src/index.js | CWE-918 |
 
 ---
 
-### V2: Zip Slip Path Traversal in Layout Importer
+## Standalone Vulnerabilities
 
-**OWASP Category**: A06 — Vulnerable and Outdated Components
+### VULN-01: A05 — Security Misconfiguration
 
-**Description**: A layout zip importer extracts files using relative archive paths without checking target folder bounds, allowing Zip Slip path traversal file overwrite.
+- **Severity:** Medium
+- **Location:** `src/index.js`:208-228 (method: `GET /api/system/config`)
+- **CWE:** [CWE-209](https://cwe.mitre.org/data/definitions/209.html)
 
-**Endpoint**: `POST /api/crop-plan/import-layout`
+#### Description
+An open diagnostics route leaks system node settings and an administrative weather integration API token key when active debug query options are provided.
 
-**CWE**: CWE-22 (Path Traversal)
+### VULN-02: A06 — Vulnerable and Outdated Components
 
-**Impact**: High — An attacker can craft a malicious ZIP archive containing entries with `../` path components to overwrite arbitrary files on the server filesystem, potentially achieving code execution.
+- **Severity:** High
+- **Location:** `src/index.js`:157-190 (method: `POST /api/crop-plan/import-layout`)
+- **CWE:** [CWE-22](https://cwe.mitre.org/data/definitions/22.html)
 
-**Detection**: Search for ZIP extraction logic that does not validate or sanitize individual entry paths against an expected extraction directory.
+#### Description
+An layout zip importer extracts files using relative archive paths without checking target folder bounds, allowing Zip Slip path traversal file overwrite.
+
+### VULN-03: A10 — Server-Side Request Forgery (SSRF)
+
+- **Severity:** High
+- **Location:** `src/index.js`:193-205 (method: `GET /api/weather/proxy`)
+- **CWE:** [CWE-918](https://cwe.mitre.org/data/definitions/918.html)
+
+#### Description
+The weather forecast query proxy makes HTTP calls using axios on user-supplied URL inputs with no address block restriction, enabling SSRF.
+
 
 ---
 
-### V3: SSRF via Weather Query Proxy
+## Chained Attack Scenarios
 
-**OWASP Category**: A10 — Server-Side Request Forgery (SSRF)
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-**Description**: The weather forecast query proxy makes HTTP calls using axios on user-supplied URL inputs with no address block restriction, enabling SSRF.
+### CHAIN-01: Diagnostics Configuration Exposure → SSRF Crop Analytics Pivoting
 
-**Endpoint**: `GET /api/weather/proxy`
+- **Combined Impact:** `lateral_movement`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy`
 
-**CWE**: CWE-918 (Server-Side Request Forgery)
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-**Impact**: High — An attacker can make the server send crafted HTTP requests to internal network services, bypassing firewalls and accessing internal APIs, cloud metadata endpoints, or other restricted resources.
+#### Attack Narrative
+An attacker queries `/api/system/config?debug=true` to obtain the weather service token key `CROP-DEV-WEATHER-API-TOKEN-2026`. Utilizing the weather lookup proxy `/api/weather/proxy`, they submit `weatherUrl: 'http://localhost:8037/api/internal/telemetry?token=CROP-DEV-WEATHER-API-TOKEN-2026'`, leveraging the SSRF vulnerability to bypass authentication and retrieve all farm crop records from the internal analytics database.
 
-**Detection**: Look for an endpoint that accepts a user-controlled URL parameter and passes it directly to `axios.get()` or `fetch()` without any allowlist, denylist, or hostname validation.
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | System diagnostics endpoint leaks weather integration API secret token key. | Medium | A05 | CWE-209 | src/index.js | `GET /api/system/config` |
+| 2 | Weather query proxy makes external requests with no IP filtering rules. | Medium | A10 | CWE-918 | src/index.js | `GET /api/weather/proxy` |
 
----
+### CHAIN-02: Subtle Ssrf Pivot To Injection
 
-## Chained Attack Scenario
+- **Combined Impact:** `lateral_movement`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy` `secondary_chain`
 
-### Chain: "Diagnostics Configuration Exposure → SSRF Crop Analytics Pivoting"
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-**Impact**: `lateral_movement`
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
 
-**Overview**: An attacker first retrieves the internal API token from a misconfigured diagnostics endpoint, then uses the SSRF-vulnerable weather proxy to pivot to internal services.
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | The weather forecast query proxy makes HTTP calls using axios on user-supplied URL inputs with no address block restriction, enabling SSRF. | High | A10 | CWE-918 | src/index.js | `GET /api/weather/proxy` |
+| 2 | An layout zip importer extracts files using relative archive paths without checking target folder bounds, allowing Zip Slip path traversal file overwrite. | High | A06 | CWE-22 | src/index.js | `POST /api/crop-plan/import-layout` |
+| 3 | An open diagnostics route leaks system node settings and an administrative weather integration API token key when active debug query options are provided. | Medium | A05 | CWE-209 | src/index.js | `GET /api/system/config` |
 
-**Components**:
-
-| Step | Issue | Severity | OWASP | CWE | Location |
-|---|---|---|---|---|---|
-| 1 | System diagnostics endpoint leaks weather integration API secret token key | Medium | A05 | CWE-209 | `GET /api/system/config` |
-| 2 | Weather query proxy makes external requests with no IP filtering rules | Medium | A10 | CWE-918 | `GET /api/weather/proxy` |
-
-**Attack Narrative**:
-1. The attacker queries `GET /api/system/config?debug=true` to obtain the weather service token key `CROP-DEV-WEATHER-API-TOKEN-2026`.
-2. Utilizing the weather lookup proxy at `GET /api/weather/proxy`, the attacker submits `weatherUrl: 'http://localhost:8037/api/internal/telemetry?token=CROP-DEV-WEATHER-API-TOKEN-2026'`.
-3. The server-side request (SSRF) bypasses authentication and retrieves all farm crop records from the internal analytics database.
-
-**Combined Impact**: Lateral movement — An attacker pivots from a public-facing diagnostics endpoint to access internal telemetry databases by chaining secret leakage with SSRF.
 
 ---
 
 ## Decoys (False-Positive Candidates)
 
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
+
 | Location | Description |
 |---|---|
-| `src/index.js` | Proper user scoping constraints in `GET /api/crops` limiting output database entries to active customer only |
-| `src/index.js` | Proper parameterized query logic in `GET /api/crops/:id` to fetch crop profile details safely |
-
----
-
-## Detection Commands
-
-```bash
-# Find diagnostic endpoint leaking secrets
-grep -n "debug\|config\|token\|secret" apps/javascript/app-37-crop-planner/src/index.js
-
-# Find Zip Slip vulnerable extraction
-grep -n "extract\|unzip\|zip\|\.path\|\.fileName" apps/javascript/app-37-crop-planner/src/index.js
-
-# Find SSRF vulnerable proxy endpoint
-grep -n "axios\.get\|axios\.post\|fetch" apps/javascript/app-37-crop-planner/src/index.js
-```
-
----
-
-*Report generated from `.vulns` manifest for app-37-crop-planner*
+| src/index.js | Proper user scoping constraints in GET /api/crops limiting output database entries to active customer only. |
+| src/index.js | Proper parameterized query logic in GET /api/crops/:id to fetch crop profile details safely. |

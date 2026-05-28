@@ -1,66 +1,72 @@
 # Telemedicine Appointment System
 
 ## Overview
-A TypeScript Express application representing a telemedicine portal where patients can register, book appointments, and doctors can view histories and add consultation notes.
+A TypeScript Express telemedicine portal for patient registration, appointment listing, and physician notes review.
 
 ## Business Domain
-Healthcare & Telemedicine Services
+Healthcare and telemedicine appointment management.
 
 ## Tech Stack
-- TypeScript
-- Express
-- SQLite (in-memory)
-- JSONWebToken
+| Layer | Technology |
+|-------|------------|
+| Backend | Node.js, Express, TypeScript |
+| Database / Cache | In-memory medical repository and appointment cache, PostgreSQL and Redis in Docker Compose |
+| Search / Events | Patient search client, in-process audit producer/consumer, Elasticsearch and Redpanda in Docker Compose |
+| Authentication | JSON Web Tokens |
+| Containerisation | Docker, Docker Compose |
 
 ## Features
-
-For chained vulnerability scenarios, see [scenarios.md](scenarios.md).
-- User registration and login
-- Book appointments (patients)
-- View appointment listings (patients see only theirs, doctors see all assigned to them)
-- View individual appointment details (including private physician notes)
-- Patient password storage using proper BCrypt hashing
+- Patient registration and login
+- Scoped appointment list for patients and doctors
+- Appointment detail view with physician notes
+- Patient search indexing hook
+- Audit event producer/consumer for appointment reads
+- BCrypt password storage
 
 ## Security Benchmarking
-The vulnerabilities in this application are intentional. Refer to [.vulns](file:///d:/work/secure-code-hunt/apps/typescript/app-14-telemedicine/.vulns) for the complete list of vulnerability targets.
+The vulnerabilities in this application are intentional. Refer to `.vulns` for the complete machine-readable vulnerability manifest.
 
 ---
 
+## Chained Vulnerability Scenario
+
+### Chain: "Weak JWT Validation → Patient Notes IDOR → DB Exfiltration"
+
+An attacker forges or tampers with a JWT because the server decodes tokens without signature validation, then enumerates appointment records that expose private physician notes by ID.
+
+| Step | Issue | Severity (standalone) | OWASP | Location |
+|------|-------|-----------------------|-------|----------|
+| 1 | JWT payload is decoded without validating the signature | Medium | A07 | `src/services/TokenService.ts` → `verify()` |
+| 2 | Appointment detail loads patient notes by ID without patient or doctor ownership checks | Medium | A01 | `src/services/AppointmentService.ts` → `getAppointmentDetail()` |
+
+**Attack narrative**: The attacker creates a JWT containing a chosen `userId`, `username`, and `role`, places it in the `token` cookie, then requests `/api/appointments/1`, `/api/appointments/2`, and subsequent IDs. Because token signatures are not verified and appointment details are not scoped to the caller, the responses include confidential physician notes.
+
+**Combined Impact**: The attacker can bulk-read confidential appointment records and doctor notes, resulting in high-impact database exfiltration.
+
+---
 
 ## API Endpoints
-
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST   | `/api/auth/register` | None | Register a patient (Decoy: uses BCrypt) |
-| POST   | `/api/auth/login` | None | Authenticate user and receive token cookie (vulnerable to weak signature & missing httpOnly flag) |
-| POST   | `/api/auth/logout` | Session | Clear authentication cookie |
-| GET    | `/api/auth/me` | Session | Retrieve current authenticated user details |
-| GET    | `/api/appointments` | Session | List appointments (Decoy: correctly scoped) |
-| GET    | `/api/appointments/:id` | Session | Retrieve detailed appointment info (vulnerable to IDOR) |
+| POST | `/api/auth/register` | None | Register a patient |
+| POST | `/api/auth/login` | None | Authenticate user and set token cookie |
+| POST | `/api/auth/logout` | Session | Clear authentication cookie |
+| GET | `/api/auth/me` | Session | Retrieve current authenticated user details |
+| GET | `/api/health` | None | Container health check |
+| GET | `/api/appointments` | Session | List scoped appointments |
+| GET | `/api/appointments/:id` | Session | Retrieve detailed appointment info |
 
 ## Running Locally
-
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-2. Build the TypeScript files:
-   ```bash
-   npm run build
-   ```
-3. Start the application:
-   ```bash
-   npm start
-   ```
-4. The server runs on port `8014`.
+```bash
+cd apps/typescript/app-14-telemedicine
+npm install
+npm run build
+npm start
+# API served at http://localhost:8014
+```
 
 ## Running via Docker
-
-1. Build the image:
-   ```bash
-   docker build -t app-14-telemedicine .
-   ```
-2. Run the container:
-   ```bash
-   docker run -p 8014:8014 app-14-telemedicine
-   ```
+```bash
+docker compose up --build
+# API served at http://localhost:8014
+```

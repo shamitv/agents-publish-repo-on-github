@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apex Airlines - Staff Boarding</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+</head>
+<body>
+    <div class="app-container">
+        <nav class="navbar">
+            <div class="logo">Apex Airlines</div>
+            <div class="nav-links">
+                <span style="color: var(--primary); font-weight: 500;" th:text="${'Welcome, ' + currentUser.firstName}">Welcome, Staff</span>
+                <a href="/dashboard" class="btn btn-secondary" style="padding: 8px 16px; font-size: 13px;">Dashboard</a>
+                <form th:action="@{/logout}" method="POST" style="margin: 0; padding: 0;">
+                    <button type="submit" class="btn btn-secondary" style="padding: 8px 16px; font-size: 13px; cursor: pointer;">Logout</button>
+                </form>
+            </div>
+        </nav>
+
+        <div class="grid-2">
+            <div class="glass-card">
+                <h2 style="font-size: 22px; font-weight: 600; margin-bottom: 24px; color: var(--primary);">Boarding Desk</h2>
+                <form onsubmit="loadBoardingSummary(event)">
+                    <div class="form-group">
+                        <label class="form-label" for="pnrInput">PNR</label>
+                        <input type="text" id="pnrInput" class="form-input" value="JFKJFK" required>
+                    </div>
+                    <button type="submit" class="btn" style="width: 100%; margin-top: 12px;">Load Summary</button>
+                </form>
+            </div>
+
+            <div class="glass-card">
+                <h2 style="font-size: 22px; font-weight: 600; margin-bottom: 24px; color: var(--primary);">Passenger Summary</h2>
+                <div id="summaryPanel" style="display: none;">
+                    <div id="passengerDisplay" style="font-size: 18px; margin-bottom: 16px;"></div>
+                    <div id="flightDisplay" style="color: var(--text-muted);"></div>
+                </div>
+                <div id="emptySummary" style="color: var(--text-muted);">No passenger selected.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function loadBoardingSummary(event) {
+            event.preventDefault();
+            const pnr = document.getElementById("pnrInput").value.trim();
+            fetch(`/api/bookings/${encodeURIComponent(pnr)}/boarding-summary`)
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error("Boarding summary not found");
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    document.getElementById("emptySummary").style.display = "none";
+                    document.getElementById("summaryPanel").style.display = "block";
+                    // CHAIN LINK 3 (chain-01): Staff view renders API-provided passenger HTML via innerHTML.
+                    document.getElementById("passengerDisplay").innerHTML = data.passengerDisplay;
+                    document.getElementById("flightDisplay").innerText =
+                        `${data.flight} - seat ${data.seatNumber} - ${data.status}`;
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById("summaryPanel").style.display = "none";
+                    document.getElementById("emptySummary").style.display = "block";
+                    document.getElementById("emptySummary").innerText = "Unable to load boarding summary.";
+                });
+        }
+    </script>
+</body>
+</html>

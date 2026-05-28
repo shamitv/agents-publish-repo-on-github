@@ -17,7 +17,7 @@ public class Booking {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 6)
+    @Column(nullable = false, unique = true, length = 8)
     private String pnr;
 
     @ManyToOne(fetch = FetchType.EAGER)

@@ -7,185 +7,184 @@
     {
       "owasp_id": "A01",
       "category": "Broken Access Control",
-      "location": "app.py",
+      "location": "src/services/submission_service.py",
       "method": "get_submission",
-      "line_range": "197-224",
-      "description": "Quiz submission retrieval endpoint returns any submission by ID without verifying the requesting user is the submission owner, allowing any authenticated student to view other students' answers and scores.",
+      "description": "Quiz submission retrieval returns any submission by ID without verifying that the requesting user owns the submission.",
       "severity": "high",
       "cwe": "CWE-639"
     },
     {
+      "owasp_id": "A04",
+      "category": "Insecure Design",
+      "location": "src/controllers/enrollment_controller.py",
+      "method": "enroll",
+      "description": "Enrollment trusts client-supplied role and course_id without server-side validation of course existence, active status, student prerequisites, or role authorization.",
+      "severity": "medium",
+      "cwe": "CWE-602"
+    },
+    {
       "owasp_id": "A05",
       "category": "Security Misconfiguration",
-      "location": "app.py",
-      "method": "debug_config",
-      "line_range": "249-263",
-      "description": "Unauthenticated debug endpoint at /api/debug/config exposes the Flask secret_key, database path, full environment variables, and server working directory to any caller.",
+      "location": "src/services/debug_service.py",
+      "method": "collect",
+      "description": "Unauthenticated debug endpoint exposes the Flask secret key, environment variables, and runtime details.",
       "severity": "medium",
-      "cwe": "CWE-215"
+      "cwe": "CWE-200"
+    },
+    {
+      "owasp_id": "A07",
+      "category": "Identification and Authentication Failures",
+      "location": "src/controllers/auth_controller.py",
+      "method": "dashboard_login",
+      "description": "Dashboard session cookie set without httpOnly or secure flags, enabling client-side script access.",
+      "severity": "low",
+      "cwe": "CWE-614"
     },
     {
       "owasp_id": "A08",
       "category": "Software and Data Integrity Failures",
-      "location": "app.py",
-      "method": "import_course",
-      "line_range": "267-299",
-      "description": "Course import endpoint deserializes untrusted base64-encoded pickle data from user input using pickle.loads(), allowing arbitrary remote code execution.",
+      "location": "src/workers/import_listener.py",
+      "method": "load_course",
+      "description": "Course import worker deserializes untrusted pickle bytes without class restrictions.",
       "severity": "critical",
       "cwe": "CWE-502"
+    },
+    {
+      "owasp_id": "A09",
+      "category": "Security Logging and Monitoring Failures",
+      "location": "src/workers/grading_listener.py",
+      "method": "process_submission",
+      "description": "Grading listener writes score changes to grades table without audit log entries.",
+      "severity": "medium",
+      "cwe": "CWE-778"
+    },
+    {
+      "owasp_id": "A10",
+      "category": "Server-Side Request Forgery",
+      "location": "src/services/import_service.py",
+      "method": "fetch_content",
+      "description": "Course content import fetches user-supplied URLs without hostname or private-network validation.",
+      "severity": "high",
+      "cwe": "CWE-918"
     }
   ],
   "chained_attacks": [
     {
       "chain_id": "chain-01",
-      "chain_name": "Config Leak \u2192 Session Forgery \u2192 Pickle RCE \u2192 Data Exfiltration",
-      "attack_scenario": "Attacker calls the unauthenticated /api/debug/config endpoint to read the Flask secret_key. Using this key, they forge a session cookie with admin/instructor role. With the forged admin session, they upload a malicious pickle payload via /api/courses/import to execute arbitrary code on the server and dump the entire database.",
+      "chain_name": "Config Leak -> Session Forgery -> Quiz Submission Exfiltration",
+      "attack_scenario": "An attacker reads the unauthenticated debug configuration response to recover the Flask signing secret, forges an instructor or admin session accepted by the session trust helper, and then uses the quiz submission IDOR to read other students' submissions.",
       "impact": "db_exfiltration",
       "components": [
         {
           "step": 1,
           "owasp_id": "A05",
-          "description": "GET /api/debug/config returns the Flask secret_key and full server environment without authentication, enabling session cookie forgery.",
-          "location": "app.py",
-          "method": "debug_config",
+          "description": "Debug endpoint exposes secrets and environment values without authentication.",
+          "location": "src/services/debug_service.py",
+          "method": "collect",
           "severity": "low",
-          "cwe": "CWE-215",
-          "required_evidence": [
-            "app.py",
-            "debug_config"
-          ],
-          "negative_evidence": []
+          "cwe": "CWE-200"
         },
         {
           "step": 2,
-          "owasp_id": "A08",
-          "description": "POST /api/courses/import deserializes user-supplied pickle data with pickle.loads(), allowing arbitrary code execution once an admin session is forged.",
-          "location": "app.py",
-          "method": "import_course",
+          "owasp_id": "A02",
+          "description": "Session trust logic accepts forged role values once the signing secret is known.",
+          "location": "src/services/auth_service.py",
+          "method": "current_user",
           "severity": "medium",
-          "cwe": "CWE-502",
-          "required_evidence": [
-            "app.py",
-            "import_course"
-          ],
-          "negative_evidence": []
-        }
-      ],
-      "difficulty": "medium",
-      "subtlety_tags": [
-        "cross_file",
-        "direct_data_flow",
-        "realistic_decoy"
-      ],
-      "chain_prerequisites": [
-        "attacker can reach the public request path",
-        "attacker can control one request parameter or body field"
-      ],
-      "negative_evidence": [
-        "reference_guards.py",
-        "same_owner",
-        "allowed_callback"
-      ],
-      "vulnerability_family": "auth_session",
-      "required_evidence": [
-        "app.py",
-        "debug_config",
-        "import_course"
-      ]
-    },
-    {
-      "chain_id": "chain-02",
-      "chain_name": "Subtle Deserialization Pivot To Idor",
-      "attack_scenario": "Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.",
-      "impact": "db_exfiltration",
-      "difficulty": "hard",
-      "subtlety_tags": [
-        "cross_file",
-        "stateful_flow",
-        "implicit_trust",
-        "realistic_decoy",
-        "secondary_chain"
-      ],
-      "required_evidence": [
-        "app.py",
-        "import_course",
-        "debug_config",
-        "get_submission"
-      ],
-      "chain_prerequisites": [
-        "attacker has or can create a low privilege account",
-        "attacker can combine request input with stored application state"
-      ],
-      "negative_evidence": [
-        "reference_guards.py",
-        "same_owner",
-        "allowed_callback"
-      ],
-      "vulnerability_family": "idor",
-      "components": [
-        {
-          "step": 1,
-          "owasp_id": "A08",
-          "description": "Course import endpoint deserializes untrusted base64-encoded pickle data from user input using pickle.loads(), allowing arbitrary remote code execution.",
-          "location": "app.py",
-          "method": "import_course",
-          "severity": "critical",
-          "cwe": "CWE-502",
-          "required_evidence": [
-            "app.py",
-            "import_course"
-          ],
-          "negative_evidence": []
-        },
-        {
-          "step": 2,
-          "owasp_id": "A05",
-          "description": "Unauthenticated debug endpoint at /api/debug/config exposes the Flask secret_key, database path, full environment variables, and server working directory to any caller.",
-          "location": "app.py",
-          "method": "debug_config",
-          "severity": "medium",
-          "cwe": "CWE-215",
-          "required_evidence": [
-            "app.py",
-            "debug_config"
-          ],
-          "negative_evidence": []
+          "cwe": "CWE-347"
         },
         {
           "step": 3,
           "owasp_id": "A01",
-          "description": "Quiz submission retrieval endpoint returns any submission by ID without verifying the requesting user is the submission owner, allowing any authenticated student to view other students' answers and scores.",
-          "location": "app.py",
+          "description": "Submission lookup returns records by ID without student ownership checks.",
+          "location": "src/services/submission_service.py",
           "method": "get_submission",
-          "severity": "high",
-          "cwe": "CWE-639",
-          "required_evidence": [
-            "app.py",
-            "get_submission"
-          ],
-          "negative_evidence": []
+          "severity": "medium",
+          "cwe": "CWE-639"
+        }
+      ]
+    },
+    {
+      "chain_id": "chain-02",
+      "chain_name": "Enrollment Role Escalation -> Missing Audit -> Undetected Grade Tampering",
+      "attack_scenario": "An attacker enrolls with a client-supplied INSTRUCTOR role (A04), gaining access to the grade override endpoint. The override writes score changes without audit log entries (A09), hiding the tampering.",
+      "impact": "data_modification",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A04",
+          "description": "Enrollment trusts client-supplied role, enabling privilege escalation to instructor access.",
+          "location": "src/controllers/enrollment_controller.py",
+          "method": "enroll",
+          "severity": "low",
+          "cwe": "CWE-602"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A09",
+          "description": "Grade override writes scores without course-ownership check and without audit log entries.",
+          "location": "src/workers/grading_listener.py",
+          "method": "process_submission",
+          "severity": "low",
+          "cwe": "CWE-778"
+        }
+      ]
+    },
+    {
+      "chain_id": "chain-03",
+      "chain_name": "Debug Config Leak -> SSRF Internal Pivot",
+      "attack_scenario": "An attacker reads the debug config to obtain internal service hostnames and the /admin/internal/metrics path, then uses the SSRF in course import to fetch internal-only metrics data.",
+      "impact": "lateral_movement",
+      "components": [
+        {
+          "step": 1,
+          "owasp_id": "A05",
+          "description": "Debug endpoint leaks internal service hostnames and internal endpoint paths, enabling SSRF targeting.",
+          "location": "src/services/debug_service.py",
+          "method": "collect",
+          "severity": "low",
+          "cwe": "CWE-200"
+        },
+        {
+          "step": 2,
+          "owasp_id": "A10",
+          "description": "SSRF in fetch_content() enables internal network pivot to /admin/internal/metrics using leaked debug topology.",
+          "location": "src/services/import_service.py",
+          "method": "fetch_content",
+          "severity": "medium",
+          "cwe": "CWE-918"
         }
       ]
     }
   ],
   "decoys": [
     {
-      "location": "app.py",
-      "description": "Safe parameterized SQL query for user login authentication \u2014 secure SQL decoy"
+      "location": "src/repositories/user_repository.py",
+      "description": "Login uses parameterized SQL despite nearby intentionally vulnerable flows."
     },
     {
-      "location": "app.py",
-      "description": "Proper INSTRUCTOR/ADMIN role check on course creation endpoint \u2014 secure access control decoy"
+      "location": "src/controllers/course_controller.py",
+      "description": "Course creation requires INSTRUCTOR or ADMIN role before writing records."
     },
     {
-      "location": "app.py",
-      "description": "Enrollment listing correctly scoped to current user's session \u2014 secure data-scoping decoy"
+      "location": "src/repositories/enrollment_repository.py",
+      "description": "Enrollment listing scopes rows to the current session's user ID."
+    },
+    {
+      "location": "src/controllers/enrollment_controller.py",
+      "description": "list_enrollments() scopes by session user_id and ignores client-supplied role."
+    },
+    {
+      "location": "src/services/import_service.py",
+      "description": "fetch_metadata() validates hostname against an allowlist before fetching."
+    },
+    {
+      "location": "src/controllers/auth_controller.py",
+      "description": "login() sets session cookie with httpOnly=True, secure=True, samesite='Lax'."
+    },
+    {
+      "location": "src/workers/grading_listener.py",
+      "description": "audit_enrollment_change() writes proper audit_log entries for enrollment changes only."
     }
-  ],
-  "benchmark_profile": {
-    "version": "v0.9",
-    "target_difficulty": "medium",
-    "upgrade_style": "in-place mixed difficulty ladder",
-    "decoy_file": "reference_guards.py"
-  }
+  ]
 }

@@ -28,6 +28,9 @@
                         <a th:href="@{/leave}">Leave Requests</a>
                     </li>
                     <li class="nav-item">
+                        <a th:href="@{/onboarding}">Onboarding</a>
+                    </li>
+                    <li class="nav-item">
                         <a th:href="@{/org-chart}">Org Chart</a>
                     </li>
                 </ul>
@@ -71,6 +74,14 @@
                     <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
                         <a th:href="@{/employees}" class="btn btn-secondary" style="justify-content: flex-start; padding: 8px 12px;">Browse Directory</a>
                         <a th:href="@{/leave}" class="btn btn-secondary" style="justify-content: flex-start; padding: 8px 12px;">Request Leave</a>
+                        <a th:href="@{/onboarding}" class="btn btn-secondary" style="justify-content: flex-start; padding: 8px 12px;" sec:authorize="hasRole('ROLE_HR_ADMIN')">Onboarding Pipeline</a>
+                    </div>
+                </div>
+
+                <div class="card glass" sec:authorize="hasRole('ROLE_HR_ADMIN')">
+                    <h3>Onboarding Status</h3>
+                    <div id="onboardingWidget" style="margin-top: 8px; font-size: 14px;">
+                        <p>Loading...</p>
                     </div>
                 </div>
             </div>
@@ -86,3 +97,18 @@
     </div>
 </body>
 </html>
+
+<script>
+async function loadOnboardingWidget() {
+    const res = await fetch('/api/onboarding');
+    if (!res.ok) return;
+    const data = await res.json();
+    const counts = {DRAFT: 0, VERIFIED: 0, BACKGROUND_CHECKED: 0, ACTIVE: 0, REJECTED: 0};
+    data.forEach(r => { if (counts[r.currentState] !== undefined) counts[r.currentState]++; });
+    const widget = document.getElementById('onboardingWidget');
+    widget.innerHTML = Object.entries(counts).map(([state, count]) =>
+        '<p style="margin: 4px 0;"><strong>' + state.replace(/_/g, ' ') + ':</strong> ' + count + '</p>'
+    ).join('') + '<a th:href="@{/onboarding}" style="display: inline-block; margin-top: 8px; font-size: 13px;">Manage Pipeline</a>';
+}
+document.addEventListener('DOMContentLoaded', loadOnboardingWidget);
+</script>

@@ -1,84 +1,111 @@
-# Audit Report: app-27 — Hotel Reservation System
+# Security Report: app-27 — Hotel Reservation System
 
-**Language:** Java (Spring Boot)  
-**Business Domain:** Hospitality / Travel  
-**Date:** 2026-05-24
+**Language:** Java (Spring-boot)
+**Directory:** `apps/java/app-27-hotel-reservation`
+
+---
+
+## Application Information
+- **App ID:** app-27
+- **Name:** Hotel Reservation System
+- **Language:** Java
+- **Framework:** Spring-boot
+
+## Vulnerability Summary
+
+The following vulnerability list represents the ground truth security issues identified for this application:
+
+| ID | OWASP | Category | Severity | Location | CWE |
+|---|---|---|---|---|---|
+| V1 | A03 | Injection | High | src/main/java/com/hotel/reservation/controller/RoomController.java | CWE-89 |
+| V2 | A05 | Security Misconfiguration | Medium | src/main/java/com/hotel/reservation/controller/AdminController.java | CWE-215 |
+| V3 | A07 | Identification and Authentication Failures | Medium | src/main/java/com/hotel/reservation/config/SecurityConfig.java | CWE-384 |
 
 ---
 
 ## Standalone Vulnerabilities
 
-### VULN-01: A03 — Injection (JPQL Injection)
+### VULN-01: A03 — Injection
 
-**Severity:** High  
-**Location:** `RoomController.java:20-29` — `searchRooms()`  
-**Lines:**
-```java
-// VULNERABILITY A03: JPQL query constructed via string concatenation with user-supplied parameters
-```
+- **Severity:** High
+- **Location:** `src/main/java/com/hotel/reservation/controller/RoomController.java`:20-29 (method: `searchRooms`)
+- **CWE:** [CWE-89](https://cwe.mitre.org/data/definitions/89.html)
 
-**Difficulty: EASY**
+#### Description
+JPQL query constructed using string concatenation with user-supplied parameters allows SQL/JPQL injection
 
-- Comment explicitly marks it as `VULNERABILITY A03`
-- String concatenation builds JPQL query
-- Injection attacks on user-supplied parameters
+### VULN-02: A05 — Security Misconfiguration
 
-### VULN-02: A05 — Security Misconfiguration (Exposed Debug Endpoint)
+- **Severity:** Medium
+- **Location:** `src/main/java/com/hotel/reservation/controller/AdminController.java`:14-25 (method: `getSystemInfo`)
+- **CWE:** [CWE-215](https://cwe.mitre.org/data/definitions/215.html)
 
-**Severity:** Medium  
-**Location:** `AdminController.java:14-25` — `getSystemInfo()`  
-**Lines:**
-```java
-// VULNERABILITY A05: Exposed admin debug endpoint without authentication leaks system variables
-```
+#### Description
+Exposed admin debug endpoint without authentication leaks system variables and default admin credentials
 
-**Difficulty: EASY**
+### VULN-03: A07 — Identification and Authentication Failures
 
-- Comment explicitly marks it as `VULNERABILITY A05`
-- Unauthenticated debug endpoint
-- Leaks system variables and default credentials
+- **Severity:** Medium
+- **Location:** `src/main/java/com/hotel/reservation/config/SecurityConfig.java`:31-35 (method: `filterChain`)
+- **CWE:** [CWE-384](https://cwe.mitre.org/data/definitions/384.html)
 
-### VULN-03: A07 — Authentication Failures (Session Fixation)
+#### Description
+Session fixation protection is disabled via sessionFixation().none(), meaning session IDs are not rotated upon login
 
-**Severity:** Medium  
-**Location:** `SecurityConfig.java:31-35` — `filterChain()`  
-**Lines:**
-```java
-// VULNERABILITY A07: Session fixation protection disabled via sessionFixation().none()
-```
-
-**Difficulty: MEDIUM**
-
-- Comment explicitly marks it as `VULNERABILITY A07`
-- `sessionFixation().none()` prevents session rotation
-- Allows session fixation attacks after account takeover
 
 ---
 
-## Chained Attack: chain-01
+## Chained Attack Scenarios
 
-**Chain Name:** Debug Info Leak → Session Fixation → Account Takeover  
-**Combined Impact:** Account Takeover  
-**Overall Chain Difficulty: MEDIUM**
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-### Link 1: Debug Info Leak (A05 — Medium)
+### CHAIN-01: Debug Info Leak → Session Fixation → Account Takeover
 
-**Difficulty: EASY**
+- **Combined Impact:** `account_takeover`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy`
 
-- Unauthenticated debug endpoint exposes default admin credentials
-- Environment info leak
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-### Link 2: Session Fixation (A07 — Medium)
+#### Attack Narrative
+Attacker targets the unauthenticated debug endpoint to discover default credentials and environment details, sets up session fixation targeting the admin session, and successfully takes over the admin account once the admin logs in.
 
-**Difficulty: MEDIUM**
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Unauthenticated debug configuration endpoint exposes system info and credentials. | Medium | A05 | CWE-215 | src/main/java/com/hotel/reservation/controller/AdminController.java | `getSystemInfo` |
+| 2 | Security config session management lacks session rotation, allowing session fixation. | Medium | A07 | CWE-384 | src/main/java/com/hotel/reservation/config/SecurityConfig.java | `filterChain` |
 
-- No session rotation on login
-- Attacker can fix session before admin logs in
+### CHAIN-02: Subtle Auth Session Pivot To Injection
+
+- **Combined Impact:** `account_takeover`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy` `secondary_chain`
+
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
+
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
+
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Session fixation protection is disabled via sessionFixation().none(), meaning session IDs are not rotated upon login | Medium | A07 | CWE-384 | src/main/java/com/hotel/reservation/config/SecurityConfig.java | `filterChain` |
+| 2 | Exposed admin debug endpoint without authentication leaks system variables and default admin credentials | Medium | A05 | CWE-215 | src/main/java/com/hotel/reservation/controller/AdminController.java | `getSystemInfo` |
+| 3 | JPQL query constructed using string concatenation with user-supplied parameters allows SQL/JPQL injection | High | A03 | CWE-89 | src/main/java/com/hotel/reservation/controller/RoomController.java | `searchRooms` |
+
 
 ---
 
-## Summary
+## Decoys (False-Positive Candidates)
 
-App-27 is a Spring Boot hotel reservation system with JPQL injection, unauthenticated debug endpoint exposing credentials, and disabled session fixation. Chain: leak credentials → session fixation → admin account takeover.
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
 
-**Overall Difficulty Score:** 2/5 (Easy-Medium)
+| Location | Description |
+|---|---|
+| src/main/java/com/hotel/reservation/repository/ReservationRepository.java | JPA queries on Reservation are parameterised and safe from injection |
+| src/main/java/com/hotel/reservation/controller/GuestController.java | getGuestDetails validates that GUEST users can only retrieve their own record |

@@ -1,91 +1,112 @@
-# Audit Report: app-28 — Manufacturing Quality Control
+# Security Report: app-28 — Manufacturing Quality Control
 
-**Language:** Java (Spring Boot)  
-**Business Domain:** Manufacturing / Quality Control  
-**Date:** 2026-05-24
+**Language:** Java (Spring-boot)
+**Directory:** `apps/java/app-28-mfg-quality`
+
+---
+
+## Application Information
+- **App ID:** app-28
+- **Name:** Manufacturing Quality Control
+- **Language:** Java
+- **Framework:** Spring-boot
+
+## Vulnerability Summary
+
+The following vulnerability list represents the ground truth security issues identified for this application:
+
+| ID | OWASP | Category | Severity | Location | CWE |
+|---|---|---|---|---|---|
+| V1 | A01 | Broken Access Control | High | src/main/java/com/manufacturing/qc/controller/AuthController.java | CWE-915 |
+| V2 | A04 | Insecure Design | Medium | src/main/java/com/manufacturing/qc/controller/DefectController.java | CWE-841 |
+| V3 | A09 | Security Logging and Monitoring Failures | Low | src/main/java/com/manufacturing/qc/service/InspectionService.java | CWE-778 |
 
 ---
 
 ## Standalone Vulnerabilities
 
-### VULN-01: A01 — Broken Access Control (Mass Assignment)
+### VULN-01: A01 — Broken Access Control
 
-**Severity:** High  
-**Location:** `AuthController.java:32-43` — `updateProfile()`  
-**Lines:**
-```java
-// VULNERABILITY A01: Mass assignment allows workers to escalate privilege to QA_MANAGER
-```
+- **Severity:** High
+- **Location:** `src/main/java/com/manufacturing/qc/controller/AuthController.java`:32-43 (method: `updateProfile`)
+- **CWE:** [CWE-915](https://cwe.mitre.org/data/definitions/915.html)
 
-**Difficulty: EASY**
+#### Description
+Mass assignment vulnerability on user profile update allows workers to escalate privilege to QA_MANAGER
 
-- Comment explicitly marks it as `VULNERABILITY A01`
-- Profile update accepts all fields, including `role`
-- WORKER can escalate to QA_MANAGER
+### VULN-02: A04 — Insecure Design
 
-### VULN-02: A04 — Insecure Design (Missing Approval Check)
+- **Severity:** Medium
+- **Location:** `src/main/java/com/manufacturing/qc/controller/DefectController.java`:17-25 (method: `resolveDefect`)
+- **CWE:** [CWE-841](https://cwe.mitre.org/data/definitions/841.html)
 
-**Severity:** Medium  
-**Location:** `DefectController.java:17-25` — `resolveDefect()`  
-**Lines:**
-```java
-// VULNERABILITY A04: Critical defect resolution lacks manager approval check
-```
+#### Description
+Critical defect resolution workflow lacks formal manager approval check, allowing self-resolution
 
-**Difficulty: EASY**
+### VULN-03: A09 — Security Logging and Monitoring Failures
 
-- Comment explicitly marks it as `VULNERABILITY A04`
-- No manager approval required for defect closure
-- Self-resolution of critical defects
+- **Severity:** Low
+- **Location:** `src/main/java/com/manufacturing/qc/service/InspectionService.java`:21-30 (method: `updateInspectionResult`)
+- **CWE:** [CWE-778](https://cwe.mitre.org/data/definitions/778.html)
 
-### VULN-03: A09 — Logging Failures (No Audit Trail)
+#### Description
+Inspection log modifications lack audit logging, permitting silent changes to QA reports
 
-**Severity:** Low  
-**Location:** `InspectionService.java:21-30` — `updateInspectionResult()`  
-**Lines:**
-```java
-// VULNERABILITY A09: Inspection log modifications lack audit logging
-```
-
-**Difficulty: EASY**
-
-- Comment explicitly marks it as `VULNERABILITY A09`
-- Inspection result updates are not logged
-- Silent manipulation of QA reports
 
 ---
 
-## Chained Attack: chain-01
+## Chained Attack Scenarios
 
-**Chain Name:** Privilege Escalation → Silent Defect Closure → Undetected Quality Fraud  
-**Combined Impact:** Data Modification  
-**Overall Chain Difficulty: MEDIUM**
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-### Link 1: Mass Assignment Escalation (A01 — Medium)
+### CHAIN-01: Privilege Escalation → Silent Defect Closure → Undetected Quality Fraud
 
-**Difficulty: EASY**
+- **Combined Impact:** `data_modification`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy`
 
-- Profile update accepts `role` parameter
-- Escalate from WORKER to QA_MANAGER
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-### Link 2: Self-Approved Defect Closure (A04 — Medium)
+#### Attack Narrative
+Attacker registers as WORKER, updates profile via mass assignment to gain QA_MANAGER role, marks critical defects as resolved, and changes failed inspection records to passed without any audit trails.
 
-**Difficulty: EASY**
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Mass assignment allows escalating privilege from WORKER to QA_MANAGER. | Medium | A01 | CWE-915 | src/main/java/com/manufacturing/qc/controller/AuthController.java | `updateProfile` |
+| 2 | Lack of defect closure approval allows self-resolution of major defects. | Medium | A04 | CWE-841 | src/main/java/com/manufacturing/qc/controller/DefectController.java | `resolveDefect` |
+| 3 | No logging on inspection modifications allows silent data tampering. | Low | A09 | CWE-778 | src/main/java/com/manufacturing/qc/service/InspectionService.java | `updateInspectionResult` |
 
-- No manager approval required
-- Close critical defects without oversight
+### CHAIN-02: Subtle State Confusion Pivot To Idor
 
-### Link 3: Silent Inspection Tampering (A09 — Low)
+- **Combined Impact:** `data_modification`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy` `secondary_chain`
 
-**Difficulty: EASY**
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-- Pass failed inspections with no audit trail
-- Undetectable quality fraud
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
+
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | Inspection log modifications lack audit logging, permitting silent changes to QA reports | Low | A09 | CWE-778 | src/main/java/com/manufacturing/qc/service/InspectionService.java | `updateInspectionResult` |
+| 2 | Critical defect resolution workflow lacks formal manager approval check, allowing self-resolution | Medium | A04 | CWE-841 | src/main/java/com/manufacturing/qc/controller/DefectController.java | `resolveDefect` |
+| 3 | Mass assignment vulnerability on user profile update allows workers to escalate privilege to QA_MANAGER | High | A01 | CWE-915 | src/main/java/com/manufacturing/qc/controller/AuthController.java | `updateProfile` |
+
 
 ---
 
-## Summary
+## Decoys (False-Positive Candidates)
 
-App-28 is a Spring Boot manufacturing QC system with mass assignment privilege escalation, missing defect closure approvals, and silent inspection tampering. Chain: escalate privilege → close defects → mute quality fraud.
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
 
-**Overall Difficulty Score:** 2/5 (Easy-Medium)
+| Location | Description |
+|---|---|
+| src/main/java/com/manufacturing/qc/controller/ProductController.java | getProducts endpoint is properly secured via PreAuthorize QA_MANAGER check |
+| src/main/java/com/manufacturing/qc/config/SecurityConfig.java | Strong password encryption (BCrypt) used for storing user credentials |

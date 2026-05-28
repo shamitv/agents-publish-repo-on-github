@@ -16,7 +16,8 @@ public class PayrollController {
     @Autowired
     private PayrollService payrollService;
 
-    // Retrieve payroll data
+    // CHAIN LINK 1 (chain-01): Any authenticated employee can request another employee payroll profile by ID.
+    // VULNERABILITY A01: Payroll lookup lacks role or ownership checks.
     @GetMapping("/{employeeId}")
     public ResponseEntity<PayrollDTO> getPayroll(@PathVariable Long employeeId) {
         return payrollService.getSalaryByEmployeeId(employeeId)

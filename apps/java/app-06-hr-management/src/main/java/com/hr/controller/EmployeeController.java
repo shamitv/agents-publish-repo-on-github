@@ -32,6 +32,7 @@ public class EmployeeController {
         return ResponseEntity.ok(dtos);
     }
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('HR_ADMIN') or #id == authentication.principal.id")
     public ResponseEntity<EmployeeDTO> getEmployee(@PathVariable Long id) {
         return employeeService.getEmployeeById(id)
                 .map(emp -> ResponseEntity.ok(EmployeeDTO.fromEntity(emp)))
@@ -82,9 +83,8 @@ public class EmployeeController {
         employeeService.deleteEmployee(id);
         return ResponseEntity.noContent().build();
     }
-    // passwordHash field. The missing @PreAuthorize means any authenticated employee can
-    // call this for any employee ID. Individually a minor IDOR, but the exposed hash
-    // enables the offline-crack step that unlocks higher-privilege sessions.
+    // VULNERABILITY A01: Employee audit endpoint returns passwordHash for any employee by ID without authorization.
+    // CHAIN LINK 1 (chain-03): Employee audit endpoint returns passwordHash for any employee by ID without authorization.
     @GetMapping("/{id}/audit")
     public ResponseEntity<?> getEmployeeAudit(@PathVariable Long id) {
         return employeeService.getEmployeeById(id).map(emp -> {

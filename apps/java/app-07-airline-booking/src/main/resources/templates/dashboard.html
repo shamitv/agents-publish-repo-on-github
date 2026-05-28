@@ -14,6 +14,7 @@
             <div class="nav-links">
                 <span style="color: var(--primary); font-weight: 500;" th:text="${'Welcome, ' + currentUser.firstName}">Welcome, User</span>
                 <div style="background: rgba(255,255,255,0.08); padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600;" th:text="${currentUser.role}">PASSENGER</div>
+                <a th:if="${currentUser.role == 'AIRLINE_STAFF'}" href="/staff/boarding" class="btn btn-secondary" style="padding: 8px 16px; font-size: 13px;">Boarding Desk</a>
                 <form th:action="@{/logout}" method="POST" style="margin: 0; padding: 0;">
                     <button type="submit" class="btn btn-secondary" style="padding: 8px 16px; font-size: 13px; cursor: pointer;">Logout</button>
                 </form>
