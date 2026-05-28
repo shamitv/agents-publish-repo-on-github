@@ -5,20 +5,20 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "bookings")
+@Table(name = "seat_holds")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Booking {
+public class SeatHold {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 8)
-    private String pnr;
+    @Column(nullable = false, unique = true, length = 10)
+    private String holdRef;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "passenger_id", nullable = false)
@@ -33,11 +33,13 @@ public class Booking {
     private Seat seat;
 
     @Builder.Default
-    private String status = "CONFIRMED"; // CONFIRMED, CANCELLED, CHECKED_IN
+    private String status = "HELD"; // HELD, CONFIRMED, CANCELLED, EXPIRED
 
     @Builder.Default
-    private LocalDateTime bookedAt = LocalDateTime.now();
+    private LocalDateTime createdAt = LocalDateTime.now();
+
+    private LocalDateTime expiresAt;
 
     @Builder.Default
-    private String paymentStatus = "UNPAID"; // UNPAID, PAID
+    private String paymentState = "PENDING"; // PENDING, VERIFIED
 }

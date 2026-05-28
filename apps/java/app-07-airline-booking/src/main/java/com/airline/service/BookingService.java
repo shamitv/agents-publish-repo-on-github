@@ -50,6 +50,7 @@ public class BookingService {
             throw new RuntimeException("Seat already taken");
         }
 
+        // VULNERABILITY A04: Booking reserves inventory without rate limits, payment timeout, or locking.
         // Reserve seat immediately without checkout timeout or locking mechanisms
         seat.setIsAvailable(false);
         seatRepository.save(seat);

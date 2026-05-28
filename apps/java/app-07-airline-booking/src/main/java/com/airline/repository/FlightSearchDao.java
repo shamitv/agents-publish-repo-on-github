@@ -16,6 +16,7 @@ public class FlightSearchDao {
     private JdbcTemplate jdbcTemplate;
 
     public List<Flight> searchFlights(String origin, String destination, String date) {
+        // VULNERABILITY A03: Flight search SQL is built by concatenating user-supplied parameters.
         String sql = "SELECT * FROM flights WHERE origin = '" + origin
                    + "' AND destination = '" + destination
                    + "' AND CAST(departure_time AS DATE) = '" + date + "'";

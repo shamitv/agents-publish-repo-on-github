@@ -6,6 +6,7 @@ import com.airline.repository.BookingRepository;
 import com.airline.repository.FlightRepository;
 import com.airline.repository.PassengerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
@@ -107,5 +108,19 @@ public class WebController {
 
         model.addAttribute("booking", booking);
         return "boarding-pass";
+    }
+
+    @GetMapping("/staff/boarding")
+    @PreAuthorize("hasRole('AIRLINE_STAFF')")
+    public String staffBoarding(
+            @AuthenticationPrincipal UserDetails userDetails,
+            Model model) {
+        if (userDetails == null) {
+            return "redirect:/";
+        }
+        passengerRepository.findByEmail(userDetails.getUsername()).ifPresent(p -> {
+            model.addAttribute("currentUser", p);
+        });
+        return "staff-boarding";
     }
 }
