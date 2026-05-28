@@ -5,6 +5,9 @@ class DiagnosticsService {
 
   // VULNERABILITY A03 (ES): Raw user-supplied query string concatenated into Elasticsearch query DSL body.
   async searchLogs(rawQuery) {
+    if (!this.esClient) {
+      return { query: rawQuery, hits: [], total: 0, note: 'Elasticsearch unavailable' };
+    }
     const body = {
       query: {
         query_string: {
@@ -25,6 +28,9 @@ class DiagnosticsService {
 
   // DECOY: Uses parameterized match query -- not vulnerable to query DSL injection.
   async searchLogsSafe(deviceName) {
+    if (!this.esClient) {
+      return { query: deviceName, hits: [], total: 0, note: 'Elasticsearch unavailable' };
+    }
     const result = await this.esClient.search({
       index: 'iot-device-logs',
       body: {

@@ -70,13 +70,14 @@ function createApp(opts) {
   app.use('/api/internal', createInternalRoutes(telemetryController));
   app.use('/api/health', createHealthRoutes(new HealthController()));
 
-  if (opts && opts.esClient) {
-    const diagnosticsService = new DiagnosticsService(opts.esClient);
-    const diagnosticsController = new DiagnosticsController(diagnosticsService);
-    app.use('/api/diagnostics', requireAuth, createDiagnosticsRoutes(diagnosticsController));
-  }
+  const diagnosticsService = new DiagnosticsService(opts && opts.esClient);
+  const diagnosticsController = new DiagnosticsController(diagnosticsService);
+  app.use('/api/diagnostics', requireAuth, createDiagnosticsRoutes(diagnosticsController));
 
   app.use(express.static(path.join(__dirname, 'public')));
+  app.get('/dashboard', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+  });
 
   return app;
 }

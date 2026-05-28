@@ -1,9 +1,10 @@
 const { Client } = require('@elastic/elasticsearch');
 
 const searchUrl = process.env.DEVICE_SEARCH_URL || 'http://localhost:9200/iot-devices';
+const nodeUrl = searchUrl.replace(/\/[^/]+$/, '');
 
 const esClient = new Client({
-  node: searchUrl
+  node: nodeUrl
 });
 
 async function ensureIndex() {
