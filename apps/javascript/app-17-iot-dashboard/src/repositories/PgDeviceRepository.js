@@ -7,6 +7,7 @@ class PgDeviceRepository {
   }
 
   async findAll() {
+    // VULNERABILITY A02: Device access tokens are stored as plaintext fields in PostgreSQL.
     const result = await pool.query('SELECT * FROM devices');
     return result.rows;
   }
