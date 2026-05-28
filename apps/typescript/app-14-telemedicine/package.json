@@ -15,7 +15,12 @@
     "cors": "^2.8.5",
     "jsonwebtoken": "^9.0.2",
     "bcryptjs": "^2.4.3",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "pg": "^8.13.0",
+    "ioredis": "^5.4.1",
+    "kafkajs": "^2.2.4",
+    "@elastic/elasticsearch": "^8.14.0",
+    "mongodb": "^6.8.0"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.7",
@@ -25,6 +30,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/sqlite3": "*",
     "@types/node": "^20.14.2",
+    "@types/pg": "^8.11.10",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5"
   }

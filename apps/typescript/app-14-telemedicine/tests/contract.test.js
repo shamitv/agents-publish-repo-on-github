@@ -10,7 +10,6 @@ assert.ok(exists("src/controllers/AppointmentController.ts"));
 assert.ok(exists("src/services/AppointmentService.ts"));
 assert.ok(exists("src/services/TokenService.ts"));
 assert.ok(exists("src/repositories/AppointmentRepository.ts"));
-assert.ok(exists("src/db/InMemoryMedicalDatabase.ts"));
 assert.ok(exists("src/cache/AppointmentCache.ts"));
 assert.ok(exists("src/mq/AuditEventProducer.ts"));
 assert.ok(exists("src/search/PatientSearchClient.ts"));

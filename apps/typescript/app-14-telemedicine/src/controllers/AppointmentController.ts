@@ -8,21 +8,22 @@ export class AppointmentController {
     private readonly authService: AuthService
   ) {}
 
-  list = (req: Request, res: Response) => {
+  list = async (req: Request, res: Response) => {
     const user = this.authService.requireUser(req.cookies?.token);
     if (!user) {
       return res.status(401).json({ message: "Access denied." });
     }
-    return res.json({ appointments: this.appointmentService.listForUser(user) });
+    const appointments = await this.appointmentService.listForUser(user);
+    return res.json({ appointments });
   };
 
-  detail = (req: Request, res: Response) => {
+  detail = async (req: Request, res: Response) => {
     const user = this.authService.requireUser(req.cookies?.token);
     if (!user) {
       return res.status(401).json({ message: "Access denied." });
     }
 
-    const appointment = this.appointmentService.getAppointmentDetail(Number(req.params.id));
+    const appointment = await this.appointmentService.getAppointmentDetail(Number(req.params.id));
     if (!appointment) {
       return res.status(404).json({ message: "Appointment not found." });
     }

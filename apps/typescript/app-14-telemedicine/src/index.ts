@@ -1,8 +1,18 @@
 import { createApp } from "./app";
 import { appConfig } from "./config/appConfig";
+import { initializeDatabase } from "./db/migrate";
 
-const app = createApp();
+async function main() {
+  await initializeDatabase();
 
-app.listen(appConfig.port, () => {
-  console.log(`Telemedicine app listening on ${appConfig.port}`);
+  const app = createApp();
+
+  app.listen(appConfig.port, () => {
+    console.log(`Telemedicine app listening on ${appConfig.port}`);
+  });
+}
+
+main().catch((err) => {
+  console.error("Failed to start:", err);
+  process.exit(1);
 });

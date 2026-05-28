@@ -1,9 +1,10 @@
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
+import { Pool } from "pg";
 import { AppointmentCache } from "./cache/AppointmentCache";
 import { appConfig } from "./config/appConfig";
-import { InMemoryMedicalDatabase } from "./db/InMemoryMedicalDatabase";
+import { getPool } from "./config/db";
 import { AuthController } from "./controllers/AuthController";
 import { AppointmentController } from "./controllers/AppointmentController";
 import { HealthController } from "./controllers/HealthController";
@@ -25,9 +26,9 @@ export function createApp() {
   app.use(express.json());
   app.use(cookieParser());
 
-  const database = new InMemoryMedicalDatabase();
-  const users = new UserRepository(database);
-  const appointments = new AppointmentRepository(database);
+  const pool: Pool = getPool();
+  const users = new UserRepository(pool);
+  const appointments = new AppointmentRepository(pool);
   const cache = new AppointmentCache();
   const auditConsumer = new AuditEventConsumer();
   const auditProducer = new AuditEventProducer(auditConsumer);

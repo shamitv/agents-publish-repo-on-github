@@ -11,12 +11,12 @@ export class AuthService {
     private readonly auditEvents: AuditEventProducer
   ) {}
 
-  register(username: string, password: string) {
+  async register(username: string, password: string) {
     return this.users.savePatient(username, password);
   }
 
-  login(username: string, password: string) {
-    const user = this.users.findByUsername(username);
+  async login(username: string, password: string) {
+    const user = await this.users.findByUsername(username);
     if (!user || !bcrypt.compareSync(password, user.passwordHash)) {
       return undefined;
     }
