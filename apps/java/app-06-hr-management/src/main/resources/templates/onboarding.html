@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Management — Onboarding Pipeline</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="logo">
+                <span>Enterprise HR</span>
+            </div>
+            <nav>
+                <ul class="nav-links">
+                    <li class="nav-item">
+                        <a th:href="@{/dashboard}">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/employees}">Employees</a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/payroll}">Payroll</a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/leave}">Leave Requests</a>
+                    </li>
+                    <li class="nav-item active">
+                        <a th:href="@{/onboarding}">Onboarding</a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/org-chart}">Org Chart</a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="user-profile-badge">
+                <div class="user-avatar" th:text="${#strings.substring(currentUser.firstName,0,1)}">U</div>
+                <div class="user-info">
+                    <span class="user-name" th:text="${currentUser.firstName + ' ' + currentUser.lastName}">User Name</span>
+                    <span class="user-role" th:text="${currentUser.role}">Role</span>
+                </div>
+                <a th:href="@{/logout}" style="margin-left: auto; color: var(--danger); font-size: 13px; text-decoration: none;">Logout</a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <div class="page-title">
+                    <h1>Onboarding Pipeline</h1>
+                    <p>Employee onboarding workflow management</p>
+                </div>
+            </header>
+
+            <div class="glass" style="padding: 24px; margin-bottom: 24px;">
+                <h3>Create Onboarding Request</h3>
+                <form id="onboardingForm" style="display: flex; gap: 16px; margin-top: 12px;" onsubmit="createOnboarding(event)">
+                    <input type="number" id="newEmployeeId" class="form-input" placeholder="Employee ID" required style="max-width: 200px;">
+                    <button type="submit" class="btn">Create Request</button>
+                </form>
+            </div>
+
+            <div class="table-container glass" style="padding: 24px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Employee ID</th>
+                            <th>Current State</th>
+                            <th>Requested By</th>
+                            <th>Created At</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="onboardingTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const currentUserEmail = '[[${currentUser.email}]]';
+
+        async function loadOnboarding() {
+            const res = await fetch('/api/onboarding');
+            const data = await res.json();
+            const tbody = document.getElementById('onboardingTableBody');
+            tbody.innerHTML = data.map(req => `
+                <tr>
+                    <td>${req.id}</td>
+                    <td>${req.employeeId}</td>
+                    <td><span class="badge badge-${req.currentState.toLowerCase()}">${req.currentState}</span></td>
+                    <td>${req.requestedBy}</td>
+                    <td>${new Date(req.createdAt).toLocaleDateString()}</td>
+                    <td>
+                        <select class="form-input state-select" style="width: auto; display: inline-block; padding: 6px;" onchange="transitionState(${req.id}, this.value)">
+                            <option value="">Transition to...</option>
+                            <option value="VERIFIED">Verified</option>
+                            <option value="BACKGROUND_CHECKED">Background Check</option>
+                            <option value="ACTIVE">Active</option>
+                            <option value="REJECTED">Rejected</option>
+                        </select>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function createOnboarding(event) {
+            event.preventDefault();
+            const employeeId = document.getElementById('newEmployeeId').value;
+            await fetch('/api/onboarding', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({employeeId: parseInt(employeeId), requestedBy: currentUserEmail})
+            });
+            document.getElementById('newEmployeeId').value = '';
+            loadOnboarding();
+        }
+
+        async function transitionState(id, targetState) {
+            if (!targetState) return;
+            await fetch('/api/onboarding/' + id + '/transition', {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({targetState: targetState})
+            });
+            loadOnboarding();
+        }
+
+        document.addEventListener('DOMContentLoaded', loadOnboarding);
+    </script>
+</body>
+</html>
