@@ -26,3 +26,4 @@ exports/
 *.pickle
 *.pkl
 
+*.zip
