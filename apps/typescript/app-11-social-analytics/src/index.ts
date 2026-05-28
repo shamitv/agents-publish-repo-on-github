@@ -1,10 +1,11 @@
 import { createApp } from "./app";
 import { appConfig } from "./config/appConfig";
-import { waitForDb } from "./config/db";
+import { waitForDb, runMigrations } from "./config/db";
 import { waitForRedis } from "./config/cache";
 
 async function main() {
   await waitForDb();
+  await runMigrations();
   await waitForRedis();
 
   const app = createApp();

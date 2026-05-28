@@ -1,73 +1,3 @@
-import { Pool } from "pg";
-import { appConfig } from "./appConfig";
-
-let pool: Pool | null = null;
-
-export function getPool(): Pool {
-  if (!pool) {
-    pool = new Pool({ connectionString: appConfig.databaseUrl });
-  }
-  return pool;
-}
-
-export async function waitForDb(): Promise<void> {
-  const p = getPool();
-  for (let i = 0; i < 30; i++) {
-    try {
-      await p.query("SELECT 1");
-      return;
-    } catch {
-      await new Promise((r) => setTimeout(r, 2000));
-    }
-  }
-  throw new Error("Database did not become ready within timeout");
-}
-
-const SCHEMA_SQL = `
-CREATE TABLE IF NOT EXISTS users (
-  id SERIAL PRIMARY KEY,
-  username VARCHAR(255) UNIQUE NOT NULL,
-  password VARCHAR(255) NOT NULL,
-  display_name VARCHAR(255) NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS widgets (
-  id SERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL REFERENCES users(id),
-  title VARCHAR(255) NOT NULL,
-  type VARCHAR(50) NOT NULL,
-  config JSONB DEFAULT '{}',
-  value VARCHAR(255)
-);
-
-CREATE TABLE IF NOT EXISTS dashboards (
-  id SERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL REFERENCES users(id),
-  name VARCHAR(255) NOT NULL,
-  layout JSONB DEFAULT '[]',
-  created_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS share_tokens (
-  id SERIAL PRIMARY KEY,
-  dashboard_id INTEGER NOT NULL REFERENCES dashboards(id),
-  token VARCHAR(255),
-  created_by INTEGER REFERENCES users(id),
-  created_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS analytics_events (
-  id BIGSERIAL,
-  widget_id INTEGER,
-  event_type VARCHAR(50),
-  payload JSONB,
-  created_at TIMESTAMP DEFAULT NOW()
-) PARTITION BY RANGE (created_at);
-
-CREATE TABLE IF NOT EXISTS analytics_events_default PARTITION OF analytics_events DEFAULT;
-`;
-
-const SEED_SQL = `
 INSERT INTO users (username, password, display_name) VALUES
   ('alice', 'alice123', 'Alice Analyst'),
   ('bob', 'bob123', 'Bob Brand'),
@@ -80,7 +10,8 @@ INSERT INTO widgets (user_id, title, type, value) VALUES
   (2, 'Campaign Reach', 'metric', '1.2M'),
   (2, 'Click-through Rate', 'metric', '3.2%'),
   (3, 'Impressions', 'metric', '892K'),
-  (3, 'Conversion Rate', 'metric', '2.1%');
+  (3, 'Conversion Rate', 'metric', '2.1%')
+ON CONFLICT DO NOTHING;
 
 INSERT INTO dashboards (user_id, name, layout) VALUES
   (1, 'Q1 Campaign Report', '[{"widget":1},{"widget":2}]'),
@@ -88,7 +19,8 @@ INSERT INTO dashboards (user_id, name, layout) VALUES
   (2, 'Brand Lift Study', '[{"widget":3},{"widget":4}]'),
   (2, 'Weekly Snapshot', '[{"widget":3}]'),
   (3, 'Competitor Analysis', '[{"widget":5}]'),
-  (3, 'Content Calendar', '[{"widget":5},{"widget":6}]');
+  (3, 'Content Calendar', '[{"widget":5},{"widget":6}]')
+ON CONFLICT DO NOTHING;
 
 INSERT INTO analytics_events (widget_id, event_type, payload, created_at) VALUES
   (1, 'like', '{"count":45}', '2026-01-15 10:00:00'),
@@ -111,14 +43,3 @@ INSERT INTO analytics_events (widget_id, event_type, payload, created_at) VALUES
   (4, 'share', '{"count":22}', '2026-05-20 11:00:00'),
   (5, 'like', '{"count":310}', '2026-06-01 09:00:00'),
   (6, 'impression', '{"count":15000}', '2026-06-05 13:00:00');
-`;
-
-export async function runMigrations(): Promise<void> {
-  const p = getPool();
-  for (const stmt of SCHEMA_SQL.split(";").map((s) => s.trim()).filter(Boolean)) {
-    await p.query(stmt);
-  }
-  for (const stmt of SEED_SQL.split(";").map((s) => s.trim()).filter(Boolean)) {
-    await p.query(stmt);
-  }
-}
