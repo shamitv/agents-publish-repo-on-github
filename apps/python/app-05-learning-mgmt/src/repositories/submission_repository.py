@@ -1,32 +1,60 @@
-from src.config.db_sql import get_db_connection
+from src.config.db_mongo import get_submission_collection
 
 
 class SubmissionRepository:
     def find_by_id(self, submission_id):
-        cursor = get_db_connection().cursor()
-        cursor.execute(
-            "SELECT s.id, s.answers, s.score, s.submitted_at, q.title as quiz_title, u.username as student_name "
-            "FROM submissions s JOIN quizzes q ON s.quiz_id = q.id "
-            "JOIN users u ON s.student_id = u.id WHERE s.id = ?",
-            (submission_id,),
-        )
-        return cursor.fetchone()
+        col = get_submission_collection()
+        if col is None:
+            return None
+        doc = col.find_one({"submission_id": int(submission_id)})
+        if not doc:
+            return None
+        return {
+            "id": doc["submission_id"],
+            "quiz_title": doc.get("quiz_title", ""),
+            "student_name": doc.get("student_name", ""),
+            "answers": doc.get("answers", ""),
+            "score": doc.get("score"),
+            "submitted_at": str(doc.get("submitted_at", "")),
+        }
 
-    def create(self, quiz_id, student_id, answers):
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO submissions (quiz_id, student_id, answers) VALUES (?, ?, ?)",
-            (quiz_id, student_id, answers),
-        )
-        conn.commit()
-        return cursor.lastrowid
+    def create(self, quiz_id, student_id, answers_name=""):
+        col = get_submission_collection()
+        if col is None:
+            return None
+        max_doc = col.find_one(sort=[("submission_id", -1)])
+        next_id = (max_doc["submission_id"] + 1) if max_doc else 1
+        col.insert_one({
+            "submission_id": next_id,
+            "quiz_id": int(quiz_id) if quiz_id else None,
+            "user_id": int(student_id),
+            "answers": answers_name,
+            "score": None,
+            "submitted_at": __import__("datetime").datetime.utcnow(),
+        })
+        return next_id
 
     def list_for_quiz(self, quiz_id):
-        cursor = get_db_connection().cursor()
-        cursor.execute(
-            "SELECT s.id, s.answers, s.score, s.submitted_at, u.username "
-            "FROM submissions s JOIN users u ON s.student_id = u.id WHERE s.quiz_id = ?",
-            (quiz_id,),
+        col = get_submission_collection()
+        if col is None:
+            return []
+        docs = col.find({"quiz_id": int(quiz_id)})
+        return [
+            {
+                "id": d["submission_id"],
+                "username": d.get("student_name", ""),
+                "answers": d.get("answers", ""),
+                "score": d.get("score"),
+                "submitted_at": str(d.get("submitted_at", "")),
+            }
+            for d in docs
+        ]
+
+    def update_score(self, submission_id, score):
+        col = get_submission_collection()
+        if col is None:
+            return
+        col.update_one(
+            {"submission_id": int(submission_id)},
+            {"$set": {"score": score}},
         )
-        return cursor.fetchall()
