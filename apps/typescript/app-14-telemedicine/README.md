@@ -18,6 +18,8 @@ Healthcare and telemedicine appointment management.
 | Authentication | JSON Web Tokens |
 | Containerisation | Docker, Docker Compose |
 
+> For system architecture details, see [docs/architecture.md](docs/architecture.md).
+
 ## Features
 - Patient registration and login with BCrypt password hashing
 - Scoped appointment list for patients and doctors

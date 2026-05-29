@@ -16,6 +16,8 @@ Smart home and IoT device fleet management.
 | WebSocket | ws |
 | Containerisation | Docker, Docker Compose |
 
+> For system architecture details, see [docs/architecture.md](docs/architecture.md).
+
 ## Features
 - User registration and login
 - Execute commands against IoT devices

@@ -18,6 +18,8 @@ Logistics and parking services.
 | UI | EJS templates (admin dashboard) |
 | Containerisation | Docker, Docker Compose |
 
+> For system architecture details, see [docs/architecture.md](docs/architecture.md).
+
 ## Features
 - Customer registration and login (Redis-backed sessions + JWT)
 - Admin parking spot registration with audit event publishing
